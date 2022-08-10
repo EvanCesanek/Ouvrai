@@ -1,0 +1,12 @@
+{
+  "name": "weblab-utils",
+  "version": "1.0.0",
+  "description": "utility function module for weblab package",
+  "main": "weblab-utils.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Evan Cesanek",
+  "license": "GPL-3.0-or-later"
+}
