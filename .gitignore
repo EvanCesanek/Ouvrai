@@ -2,6 +2,9 @@
 experiments/*
 !experiments/compensation_hit
 
+# Mac OSX
+.DS_Store
+
 # Logs
 logs
 *.log
