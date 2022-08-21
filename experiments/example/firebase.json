@@ -1,0 +1,31 @@
+{
+  "hosting": {
+    "site": "cogsci-lab22",
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "index.html",
+        "type": 302
+      }
+    ]
+  },
+  "emulators": {
+    "hosting": {
+      "port": 4000
+    },
+    "auth": {
+      "port": 9099
+    },
+    "database": {
+      "port": 9000
+    },
+    "ui": {
+      "enabled": true
+    }
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}

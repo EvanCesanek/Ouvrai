@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>weblab | welcome</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <meta
+      name="description"
+      content="weblab example experiment using threejs" />
+    <link rel="stylesheet" type="text/css" href="/index.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+  </head>
+  <body id="body">
+    <header></header>
+    <div id="blocker"></div>
+    <div id="panel-container">
+      <div id="instruction-panel" class="panel">
+        Instructions
+        <span class="panel-hint">
+          (spacebar to <span id="instruction-show-hide">hide</span>)
+        </span>
+      </div>
+      <div id="points-panel" class="panel">
+        Worker ID: <span id="points-panel-worker" class="panel-data"></span>
+        <br />
+        Score: <span id="points-panel-points" class="panel-data"></span>
+        &NonBreakingSpace;
+        <span>Bonus:</span>
+        <span id="points-panel-bonus" class="panel-data"></span>
+      </div>
+    </div>
+    <div id="screen"></div>
+    <footer id="footer"></footer>
+    <script type="module" src="index.js"></script>
+  </body>
+</html>

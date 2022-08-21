@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "workers": {
+      ".read": true,
+      "$workerId": {
+        "$expName": {
+          "$uid": {
+            ".write": "$uid === auth.uid"
+          },
+          "submitted": {
+            ".write": "newData.isString() && newData.val().length === 1"
+          }
+        }
+      }
+    },
+
+    "experiments": {
+      "$expName": {
+        "$uid": {
+          "$trialN": {
+            ".write": "$uid === auth.uid && !data.exists()"
+          }
+        }
+      }
+    }
+  }
+}

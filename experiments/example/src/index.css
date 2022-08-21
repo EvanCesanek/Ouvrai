@@ -1,0 +1,176 @@
+html {
+  height: 100%;
+  width: 100%;
+  display: block;
+}
+
+body {
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+body::backdrop {
+  background: rgba(0, 0, 0, 0);
+}
+
+.collapsible {
+  overflow: hidden;
+  transition: height 0.25s ease-out;
+  height: auto;
+}
+
+#panel-container {
+  position: absolute;
+  width: 100%;
+  z-index: 1;
+  top: 0px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-evenly;
+  align-items: flex-start;
+}
+
+.panel {
+  padding: 1%;
+  background-color: rgba(0, 0, 0, 0.67);
+  display: flex;
+  color: whitesmoke;
+  font-size: 18px;
+  text-align: left;
+  display: block;
+}
+
+#instructions-panel {
+  order: 1;
+}
+
+#points-panel {
+  order: 5;
+}
+
+.panel-detail {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4em;
+  padding: 0.2em 0 0 0;
+}
+
+.panel-data {
+  color: skyblue;
+}
+
+.panel-hint {
+  font-size: 10pt;
+  color: skyblue;
+}
+
+#blocker {
+  position: absolute;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  text-align: center;
+  z-index: 100;
+}
+
+#screen {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+}
+
+footer {
+  position: fixed;
+  bottom: 0px;
+  z-index: 2;
+}
+
+.spacer {
+  width: 100%;
+  height: 40px;
+}
+
+.weblab-component-div {
+  color: rgb(255, 255, 255);
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 10px;
+  max-width: 90%;
+  flex-direction: column;
+}
+
+iframe {
+  border-style: none;
+  width: 90%;
+  height: 450px;
+}
+
+.consent-link {
+  font-size: 10pt;
+  margin: 0px;
+  color: cornflowerblue;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  opacity: 1;
+  /* makes up/down arrows always visible */
+}
+
+button {
+  padding: 4px 9px;
+  font-size: 14px;
+  transition-duration: 0.25s;
+}
+
+.survey-q {
+  margin-block: 0.25em;
+}
+.survey-input {
+  margin-bottom: 1em;
+}
+
+#progressbar-container {
+  font-size: 16px;
+  color: rgb(200, 200, 200);
+  border: 3px solid rgb(25, 25, 25);
+  background-color: rgb(50, 50, 50);
+  text-align: center;
+  padding: 4px 0;
+  width: 67%;
+  height: 40px;
+  line-height: 1.1em;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 0);
+  opacity: 0.75;
+}
+
+#progressbar-outer {
+  background-color: rgb(100, 100, 100);
+  width: 80%;
+  height: 12px;
+  display: inline-block;
+  vertical-align: bottom;
+}
+
+#progressbar-inner {
+  background-color: rgb(0, 190, 0);
+  height: 100%;
+  width: 0;
+  display: block;
+}
