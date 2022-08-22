@@ -15,20 +15,19 @@ const parameters = {
 
   // [create-hit]
   title: `Predict the weight of objects (~10 minute game, $1 + performance bonus)`,
-  description: `Play a simple web game where you learn to predict the weights of different objects. \
-                Maximum performance bonus = $1.00.`,
+  description: `Play a simple web game where you learn to predict the weights of different objects. Maximum performance bonus = $1.00.`,
   reward: '1.00',
   keywords: `learning, movement, psychology, experiment, research, study, game`,
   allottedTime: { hours: 3, minutes: 0 },
   expiration: { days: 7, hours: 0 },
   autoApprove: { days: 4, hours: 0 },
-  numAssignments: 9,
+  assignments: 9,
   assignQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
   excludeQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
   restrictToQIDs: [],
   restrictLocation: 'US',
   restrictApprovalRate: 97,
-  batchLabel: 'batch000_' + dateStringMMDDYY(), // increment to post multiple batches
+  batchLabel: 'batch001_' + dateStringMMDDYY(), // increment to post multiple batches
 
   // [create-qual]
   newQualDescription: `Object families with outliers, stabilization by stretching springs`,
