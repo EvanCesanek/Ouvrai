@@ -8,23 +8,40 @@
 //
 // =============================== PARAMETERS ===============================
 
-import { dateStringYMDHMS } from 'weblab-utils';
+import { dateStringMMDDYY } from 'weblab-utils';
 
 const parameters = {
-  // general
   sandbox: true,
 
   // [create-hit]
-  title: 'Compensation HIT',
-  description: `Compensation HIT for an earlier study that you accepted but could not submit due to an error.`,
-  keywords: 'compensation',
-  reward: '0.50',
-  workersToCompensate: ['A96LZMYB4B4ON'], // Determines # of assignments, > 9 will incur extra 20% fee
-  allottedTime: { hours: 1, minutes: 0 },
+  title: `Predict the weight of objects (~10 minute game, $1 + performance bonus)`,
+  description: `Play a simple web game where you learn to predict the weights of different objects. \
+                Maximum performance bonus = $1.00.`,
+  reward: '1.00',
+  keywords: `learning, movement, psychology, experiment, research, study, game`,
+  allottedTime: { hours: 3, minutes: 0 },
   expiration: { days: 7, hours: 0 },
-  autoApprove: { days: 7, hours: 0 },
+  autoApprove: { days: 4, hours: 0 },
+  numAssignments: 9,
   assignQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
-  batchLabel: dateStringYMDHMS().slice(0, 13), // 'YYYYMMDD_HHMM' - so you can only post one a minute
+  excludeQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
+  restrictToQIDs: [],
+  restrictLocation: 'US',
+  restrictApprovalRate: 97,
+  batchLabel: 'batch000_' + dateStringMMDDYY(), // increment to post multiple batches
+
+  // [create-qual]
+  newQualDescription: `Object families with outliers, stabilization by stretching springs`,
+  newQualKeywords: `objects, families, outlier, springs, 3D, VR`,
+
+  // [send-bonus]
+  bonusHITIDs: ['3RHLQY6EEXLDFDXSGWMRXAGST9W4DF'],
+  workersToBonus: ['A96LZMYB4B4ON'],
+  bonusAmounts: ['0.01'],
+  bonusMessage: 'Thank you!',
+
+  // [download-workers]
+  workersToDownload: [],
 
   // do not modify
   endpoint: 'https://mturk-requester.us-east-1.amazonaws.com',
@@ -32,8 +49,6 @@ const parameters = {
   previewURL: 'https://worker.mturk.com/mturk/preview?groupId=',
   sandboxPreviewURL: 'https://workersandbox.mturk.com/mturk/preview?groupId=',
 };
-
-parameters.assignments = parameters.workersToCompensate.length;
 
 // Qualifications disabled by default in sandbox
 parameters.qualificationsDisabled = parameters.sandbox;
