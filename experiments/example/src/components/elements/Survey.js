@@ -1,5 +1,4 @@
 import { DisplayElement } from './DisplayElement';
-//import { required } from './weblab-exp-utils';
 
 /**
  * Class representing a demographic info survey.
