@@ -61,7 +61,6 @@ import { BlockOptions } from './components/BlockOptions.js';
 import { Survey } from './components/elements/Survey.js';
 import { State } from './components/State.js';
 import { Fullscreen } from './components/elements/Fullscreen.js';
-import { Goodbye } from './components/elements/Goodbye.js';
 import { DisplayElement } from './components/elements/DisplayElement.js';
 
 async function main() {
@@ -69,6 +68,8 @@ async function main() {
   const exp = new Experiment({
     name: 'example',
     cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
+
+    prolificLink: '', // Get completion link from Prolific study details (e.g., 'https://app.prolific.co/submissions/complete?cc=ABC123XY')
 
     requireDesktop: true,
     requireChrome: true,
@@ -174,7 +175,6 @@ async function main() {
     workerId: exp.cfg.workerId,
   });
   const survey = new Survey();
-  const goodbye = new Goodbye(exp.cfg.platform); // Remember to updateGoodbye() before the end!
 
   const instructions = new DisplayElement({
     element: `
@@ -724,7 +724,7 @@ async function main() {
           state.next(state.SETUP);
         } else {
           firebase.recordCompletion();
-          goodbye.updateGoodbye(firebase.uid, exp.points.text);
+          exp.goodbye.updateGoodbye(firebase.uid, exp.points.text);
           // remember: threejs canvas doesn't have show() and hide()
           DisplayElement.hide(renderer.domElement);
           DisplayElement.hide(cssRenderer.domElement);
@@ -752,8 +752,8 @@ async function main() {
           // don't do anything until firebase save returns successful
           break;
         }
-        if (goodbye.hidden) {
-          goodbye.show();
+        if (exp.goodbye.hidden) {
+          exp.goodbye.show();
         }
         break;
       }

@@ -1,11 +1,3 @@
-// SPECIAL CONFIG FILE FOR COMPENSATION HITs
-// If a worker(s) emailed you saying they completed your task but couldn't submit:
-//  1. Verify that they have a valid completion code (and any other validity checks you desire)
-//  2. Modify the mturkReward and workersToCompensate properties below
-//  3. Run: wjs create-hit compensation_hit
-//  4. Send the printed previewURL to the worker via email (or tell them to search 'daniel wolpert compensation')
-//  5. Monitor and approve as usual with listSubmissions/listHITs/approve
-//
 // =============================== PARAMETERS ===============================
 
 import { dateStringMMDDYY } from 'weblab-utils';
@@ -22,21 +14,21 @@ const parameters = {
   expiration: { days: 7, hours: 0 },
   autoApprove: { days: 4, hours: 0 },
   assignments: 9,
-  assignQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
-  excludeQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
+  assignQIDs: [],
+  excludeQIDs: [],
   restrictToQIDs: [],
   restrictLocation: 'US',
   restrictApprovalRate: 97,
-  batchLabel: 'batch001_' + dateStringMMDDYY(), // increment to post multiple batches
+  batchLabel: 'batch00_' + dateStringMMDDYY(), // increment to post multiple batches
 
   // [create-qual]
   newQualDescription: `Object families with outliers, stabilization by stretching springs`,
   newQualKeywords: `objects, families, outlier, springs, 3D, VR`,
 
   // [send-bonus]
-  bonusHITIDs: ['3RHLQY6EEXLDFDXSGWMRXAGST9W4DF'],
-  workersToBonus: ['A96LZMYB4B4ON'],
-  bonusAmounts: ['0.01'],
+  bonusHITIDs: [],
+  workersToBonus: [],
+  bonusAmounts: [],
   bonusMessage: 'Thank you!',
 
   // [download-workers]
