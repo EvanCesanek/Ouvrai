@@ -21,7 +21,8 @@
       "port": 9000
     },
     "ui": {
-      "enabled": true
+      "enabled": true,
+      "port": 4001
     }
   },
   "database": {
