@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "YOUR_SITE_HERE",
+    "site": "projname-lab01",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [

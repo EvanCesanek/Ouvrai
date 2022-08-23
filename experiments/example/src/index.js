@@ -13,7 +13,7 @@ import Stats from 'three/examples/jsm/libs/stats.module.js';
 //import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoomEnvironment } from './components/environments/RoomEnvironment.js'; // personal copy
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+//import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
 //import { OculusHandModel } from 'three/examples/jsm/webxr/OculusHandModel.js';
@@ -118,7 +118,7 @@ async function main() {
     },
     {
       targetId: [0, 1, 2, 3, 4],
-      options: new BlockOptions('test', true, 10),
+      options: new BlockOptions('test', true, 2),
     },
   ];
   exp.createTrialSequence(blocks);
@@ -431,7 +431,7 @@ async function main() {
         envLoader = new EXRLoader();
       } else {
         //Option 2b: Provide a .hdr image
-        envLoader = new RGBELoader();
+        //envLoader = new RGBELoader();
       }
       envLoader.load(
         `./components/environments/${exp.cfg.environment}`,
