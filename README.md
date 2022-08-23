@@ -123,10 +123,11 @@ Each experiment is a npm package, with its own package.json, separate from the m
   npm run start # Initialize snowpack, build dependencies, and fire up dev server
   ```
   
-**Warning**: Snowpack will throw an error when it gets to three.js! This is due to a bug in parsing certain glob expressions in the exports section of package.json files. To get around this, you must manually edit this section of the three.js package.json. Add the following lines to the exports section of example/node_modules/three/package.json: 
+**Warning**: Snowpack will throw an error when it gets to three.js! This is due to a bug in parsing certain glob expressions in the exports section of package.json files. To get around this, you must manually edit this section of the three.js package.json. Add the following lines to the `"exports"` field of *`example/node_modules/three/package.json`*: 
 ```
 "exports": {
 ...
+    "./examples/jsm/*": "./examples/jsm/*", # this line should exist already, add the following ones:
     "./examples/jsm/controls/*": "./examples/jsm/controls/*",
     "./examples/jsm/environments/*": "./examples/jsm/environments/*",
     "./examples/jsm/libs/*": "./examples/jsm/libs/*",
@@ -147,8 +148,9 @@ You will notice that the experiment is blocked with a message saying you are not
     ```
 
 #### Build and deploy the example experiment
-  1. If you set up multiple Hosting sites in your Firebase project, you must specify which one to deploy to, otherwise you will deploy to your primary, default Hosting site.
+  1. If you created multiple Hosting sites in your Firebase project, specify which one to deploy to:
     - Open *`firebase.json`* and edit the line `"site": "projname-lab01"` to specify one of your own site names.
+    - If you did not create multiple sites, delete this line to deploy to your default primary Hosting site.
   2. Run:
   ```shell
   npm run build # creates production version of your src code in public folder
