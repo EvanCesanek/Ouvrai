@@ -111,7 +111,7 @@ In **weblab**, each experiment is a stand-alone JavaScript web app located in it
 This is primarily where you would work on an experiment. It contains the code and any other assets for an experiment.
   - `src/index.js` is the main experiment code that you would edit for a new experiment.
   - **Important**: Replace *`src/consent.pdf`* with your own consent form
-  - **Important**: Replace *`src/firebase-config.pdf`* with your own Firebase configuration object (from earlier)
+  - **Important**: Replace *`src/firebase-config.js`* with your own Firebase configuration (copy and paste the file from earlier *`weblab/firebase-config.js`*).
   - *`src/components/`* contains the **weblab** experiment components library. They are used in *`src/index.js`* to manage all of the various processes that are important for a well-functioning experiment. You should not have to worry about these very much.
 
 #### Install an example experiment
@@ -139,7 +139,12 @@ Each experiment is a npm package, with its own package.json, separate from the m
 Now run `npm run start` again. This time, a new tab should open in Chrome (if your default browser is already open, the tab may open there instead). In the snowpack development server (`localhost:8080`), any changes to the code in *`src`* are rapidly reflected on the locally hosted page.
 
 #### Start the Firebase Emulator Suite
-You will notice that the experiment is blocked with a message saying you are not connected to the database. During development, you should use the Firebase Emulator suite by opening a new terminal instance and running `firebase emulators:start`. Go back to the snowpack dev server and you should be connected and good to go! Go ahead and complete the example experiment to see the general flow of the experiment. When you're done, open `localhost:9000` and you can inspect all the data that was written to the (emulated) Realtime Database.
+You will notice that the experiment is blocked with a message saying you are not connected to the database. During development, you should use the Firebase Emulator suite by opening a new terminal instance at the experiment folder, and running `firebase emulators:start`. Go back to the snowpack dev server and you should be connected and good to go! Go ahead and complete the example experiment to see the general flow of the experiment. When you're done, open `localhost:9000` and you can inspect all the data that was written to the (emulated) Realtime Database.
+  - If you encounter `Error: Could not start Database Emulator, port taken.`, try the following to find and kill processes running on port 9000.
+    ```shell
+    lsof -i :9000
+    kill <pid>
+    ```
 
 #### Build and deploy the example experiment
   1. If you set up multiple Hosting sites in your Firebase project, you must specify which one to deploy to, otherwise you will deploy to your primary, default Hosting site.
@@ -149,6 +154,7 @@ You will notice that the experiment is blocked with a message saying you are not
   npm run build # creates production version of your src code in public folder
   weblab deploy example # deploys everything in the public folder to your Firebase Hosting site
   ```
+  3. Now you could modify *`experiments/example/mturk-config.mjs`* as desired, then run `weblab create-hit example [-s]` to post this experiment to MTurk. Try going through the whole process yourself in the Sandbox. You may also want to try experimenting with `weblab create-qual` and `weblab send-bonus`, which require other modifications to *`mturk-config.mjs`*.
 
 ### Final notes
 When you are developing experiments, remember that you can install and use *most* npm packages in your experiment code by running `npm install *xxx*` as needed (from the experiment folder). However, beware that some Node modules do not function as proper ES modules and thus will not work in the browser. Snowpack has some polyfill options to remedy this as much as possible, which you can read about [here](https://www.snowpack.dev/reference/configuration#packageoptionspolyfillnode).
