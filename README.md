@@ -11,12 +11,16 @@ Crowdsourcing : [MTurk](https://www.mturk.com), [Prolific](https://www.prolific.
 Pre-installed on most systems. Check with `git --version`. If you don't have it, download from https://git-scm.com.
 
 ### Node.js
+If you use bash on a Mac, add `source ~/.bashrc` to *`~/.bash_profile`* (or *`~/.profile`* if you use that). You can do this from terminal by running `echo -e '\nsource ~/.bashrc' >> ~/.bash_profile`
+
 Linux/Mac: [nvm](https://github.com/nvm-sh/nvm)
   ```shell
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
   # Restart shell (or run the code provided by the install script)
+  ```
+  ```shell
   nvm install node
-  nvm use node
+  nvm alias default node
   ```
   
 Windows: [nvm-windows](https://github.com/coreybutler/nvm-windows) provides an installer, then `install` and `use` as above.
@@ -90,7 +94,7 @@ Add your Firebase configuration information.
   </summary>
   Create, submit, approve, and delete a Compensation HIT in the <a target="_blank" rel="noopener noreferrer" href="https://requester.mturk.com/developer/sandbox">MTurk Sandbox</a>. Compensation HITs are normally used to pay workers who tried but could not submit a HIT you posted for some reason (e.g., bug or timeout).
   <ol>
-    <li> Sign in to <a target="_blank" rel="noopener noreferrer" href="https://workersandbox.mturk.com/workersandbox.mturk.com">workersandbox.mturk.com</a>. Copy your worker ID by clicking on it in the top-left.  </li> 
+    <li> Sign in to <a target="_blank" rel="noopener noreferrer" href="https://workersandbox.mturk.com">workersandbox.mturk.com</a>. Copy your worker ID by clicking on it in the top-left.  </li> 
     <li> Open <i><code>weblab/experiments/compensation/mturk-config.mjs</code></i> in your preferred editor. In the <code>parameters</code> object, find the <code>workersToCompensate</code> field, which should contain an array of worker IDs. Paste in your worker ID to replace the existing ID and save this file.  </li> 
     <li> Run <code>weblab create-hit compensation -s</code>. The <code>-s</code> option is an abbreviation for <code>--sandbox</code>. Note that in this case it is actually redundant because <code>sandbox: true</code> in <i><code>mturk-config.mjs</code></i>. Remember that if you want to use the real MTurk Requester site, you must set <code>sandbox: false</code> in <i><code>mturk-config.mjs</code></i> and leave off the <code>-s</code> flag.</li> 
     <li> The console output of <code>weblab create-hit ...</code> includes a link that will take you to your created HIT. Follow it, accept the HIT, and click the Submit button.</li> 
