@@ -1,5 +1,6 @@
 // Get your info from Firebase Console
-// Project Settings -> Add a web app (settings don't matter) -> copy code
+// Project Settings -> General -> Scroll to bottom -> select Config -> copy configuration object code
+// Paste code in here, but don't delete the export keyword!
 export const firebaseConfig = {
   apiKey: 'AIzaSyBqyR3tmxScb87ioPP1oSN4uMWpsu3VuKQ',
   authDomain: 'cognitivescience.firebaseapp.com',

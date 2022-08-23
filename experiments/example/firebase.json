@@ -1,13 +1,12 @@
 {
   "hosting": {
-    "site": "cogsci-lab22",
+    "site": "YOUR_SITE_HERE",
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "redirects": [
+    "rewrites": [
       {
-        "source": "/",
-        "destination": "index.html",
-        "type": 302
+        "source": "**",
+        "destination": "/index.html"
       }
     ]
   },

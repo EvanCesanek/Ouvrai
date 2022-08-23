@@ -20,7 +20,7 @@ export class PBRMapper {
     const loader = new TextureLoader();
     const formatUpper = format.toUpperCase();
     const formatLower = format.toLowerCase();
-    const prefix = `./textures/${textureName}-${formatUpper}/${textureName}`;
+    const prefix = `./components/textures/${textureName}-${formatUpper}/${textureName}`;
 
     // PBR Textures
     const textures = {
