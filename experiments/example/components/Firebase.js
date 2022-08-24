@@ -13,7 +13,6 @@ import {
   connectDatabaseEmulator,
   onValue,
 } from 'firebase/database';
-import { DateTime } from './DateTime.js';
 import { firebaseConfig } from '../firebase-config.js';
 import { required } from './utils.js';
 
@@ -155,7 +154,7 @@ export class Firebase {
       var a = document.createElement('a');
       var file = new Blob([subjData], { type: 'text/plain' });
       a.href = URL.createObjectURL(file);
-      a.download = DateTime.formatted() + '.json';
+      a.download = `${this.expName}-${uid}.json`;
       a.click();
     } else {
       console.log(

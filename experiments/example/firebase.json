@@ -1,7 +1,7 @@
 {
   "hosting": {
-    "site": "projname-lab01",
-    "public": "public",
+    "site": "cogsci-lab01",
+    "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {

@@ -1,4 +1,4 @@
-import { required } from '../utils';
+import { required } from './utils';
 import { DisplayElement } from './DisplayElement';
 
 /**
@@ -10,7 +10,7 @@ export class Goodbye extends DisplayElement {
    * Create a goodbye screen element for displaying final bonus and confirmation code.
    * Includes a pre-configured button click listener for copying the code to clipboard.
    * @param {string} platform - 'P' (prolific), 'M' (mturk), or 'X' (neither)
-   * @param {string} [prolificLink] - the prolific submission link from your project
+   * @param {string} [prolificLink] - the prolific completion link from your study details
    */
   constructor(platform = required('platform'), prolificLink) {
     // Prolific link is required if you are using Prolific
@@ -19,7 +19,7 @@ export class Goodbye extends DisplayElement {
     }
     let html = `
     <div id="goodbye-content" class="weblab-component-div">
-      <h4 id="bonus-text" style="margin-block: 0;">Thank you for your help!</h4>
+      <h4 style="margin-block: 0;">Thank you for your help!</h4>
       <div id="mturk-div" class="weblab-component-div">
         <h4 style="margin-block: 0;">
           Return to MTurk and enter the following code to submit this HIT.
@@ -39,11 +39,10 @@ export class Goodbye extends DisplayElement {
       parent: document.getElementById('screen'),
     });
     this.codeText = document.getElementById('code-text');
-    this.bonusText = document.getElementById('bonus-text');
 
-    if (prolificLink) {
+    if (platform === 'P') {
       DisplayElement.hide(document.getElementById('mturk-div'));
-    } else {
+    } else if (platform === 'M') {
       DisplayElement.hide(document.getElementById('prolific-div'));
     }
 
@@ -53,13 +52,11 @@ export class Goodbye extends DisplayElement {
   }
 
   /**
-   * Add a specific bonus amount to the goodbye screen element.
+   * Add the completion code to the goodbye screen
    * @param {string} uid - uid of the participant, which generates the completion code
-   * @param {string} bonusText - formatted text string indicating final bonus amount ('$0.00')
    */
-  updateGoodbye(uid = required('uid'), bonusText = required('bonusText')) {
+  updateGoodbye(uid = required('uid')) {
     this.codeText.textContent = uid;
-    this.bonusText.textContent = `Thank you for your help! You earned a bonus of ${bonusText}.`;
   }
 
   async copyCode() {

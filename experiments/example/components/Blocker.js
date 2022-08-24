@@ -1,4 +1,4 @@
-import { required } from '../utils';
+import { required } from './utils';
 import { DisplayElement } from './DisplayElement';
 import { Fullscreen } from './Fullscreen';
 import { Pointerlock } from './Pointerlock';

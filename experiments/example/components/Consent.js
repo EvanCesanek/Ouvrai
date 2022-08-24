@@ -1,5 +1,5 @@
 import { DisplayElement } from './DisplayElement';
-import { required } from '../utils';
+import { required } from './utils';
 
 /**
  * Class representing a consent form.

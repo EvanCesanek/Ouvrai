@@ -4,7 +4,6 @@ import {
   Mesh,
   MeshStandardMaterial,
   SphereGeometry,
-  TextureLoader,
   TorusGeometry,
   TubeGeometry,
 } from 'three';
@@ -136,11 +135,9 @@ export class MeshFactory {
     return new Mesh(geometry, material);
   }
 
-  static box({ width, height, depth, texturePath = './textures/crate.gif' }) {
-    const texture = new TextureLoader().load(texturePath);
+  static box({ width, height, depth, material }) {
     const geometry = new BoxGeometry(width, height, depth);
-    const material = DEFAULT_MATERIAL();
-    material.map = texture;
+    if (!material) material = DEFAULT_MATERIAL();
     return new Mesh(geometry, material);
   }
 }

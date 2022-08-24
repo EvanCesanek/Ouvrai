@@ -1,13 +1,12 @@
 // SPECIAL CONFIG FILE FOR COMPENSATION HITs
 // If a worker(s) emailed you saying they completed your task but couldn't submit:
 //  1. Verify that they have a valid completion code (and any other validity checks you desire)
-//  2. Modify the mturkReward and workersToCompensate properties below
-//  3. Run: wjs create-hit compensation_hit
-//  4. Send the printed previewURL to the worker via email (or tell them to search 'daniel wolpert compensation')
-//  5. Monitor and approve as usual with listSubmissions/listHITs/approve
+//  2. Modify the reward and workersToCompensate properties below
+//  3. Run: weblab create-hit compensation
+//  4. Send the preview URL from the console output to the worker via email
+//  5. Monitor and approve as usual
 //
 // =============================== PARAMETERS ===============================
-
 import { dateStringYMDHMS } from 'weblab-utils';
 
 const parameters = {
@@ -19,11 +18,11 @@ const parameters = {
   description: `Compensation HIT for an earlier study that you accepted but could not submit due to an error.`,
   keywords: 'compensation',
   reward: '0.50',
-  workersToCompensate: ['A96LZMYB4B4ON'], // Determines # of assignments, > 9 will incur extra 20% fee
+  workersToCompensate: ['A96LZMYB4B4ON'], // Determines # of assignments, > 9 at once will incur extra 20% fee
   allottedTime: { hours: 1, minutes: 0 },
   expiration: { days: 7, hours: 0 },
   autoApprove: { days: 7, hours: 0 },
-  assignQIDs: ['3090SA10WQOIIHNSPIRICY6N5J0CNV'],
+  assignQIDs: [],
   batchLabel: dateStringYMDHMS().slice(0, 13), // 'YYYYMMDD_HHMM' - so you can only post one a minute
 
   // do not modify
