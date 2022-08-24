@@ -727,7 +727,7 @@ async function main() {
           state.next(state.SETUP);
         } else {
           firebase.recordCompletion();
-          exp.exp.goodbye.updateGoodbye(firebase.uid);
+          exp.goodbye.updateGoodbye(firebase.uid);
           // remember: threejs canvas doesn't have show() and hide()
           DisplayElement.hide(renderer.domElement);
           DisplayElement.hide(cssRenderer.domElement);
