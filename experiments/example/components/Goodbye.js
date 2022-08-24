@@ -10,7 +10,7 @@ export class Goodbye extends DisplayElement {
    * Create a goodbye screen element for displaying final bonus and confirmation code.
    * Includes a pre-configured button click listener for copying the code to clipboard.
    * @param {string} platform - 'P' (prolific), 'M' (mturk), or 'X' (neither)
-   * @param {string} [prolificLink] - the prolific submission link from your project
+   * @param {string} [prolificLink] - the prolific completion link from your study details
    */
   constructor(platform = required('platform'), prolificLink) {
     // Prolific link is required if you are using Prolific

@@ -1,8 +1,15 @@
 import { permute, range, shuffle } from 'd3-array';
+<<<<<<< HEAD:experiments/example/src/components/Experiment.js
 import { Blocker } from './Blocker.js';
 import { Consent } from './Consent.js';
 import { Progressbar } from './Progressbar.js';
 import { Goodbye } from './Goodbye.js';
+=======
+import { Blocker } from './elements/Blocker.js';
+import { Consent } from './elements/Consent.js';
+import { Goodbye } from './elements/Goodbye.js';
+import { Progressbar } from './elements/Progressbar.js';
+>>>>>>> f44bf55076047cc75dc6d0a598e3129663b2f06e:experiments/example/components/Experiment.js
 import { Points } from './Points';
 import { required } from './utils.js';
 
@@ -25,7 +32,11 @@ export class Experiment {
     this.getWorkerId();
 
     // Standard components for all experiments:
+<<<<<<< HEAD:experiments/example/src/components/Experiment.js
     this.consent = new Consent({ path: consentPath });
+=======
+    this.consent = new Consent({ path: path });
+>>>>>>> f44bf55076047cc75dc6d0a598e3129663b2f06e:experiments/example/components/Experiment.js
     this.goodbye = new Goodbye(this.cfg.platform, this.cfg.prolificLink);
     this.points = new Points();
     this.points.panelWorker.textContent = this.cfg.workerId; // display workerId on points panel

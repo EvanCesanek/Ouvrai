@@ -71,6 +71,8 @@ async function main() {
     consentPath: consentURL,
     cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
 
+    prolificLink: '', // Get completion link from Prolific study details (e.g., 'https://app.prolific.co/submissions/complete?cc=ABC123XY')
+
     requireDesktop: true,
     requireChrome: true,
     vrAllowed: true,
@@ -725,7 +727,7 @@ async function main() {
           state.next(state.SETUP);
         } else {
           firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(firebase.uid);
+          exp.exp.goodbye.updateGoodbye(firebase.uid);
           // remember: threejs canvas doesn't have show() and hide()
           DisplayElement.hide(renderer.domElement);
           DisplayElement.hide(cssRenderer.domElement);

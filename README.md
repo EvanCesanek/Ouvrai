@@ -3,8 +3,8 @@
 # weblab
 
 > Develop and run behavioral experiments on the web (2D/3D/VR).  
-> Database and hosting : [Firebase](https://firebase.google.com)  
-> Crowdsourcing : [MTurk](https://www.mturk.com), [Prolific](https://www.prolific.co)
+> Database and hosting with [Firebase](https://firebase.google.com)  
+> Crowdsourcing with [MTurk](https://www.mturk.com) and [Prolific](https://www.prolific.co)
 
 # Getting started
 
@@ -136,7 +136,7 @@ weblab get-balance -s # check MTurk Sandbox account balance ($10000.00)
 In **weblab**, an experiment is a stand-alone JavaScript web app using ES modules. Each experiment should therefore be a npm package with its own _`package.json`_ and _`node_modules/`_, separate from the main **weblab** package.located in its own subdirectory under _`weblab/experiments/`_. Two example experiments are provided as templates for development. Note that weblab was developed for research on human sensorimotor control, so the example experiments are designed to support interactivity with the mouse/trackpad or VR devices.
 
 - The example experiments rely heavily on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
-- I recommend using [Snowpack](https://www.snowpack.dev) for developing and building experiments using JavaScript modules. It is included as a dev dependency in the example experiments, and the provided _`snowpack.config.js`_ configuration file is set up to build the source code and assets from _`src/`_ into a production version in _`public/`_ that will be hosted on Firebase.
+- I recommend using [Vite](https://vitejs.dev) for developing and building experiments using JavaScript modules. It is included as a dev dependency in the example experiments, and the provided _`vite.config.js`_ configuration file is set up to build a production version of your experiment in _`public/`_ that will be hosted on Firebase.
 
 #### Familiarize yourself with the _`experiments/.../src`_ folder
 
@@ -153,31 +153,12 @@ In **weblab**, an experiment is a stand-alone JavaScript web app using ES module
 - Run
   ```
   cd experiments/example
-  firebase init database # Important: Enter N when prompted to overwrite database.rules.json
+  firebase init database # Enter N when prompted to overwrite database.rules.json
   npm i
-  npm run start # Initialize snowpack, build dependencies, and start dev server
+  npm run dev # Start development server
   ```
-- **Warning**: Snowpack will throw an error when it gets to three.js! This is due to a bug in parsing certain glob expressions in the exports section of package.json files. To get around this, you must manually edit the `"exports"` field of _`experiments/.../node_modules/three/package.json`_ for every experiment as follows:
-  ```javascript
-  {
-    ...
-    "exports": {
-      ...
-      "./examples/jsm/*": "./examples/jsm/*", // this line should already exist
-      /*** ADD THE FOLLOWING LINES ***/
-      "./examples/jsm/controls/*": "./examples/jsm/controls/*",
-      "./examples/jsm/environments/*": "./examples/jsm/environments/*",
-      "./examples/jsm/libs/*": "./examples/jsm/libs/*",
-      "./examples/jsm/loaders/*": "./examples/jsm/loaders/*",
-      "./examples/jsm/renderers/*": "./examples/jsm/renderers/*",
-      "./examples/jsm/webxr/*": "./examples/jsm/webxr/*",
-      /*******************************/
-      ...
-    ...
-  }
-  ```
-- Now run `npm run start` again. This time, a new tab should open in Chrome. Note that the example experiments are restricted to run only in Chrome for performance reasons.
-- Notice that any changes to _`src/`_ are rapidly reflected in the local host, while reloading only the necessary resources. Of course if you are editing JavaScript code deep in your experiment loop, this requires reloading the whole page.
+- Open the localhost development server (indicated in the console output) in Chrome. Note that the example experiments are restricted to run only in Chrome for performance reasons. If you open them in another browser, you will encounter a message telling you to use Chrome.
+- Any changes to the source code are rapidly reflected in the local host, while reloading only the necessary resources.
 
 #### Firebase Emulator Suite
 
@@ -186,8 +167,8 @@ You will notice that the experiment is blocked with a message saying you are not
 - Open a **new** terminal instance (leave the existing one running), navigate to the experiment folder, and run `firebase emulators:start`.
   - If you encounter `Error: Could not start Database Emulator, port taken`, you may need to shut down other processes on port 9000 with `lsof -nti :9000 | xargs kill -9` or modify the Database Emulator port in _`firebase.json`_.
 - Return to the experiment page and you should see that you are connected (refresh the page if not). Go ahead and complete the example experiment; it is only a few trials.
-- When you're done, open `localhost:9000` in your browser and you can inspect the data that was written to the emulated database.
-- When you're finished, you can shut down the Snowpack dev server and the Firebase Emulator Suite with control+c (Mac), or by closing the terminals.
+- When you're done, open `localhost:4001/database` in your browser and you can inspect the data that was written to the emulated database.
+- When you're finished, you can shut down the Vite dev server and the Firebase Emulator Suite with control+c (Mac), or by closing the terminals.
 
 #### Build and deploy the example experiment
 
@@ -230,8 +211,18 @@ You will notice that the experiment is blocked with a message saying you are not
 
 - Finally, run `weblab create-hit example -s` to post this experiment to the Sandbox. For new experiments, it's always a good idea to go through the whole process in the Sandbox at least once (create, perform, submit, download and analyze data, review, bonus, delete).
   - You may also want to test out qualifications and bonus payments using `weblab create-qual` and `weblab send-bonus`. These subcommands require specific modifications to _`mturk-config.mjs`_.
-    - Note that qualifications are disabled by default in the sandbox. This can be overridden by editing the following line in _`mturk-config.mjs`_: `parameters.qualificationsDisabled = parameters.sandbox;`
+    - Note that qualifications are disabled by default in the sandbox. This can be overridden by commenting out the following line in _`mturk-config.mjs`_: `parameters.qualificationsDisabled = parameters.sandbox;`
 
-### Notes
+#### Posting your study on Prolific
 
-When you are developing experiments, remember that you can install and use _most_ npm packages in your experiment code by running `npm install *xxx*` as needed from the experiment folder. However, beware that some Node modules do not function as proper ES modules and thus will not work in the browser. Snowpack has some polyfill options to remedy this as much as possible, which you can read about [here](https://www.snowpack.dev/reference/configuration#packageoptionspolyfillnode).
+1. Create a new study on Prolific and go to the study details.
+2. In the **How to record Prolific IDs** section, provide the site URL where your finalized experiment is deployed (e.g., https://projname-labXX.web.app). Then select _I'll use URL parameters_ for the next question.
+3. In the **How to confirm participants have completed your study** section, select _I'll redirect them using a URL_. Then paste the provided link into the parameters of the `Experiment` constructor in _`index.js`_:
+
+```javascript
+const exp = new Experiment({
+  ...
+  prolificLink: '', // Get completion link from Prolific study details
+  ...
+});
+```

@@ -7,7 +7,6 @@
 //  5. Monitor and approve as usual
 //
 // =============================== PARAMETERS ===============================
-
 import { dateStringYMDHMS } from 'weblab-utils';
 
 const parameters = {
@@ -19,7 +18,7 @@ const parameters = {
   description: `Compensation HIT for an earlier study that you accepted but could not submit due to an error.`,
   keywords: 'compensation',
   reward: '0.50',
-  workersToCompensate: ['A96LZMYB4B4ON'], // Determines # of assignments, > 9 will incur extra 20% fee
+  workersToCompensate: ['A96LZMYB4B4ON'], // Determines # of assignments, > 9 at once will incur extra 20% fee
   allottedTime: { hours: 1, minutes: 0 },
   expiration: { days: 7, hours: 0 },
   autoApprove: { days: 7, hours: 0 },
