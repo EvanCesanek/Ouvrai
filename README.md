@@ -1,8 +1,6 @@
-![weblab logo](/docs/favicon.png)
-
 # weblab
 
-> Develop and run behavioral experiments on the web (2D/3D/VR).  
+> Develop and run behavioral experiments on the web (2D, 3D, and VR).  
 > Database and hosting with [Firebase](https://firebase.google.com)  
 > Crowdsourcing with [MTurk](https://www.mturk.com) and [Prolific](https://www.prolific.co)
 
@@ -53,19 +51,8 @@ If you use bash on a Mac, open _`~/.bash_profile`_ and add the line `source ~/.b
        - Windows: _`C:\Users\%USERNAME%\.firebase\credentials.json`_
   5. **Configuration**
      - Project Overview → Web (</>) → Choose nickname → click through remaining
-     - Gear icon → Project settings → scroll to bottom → select Config. You should see some code like this:
-       ```javascript
-       const firebaseConfig = {
-         apiKey: 'AIzaSyBqyR3tmxScb87ioPP1oSN4uMWpEXAMPLE',
-         authDomain: 'project-name.firebaseapp.com',
-         databaseURL: 'https://project-name.firebaseio.com',
-         projectId: 'project-name',
-         storageBucket: 'project-name.appspot.com',
-         messagingSenderId: '93624EXAMPLE',
-         appId: '1:936242062119:web:819c6602e1885e6EXAMPLE',
-       };
-       ```
-       - Leave this tab open, you will need to copy-paste this code into a file later.
+     - Gear icon → Project settings → scroll to bottom → select Config.
+       - Leave this tab open, you will need to copy-paste the displayed code into a file later.
 
 ### Firebase CLI
 
@@ -105,7 +92,7 @@ Now you're ready to start building and running experiments with **weblab**!
   weblab install-completion
   ```
   - If you use zsh, add `autoload -Uz compinit && compinit` to _`~/.zshrc`_ to get tab-completions working.
-- Return to the Firebase Console and copy the configuration object from [earlier](#firebase): `const firebaseConfig = {...}`
+- Return to the Firebase Console and copy the `const firebaseConfig = {...}` configuration object mentioned [earlier](#firebase).
 - Open _`weblab/firebase-config.js`_ in your editor, replace the configuration object with your own, and save. **Make sure you keep the `export` keyword!** You should have `export const firebaseConfig = {...}`.
 
 **Simple test**
@@ -138,15 +125,14 @@ In **weblab**, an experiment is a stand-alone JavaScript web app using ES module
 - The example experiments rely heavily on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
 - I recommend using [Vite](https://vitejs.dev) for developing and building experiments using JavaScript modules. It is included as a dev dependency in the example experiments, and the provided _`vite.config.js`_ configuration file is set up to build a production version of your experiment in _`public/`_ that will be hosted on Firebase.
 
-#### Familiarize yourself with the _`experiments/.../src`_ folder
+#### Familiarize yourself with the directory structure of an example experiment
 
-- This folder contains the source code and other assets needed for an experiment.
+- The _`src/`_ folder contains all the source code and other assets needed for an experiment.
   - `src/index.js` is the main experiment code that you would edit for a new experiment.
-  - _`src/components/`_ contains the **weblab** component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. In particular, you should understand how `Experiment`, `BlockOptions`, `State`, and `Firebase` are used in _`src/index.js`_.
-    - Advanced users are welcome to contribute their own components.
+  - _`src/components/`_ contains the **weblab** component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. Important components used in _`src/index.js`_ include `Experiment`, `BlockOptions`, `State`, and `Firebase`.
 - **Important files to replace**
   - Replace _`src/consent.pdf`_ with your own consent form.
-  - Replace _`src/firebase-config.js`_ with your own Firebase configuration (same as _`weblab/firebase-config.js`_ from [earlier](#installation).
+  - Replace _`src/firebase-config.js`_ with your own Firebase configuration details (same as _`weblab/firebase-config.js`_ from [earlier](#installation).
 
 #### Test the example experiment
 
@@ -189,14 +175,10 @@ You will notice that the experiment is blocked with a message saying you are not
   <body>
     <div id="instructions">
       <p>
-        Play a simple web game where you must learn the weights of a set of
-        objects.<br />
-        Not all systems are supported. If it doesn't work, please exit and
-        return the HIT.<br />
-        Do not attempt to do this HIT more than once. Only 1 submission will be
-        allowed.<br />
-        If you encounter a bug, please send us a brief message describing the
-        problem.
+        Play a simple web game where you must move the cursor to hit different targets.<br />
+        Not all systems are supported. If it doesn't work, please exit and return the HIT.<br />
+        Do not attempt to do this HIT more than once. Only 1 submission will be allowed.<br />
+        If you encounter a bug, please send us a brief message describing the problem.
       </p>
 
       To complete this HIT, you must use:
@@ -210,7 +192,7 @@ You will notice that the experiment is blocked with a message saying you are not
   ```
 
 - Finally, run `weblab create-hit example -s` to post this experiment to the Sandbox. For new experiments, it's always a good idea to go through the whole process in the Sandbox at least once (create, perform, submit, download and analyze data, review, bonus, delete).
-  - You may also want to test out qualifications and bonus payments using `weblab create-qual` and `weblab send-bonus`. These subcommands require specific modifications to _`mturk-config.mjs`_.
+  - You may also want to test out qualifications and bonus payments using `weblab create-qual` and `weblab send-bonus`. These subcommands require modifications to _`mturk-config.mjs`_.
     - Note that qualifications are disabled by default in the sandbox. This can be overridden by commenting out the following line in _`mturk-config.mjs`_: `parameters.qualificationsDisabled = parameters.sandbox;`
 
 #### Posting your study on Prolific
