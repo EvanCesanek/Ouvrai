@@ -53,8 +53,6 @@ export class Points {
       this.css2d.object.element.style.color = animateParams.color;
 
       // movement+fade -> score increase
-      console.log(animateParams.startPosn);
-      console.log(animateParams.endPosn);
       new Tween(this.css2d.object)
         .to(
           {

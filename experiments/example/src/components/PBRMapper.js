@@ -1,9 +1,4 @@
-import {
-  Color,
-  MeshStandardMaterial,
-  RepeatWrapping,
-  TextureLoader,
-} from 'three';
+import { Color, RepeatWrapping, TextureLoader } from 'three';
 
 /**
  * A static class for using PBR texture maps from https://ambientcg.com/list?type=Atlas,Decal,Material
@@ -11,40 +6,34 @@ import {
 export class PBRMapper {
   /**
    *
+   * @param {string[]} textureURLs - an array of imported URLs
    * @param {string} textureName - name of AmbientCG texture (e.g. 'Wood049-1K')
-   * @param [MeshStandardMaterial] material -
-   * @param {string} format - 'jpg' or 'png'
    */
-  static async load(textureName, material, format = 'JPG') {
+  static async load(textureURLs, textureName) {
     // instantiate a loader
     const loader = new TextureLoader();
-    const formatUpper = format.toUpperCase();
-    const formatLower = format.toLowerCase();
-    const prefix = `./components/textures/${textureName}-${formatUpper}/${textureName}`;
 
-    // PBR Textures
-    const textures = {
-      map: {
-        url: `${prefix}_Color.${formatLower}`,
-        val: undefined,
-      },
-      displacementMap: {
-        url: `${prefix}_Displacement.${formatLower}`,
-        val: undefined,
-      },
-      normalMap: {
-        url: `${prefix}_NormalGL.${formatLower}`,
-        val: undefined,
-      },
-      roughnessMap: {
-        url: `${prefix}_Roughness.${formatLower}`,
-        val: undefined,
-      },
-      // alphaMap: {
-      //   url: `${prefix}_Opacity.${formatLower}`,
-      //   val: undefined,
-      // },
-    };
+    const textures = {};
+    for (const path of textureURLs) {
+      if (path.includes(textureName)) {
+        let mapName;
+        if (path.includes('Color')) {
+          mapName = 'map';
+        } else if (path.includes('Displacement')) {
+          mapName = 'displacementMap';
+        } else if (path.includes('NormalGL')) {
+          mapName = 'normalMap';
+        } else if (path.includes('Roughness')) {
+          mapName = 'roughnessMap';
+        } else if (path.includes('Opacity')) {
+          mapName = 'alphaMap';
+        }
+        textures[mapName] = {
+          url: path,
+          val: undefined,
+        };
+      }
+    }
 
     // Async/await loading of textures
     for (let [, entry] of Object.entries(textures)) {
@@ -56,14 +45,16 @@ export class PBRMapper {
         console.error(error.message);
       }
     }
-    if (material instanceof MeshStandardMaterial) {
-      this.setPBRMaps(textures, material);
-    }
 
     return textures;
   }
 
-  static setPBRMaps(textures, material) {
+  static setPBRMaps(
+    textures,
+    material,
+    displacementScale = 1,
+    normalScale = 1
+  ) {
     for (let [key, entry] of Object.entries(textures)) {
       material[key] = entry.val;
     }
@@ -73,9 +64,9 @@ export class PBRMapper {
     material.opacity = 1;
     material.roughness = 1;
     material.metalness = 1;
-    material.displacementScale = 0;
+    material.displacementScale = displacementScale;
     material.displacementBias = material.displacementScale / 2;
-    material.needsUpdate = true;
-    material.normalScale.set(1.5, 1.5);
+    material.normalScale.set(normalScale, normalScale);
+    //material.needsUpdate = true;
   }
 }

@@ -28,7 +28,7 @@ export class Fullscreen extends DisplayElement {
     document
       .getElementById('fullscreen-button')
       .addEventListener('click', () => {
-        Fullscreen.requestFullscreen(target);
+        this.requestFullscreen(target);
       });
 
     // Convenient way to listen for different prefixes without repeating ourselves
@@ -41,13 +41,13 @@ export class Fullscreen extends DisplayElement {
     }
   }
 
-  static requestFullscreen(element) {
+  requestFullscreen(element) {
     var requestMethod =
       element.requestFullscreen || element.webkitRequestFullscreen;
     requestMethod.call(element);
   }
 
-  static exitFullscreen() {
+  exitFullscreen() {
     var exitMethod = document.exitFullscreen || document.webkitExitFullscreen;
     exitMethod.call(document);
   }

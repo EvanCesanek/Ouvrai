@@ -1,6 +1,6 @@
 # Experiments (except examples and compensation_hit)
 experiments/*
-!experiments/compensation_hit
+!experiments/compensation
 !experiments/example
 
 # extras folder

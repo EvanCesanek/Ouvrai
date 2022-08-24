@@ -1,17 +1,9 @@
-/*** third-party imports ***
-Important: Snowpack has a bug where it processes the threejs package.json exports incorrectly:
-  [snowpack] Package "three" exists but package.json "exports" does not include entry for "./examples/jsm/libs/stats.module.js".
-For a temporary fix, open ./node_modules/three/package.json and add (e.g.)
-  "./examples/jsm/libs/*": "./examples/jsm/libs/*"
-  to the exports section (replacing 'libs' with relevant subdirectory as needed, see below)
-Watch: https://github.com/FredKSchott/snowpack/issues/3867
-*/
+/*** third-party imports ***/
 import Stats from 'three/examples/jsm/libs/stats.module.js';
 //import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'; //https://lil-gui.georgealways.com/
 //import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 //import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 //import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { RoomEnvironment } from './components/environments/RoomEnvironment.js'; // personal copy
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 //import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
@@ -39,6 +31,17 @@ import { range, shuffle } from 'd3-array'; // https://www.npmjs.com/package/d3-a
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
 
 /*** weblab imports ***/
+import { Experiment } from './components/Experiment.js';
+import { BlockOptions } from './components/BlockOptions.js';
+import { State } from './components/State.js';
+import { Firebase } from './components/Firebase.js';
+import { DisplayElement } from './components/DisplayElement.js';
+import { Survey } from './components/Survey.js';
+import { Timer } from './components/Timer.js';
+import { MeshFactory } from './components/MeshFactory.js';
+import { PBRMapper } from './components/PBRMapper.js';
+import { RoomEnvironment } from './components/RoomEnvironment.js'; // modified version of a three.js module
+import { EXRLoader } from './components/EXRLoader.js'; // three.js does not yet have module, so use this
 import {
   clamp,
   computeMassSpringDamperParameters,
@@ -51,23 +54,21 @@ import {
   onSelectEnd,
   onSelectStart,
 } from './components/utils-xr.js';
-import { EXRLoader } from './components/environments/EXRLoader.js'; // three.js does not yet have an ESM version so use this copy
-import { MeshFactory } from './components/mesh/MeshFactory.js';
-import { PBRMapper } from './components/mesh/PBRMapper.js';
-import { Timer } from './components/Timer.js';
-import { Firebase } from './components/Firebase.js';
-import { Experiment } from './components/Experiment.js';
-import { BlockOptions } from './components/BlockOptions.js';
-import { Survey } from './components/elements/Survey.js';
-import { State } from './components/State.js';
-import { Fullscreen } from './components/elements/Fullscreen.js';
-import { Goodbye } from './components/elements/Goodbye.js';
-import { DisplayElement } from './components/elements/DisplayElement.js';
+
+/*** static asset URL imports ***/
+import consentURL from './consent.pdf';
+import sceneBackgroundURL from './environments/IndoorHDRI003_4K-TONEMAPPED.jpg';
+import environmentLightingURL from './environments/IndoorHDRI003_1K-HDR.exr?url';
+import colorMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Color.jpg';
+import displacementMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Displacement.jpg';
+import normalMapURL from './textures/Wood049_1K-JPG/Wood049_1K_NormalGL.jpg';
+import roughnessMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Roughness.jpg';
 
 async function main() {
   // create new experiment with configuration options
   const exp = new Experiment({
     name: 'example',
+    consentPath: consentURL,
     cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
 
     requireDesktop: true,
@@ -102,8 +103,8 @@ async function main() {
     // noRewardGoalReminderTime: 2, // How long into long time penalty?
     // instructionsClickWaitTime: 1, // How long before next click will be accepted?
 
-    environment: 'IndoorHDRI003_1K-HDR.exr',
-    sceneBackground: 'IndoorHDRI003_4K-TONEMAPPED.jpg',
+    environmentLighting: environmentLightingURL,
+    sceneBackground: sceneBackgroundURL,
     textureName: 'Wood049_1K',
   });
 
@@ -174,7 +175,6 @@ async function main() {
     workerId: exp.cfg.workerId,
   });
   const survey = new Survey();
-  const goodbye = new Goodbye(exp.cfg.platform); // Remember to updateGoodbye() before the end!
 
   const instructions = new DisplayElement({
     element: `
@@ -308,6 +308,19 @@ async function main() {
   objectGroup.position.copy(carousel.position);
   objectGroup.position.y += carouselParams.minorRadius * 2; // for cylinders
 
+  const textureURLs = [
+    colorMapURL,
+    displacementMapURL,
+    normalMapURL,
+    roughnessMapURL,
+  ];
+  let textures;
+  try {
+    textures = await PBRMapper.load(textureURLs, exp.cfg.textureName);
+  } catch (error) {
+    console.error(error.message);
+  }
+
   // Arrange object+spring around the object group
   for (let oi = 0; oi < exp.cfg.numObjects; oi++) {
     // minus pi/2 to rotate the unit circle CW 90 degrees
@@ -329,18 +342,11 @@ async function main() {
     obji.scale.y = exp.cfg.targetHeights[oi];
     obji.scale.z = 0.03;
 
-    // Optionally clone the material to give unique materials
-    //obji.material = object.material.copy();
-    try {
-      await PBRMapper.load(exp.cfg.textureName, obji.material);
-    } catch (error) {
-      console.error(error.message);
-    }
+    PBRMapper.setPBRMaps(textures, obji.material, 0, 1.5);
     obji.material.map.repeat.set(
       1,
       (0.2 * obji.scale.y) / exp.cfg.targetHeights[0]
     );
-    //obji.material.color = new Color(exp.cfg.palette[oi + 3]);
 
     let spring = MeshFactory.spring(springParams);
     spring.material.color = new Color('slategray');
@@ -403,17 +409,14 @@ async function main() {
     const pmremGenerator = new PMREMGenerator(renderer);
 
     // Load a custom background
-    if (exp.cfg.sceneBackground.endsWith('.jpg')) {
-      new TextureLoader().load(
-        `./components/environments/${exp.cfg.sceneBackground}`,
-        (texture) => {
-          exp.background = pmremGenerator.fromEquirectangular(texture).texture;
-          texture.dispose();
-        }
-      );
+    if (sceneBackgroundURL.endsWith('.jpg')) {
+      new TextureLoader().load(sceneBackgroundURL, (texture) => {
+        exp.background = pmremGenerator.fromEquirectangular(texture).texture;
+        texture.dispose();
+      });
     }
 
-    if (exp.cfg.environment.endsWith('.js')) {
+    if (environmentLightingURL.endsWith('.js')) {
       // Option 1: Provide a pre-built Scene object (see RoomEnvironment.js)
       // Note: exported class should always be called RoomEnvironment!
       scene.environment = pmremGenerator.fromScene(
@@ -422,26 +425,22 @@ async function main() {
       ).texture;
       pmremGenerator.dispose();
     } else if (
-      exp.cfg.environment.endsWith('.exr') ||
-      exp.cfg.environment.endsWith('.hdr')
+      environmentLightingURL.endsWith('.exr') ||
+      environmentLightingURL.endsWith('.hdr')
     ) {
       let envLoader;
-      if (exp.cfg.environment.endsWith('.exr')) {
+      if (environmentLightingURL.endsWith('.exr')) {
         //Option 2a: Provide a .exr image
         envLoader = new EXRLoader();
       } else {
         //Option 2b: Provide a .hdr image
         //envLoader = new RGBELoader();
       }
-      envLoader.load(
-        `./components/environments/${exp.cfg.environment}`,
-        (texture) => {
-          scene.environment =
-            pmremGenerator.fromEquirectangular(texture).texture;
-          pmremGenerator.dispose();
-          texture.dispose();
-        }
-      );
+      envLoader.load(environmentLightingURL, (texture) => {
+        scene.environment = pmremGenerator.fromEquirectangular(texture).texture;
+        pmremGenerator.dispose();
+        texture.dispose();
+      });
     }
 
     // 2. Define camera (if not added to scene, used as default by all renderers)
@@ -455,16 +454,18 @@ async function main() {
 
     // 3. Setup VR if enabled
     let controller1, controller2; // hand1, hand2;
-    try {
-      exp.vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
-    } catch (error) {
-      console.error(error.message);
-    }
-    if (exp.vrAllowed && exp.vrSupported) {
-      exp.fullscreenStates = exp.pointerlockStates = [];
-      [controller1, controller2] = initVR(renderer, scene);
-      console.log(controller1);
-      console.log(controller2);
+    if (navigator.xr) {
+      try {
+        exp.vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
+      } catch (error) {
+        console.error(error.message);
+      }
+      if (exp.vrAllowed && exp.vrSupported) {
+        exp.fullscreenStates = exp.pointerlockStates = [];
+        [controller1, controller2] = initVR(renderer, scene);
+        console.log(controller1);
+        console.log(controller2);
+      }
     }
 
     // 4. Manage DOM
@@ -724,11 +725,11 @@ async function main() {
           state.next(state.SETUP);
         } else {
           firebase.recordCompletion();
-          goodbye.updateGoodbye(firebase.uid, exp.points.text);
+          exp.goodbye.updateGoodbye(firebase.uid);
           // remember: threejs canvas doesn't have show() and hide()
           DisplayElement.hide(renderer.domElement);
           DisplayElement.hide(cssRenderer.domElement);
-          Fullscreen.exitFullscreen();
+          exp.fullscreen.exitFullscreen();
           state.next(state.SURVEY);
         }
         break;
@@ -752,8 +753,8 @@ async function main() {
           // don't do anything until firebase save returns successful
           break;
         }
-        if (goodbye.hidden) {
-          goodbye.show();
+        if (exp.goodbye.hidden) {
+          exp.goodbye.show();
         }
         break;
       }
@@ -1029,7 +1030,7 @@ async function main() {
     vrButton.style.marginTop = '10px';
     vrButton.style.order = 2; // center
     vrButton.addEventListener('click', () => {
-      scene.background = exp.vrBackground;
+      scene.background = exp.background;
       exp.vrEnabled = true;
     });
     document.getElementById('panel-container').appendChild(vrButton);
