@@ -55,7 +55,7 @@ export class Survey extends DisplayElement {
             <option value="L">Left</option>
           </select>
 
-          <div class="weblab-component-div">
+          <div>
             <button class="button" id="survey-button" type="submit">
               Continue
             </button>

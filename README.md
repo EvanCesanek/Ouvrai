@@ -120,10 +120,10 @@ weblab get-balance -s # check MTurk Sandbox account balance ($10000.00)
 
 ## 2. Experiments
 
-In **weblab**, an experiment is a stand-alone JavaScript web app using ES modules. Each experiment should therefore be a npm package with its own _`package.json`_ and _`node_modules/`_, separate from the main **weblab** package.located in its own subdirectory under _`weblab/experiments/`_. Two example experiments are provided as templates for development. Note that weblab was developed for research on human sensorimotor control, so the example experiments are designed to support interactivity with the mouse/trackpad or VR devices.
+In **weblab**, an experiment is a stand-alone JavaScript web app using ES modules. Each experiment should therefore be a npm package with its own _`package.json`_ and _`node_modules/`_, separate from the main **weblab** package.located in its own subdirectory under _`weblab/experiments/`_. One example experiment is provided as a template for development (warning, this example is moderately complex; a simpler example is coming soon). Note that weblab was developed for research on human sensorimotor control, so the example experiments are designed to support interactivity with the mouse/trackpad or VR devices.
 
-- The example experiments rely heavily on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
-- I recommend using [Vite](https://vitejs.dev) for developing and building experiments using JavaScript modules. It is included as a dev dependency in the example experiments, and the provided _`vite.config.js`_ configuration file is set up to build a production version of your experiment in _`public/`_ that will be hosted on Firebase.
+- The example experiments rely on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
+- I recommend using [Vite](https://vitejs.dev) for developing and building experiments using JavaScript modules. It is included as a dev dependency in the example experiments, and the provided _`vite.config.js`_ configuration file is set up to build a production version of your experiment in _`dist/`_ that will be hosted on Firebase.
 
 #### Familiarize yourself with the directory structure of an example experiment
 
@@ -163,8 +163,8 @@ You will notice that the experiment is blocked with a message saying you are not
   - If you did not create multiple sites, delete this line to deploy to your default primary Hosting site.
 - Run:
   ```shell
-  npm run build # creates production version of your src code in public folder
-  weblab deploy example # deploys everything in the public folder to your Firebase Hosting site
+  npm run build # creates production version of your src code in dist folder
+  weblab deploy example # deploys everything in the dist folder to your Firebase Hosting site
   ```
 - Typically you will modify the local versions of _`mturk-config.mjs`_ and _`mturk-layout.html`_ for each experiment.
 
@@ -175,10 +175,14 @@ You will notice that the experiment is blocked with a message saying you are not
   <body>
     <div id="instructions">
       <p>
-        Play a simple web game where you must move the cursor to hit different targets.<br />
-        Not all systems are supported. If it doesn't work, please exit and return the HIT.<br />
-        Do not attempt to do this HIT more than once. Only 1 submission will be allowed.<br />
-        If you encounter a bug, please send us a brief message describing the problem.
+        Play a simple web game where you must move the cursor to hit different
+        targets.<br />
+        Not all systems are supported. If it doesn't work, please exit and
+        return the HIT.<br />
+        Do not attempt to do this HIT more than once. Only 1 submission will be
+        allowed.<br />
+        If you encounter a bug, please send us a brief message describing the
+        problem.
       </p>
 
       To complete this HIT, you must use:

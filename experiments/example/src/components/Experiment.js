@@ -4,6 +4,7 @@ import { Consent } from './Consent.js';
 import { Progressbar } from './Progressbar.js';
 import { Goodbye } from './Goodbye.js';
 import { Points } from './Points';
+import { Firebase } from './Firebase';
 import { required } from './utils.js';
 
 export class Experiment {
@@ -25,6 +26,10 @@ export class Experiment {
     this.getWorkerId();
 
     // Standard components for all experiments:
+    this.firebase = new Firebase({
+      expName: this.name,
+      workerId: this.cfg.workerId,
+    });
     this.consent = new Consent({ path: consentPath });
     this.goodbye = new Goodbye(this.cfg.platform, this.cfg.prolificLink);
     this.points = new Points();
@@ -77,10 +82,17 @@ export class Experiment {
     this.cfg.workerId = this.cfg.workerId.padStart(7, '0');
   }
 
-  createTrialSequence(blocks) {
-    let blockNumber = 0; // unique blocks ("phases")
+  /**
+   *
+   * @param {Object[]} blocks - array of block objects, each consisting of N equal-length arrays + BlockOptions options field
+   * @param {boolean} append - if false (default), overwrite any existing trial list. if true, append to the end of the trial list.
+   * @returns
+   */
+  createTrialSequence(blocks, append = false) {
+    if (!append) this.trial = [];
     let cycleNumber = 0; // cycles = block repetitions
-    for (let bk of blocks) {
+    //let lastBlockNumber;
+    for (let [blockNumber, bk] of blocks.entries()) {
       // Get the ordering options and delete them to avoid problems
       const options = bk.options;
       delete bk.options;
@@ -99,13 +111,20 @@ export class Experiment {
 
       // Push trial objects onto this.trials, one by one
       // Respecting repetitions and shuffling options
+      let lastOrder = [];
       for (let ri = 0; ri < options.repetitions; ri++) {
         let order = range(0, numTrials);
         if (options.shuffle) {
-          shuffle(order); // Fisher-Yates shuffle in place
+          shuffle(order);
+          while (
+            !options.repBoundaryRepeats &&
+            order[0] === lastOrder[lastOrder.length - 1]
+          )
+            shuffle(order); // Fisher-Yates shuffle in place
           // TODO: Allow for location and adjacency constraints on shuffled orders
           // e.g., check if order violates constraints and repeat while (!satisfied)
         }
+        lastOrder = order;
         //console.log(bk);
         Object.keys(bk).forEach((key) => {
           bk[key] = permute(bk[key], order);
@@ -125,7 +144,7 @@ export class Experiment {
         }
         cycleNumber++;
       }
-      blockNumber++;
+      //lastBlockNumber = blockNumber;
     }
     this.numTrials = this.trials.length;
     this.progress.update(this.trialNumber, this.numTrials);

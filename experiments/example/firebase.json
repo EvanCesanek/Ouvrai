@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "cogsci-lab01",
+    "site": "cogsci-lab04",
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [

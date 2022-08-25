@@ -1,18 +1,9 @@
 /*** third-party imports ***/
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-//import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js'; //https://lil-gui.georgealways.com/
-//import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-//import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
-//import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js'; // https://lil-gui.georgealways.com/
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
-//import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
-import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
-import { XRControllerModelFactory } from 'three/examples/jsm/webxr/XRControllerModelFactory.js';
-//import { OculusHandModel } from 'three/examples/jsm/webxr/OculusHandModel.js';
 //import { createText } from 'three/examples/jsm/webxr/Text2D.js';
 import {
-  ACESFilmicToneMapping,
-  AmbientLight,
   Clock,
   Color,
   DoubleSide,
@@ -25,29 +16,27 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-import colormap from 'colormap'; // https://github.com/bpostlethwaite/colormap#readme
+//import colormap from 'colormap'; // https://github.com/bpostlethwaite/colormap#readme
 import bowser from 'bowser';
-import { range, shuffle } from 'd3-array'; // https://www.npmjs.com/package/d3-array
+import { range } from 'd3-array'; // https://www.npmjs.com/package/d3-array
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
 
 /*** weblab imports ***/
 import { Experiment } from './components/Experiment.js';
 import { BlockOptions } from './components/BlockOptions.js';
 import { State } from './components/State.js';
-import { Firebase } from './components/Firebase.js';
 import { DisplayElement } from './components/DisplayElement.js';
 import { Survey } from './components/Survey.js';
 import { Timer } from './components/Timer.js';
 import { MeshFactory } from './components/MeshFactory.js';
 import { PBRMapper } from './components/PBRMapper.js';
-import { RoomEnvironment } from './components/RoomEnvironment.js'; // modified version of a three.js module
-import { EXRLoader } from './components/EXRLoader.js'; // three.js does not yet have module, so use this
 import {
   clamp,
   computeMassSpringDamperParameters,
   computeMassSpringDamperPosition,
   truncQuadCost,
   rotationHelper,
+  randomNormal,
 } from './components/utils.js';
 import {
   buildController,
@@ -59,23 +48,32 @@ import {
 import consentURL from './consent.pdf';
 import sceneBackgroundURL from './environments/IndoorHDRI003_4K-TONEMAPPED.jpg';
 import environmentLightingURL from './environments/IndoorHDRI003_1K-HDR.exr?url';
-import colorMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Color.jpg';
-import displacementMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Displacement.jpg';
-import normalMapURL from './textures/Wood049_1K-JPG/Wood049_1K_NormalGL.jpg';
-import roughnessMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Roughness.jpg';
+
+import woodColorMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Color.jpg';
+import woodDisplacementMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Displacement.jpg';
+import woodNormalMapURL from './textures/Wood049_1K-JPG/Wood049_1K_NormalGL.jpg';
+import woodRoughnessMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Roughness.jpg';
+import brassColorMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Color.jpg';
+import brassDisplacementMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Displacement.jpg';
+import brassNormalMapURL from './textures/Metal007_1K-JPG/Metal007_1K_NormalGL.jpg';
+import brassRoughnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Roughness.jpg';
+import brassMetalnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Metalness.jpg';
+import plasticColorMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Color.jpg';
+import plasticDisplacementMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Displacement.jpg';
+import plasticNormalMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_NormalGL.jpg';
+import plasticRoughnessMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Roughness.jpg';
 
 async function main() {
   // create new experiment with configuration options
   const exp = new Experiment({
     name: 'example',
     consentPath: consentURL,
-    cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
-
     prolificLink: '', // Get completion link from Prolific study details (e.g., 'https://app.prolific.co/submissions/complete?cc=ABC123XY')
-
     requireDesktop: true,
     requireChrome: true,
-    vrAllowed: true,
+    vrAllowed: false,
+
+    cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
@@ -84,6 +82,7 @@ async function main() {
     springDamping: 3,
     springStretchSpeed: 0.0005, // i.e. 1 px mousemove = 0.5 mm stretch
     maxStretch: 0.1,
+    targetWidth: 0.035,
 
     // Speeds and durations
     carouselRotationSpeed: (2 * Math.PI) / 2000, // radians/millisecond (tween)
@@ -98,48 +97,15 @@ async function main() {
     // Time cost function rules
     errorForMaxTimePenalty: 0.06, // saturation point of truncated time loss
     maxTimePenalty: 5, // time penalty beyond saturation point of truncated time loss
-    timePenaltyAbsDecay: 0.0005, // wait until decaying to this spring oscillation envelope magnitude
-
-    // demoTrialMinDropWaitTime: 4, // What's the minimum Drop phase time in the demo trial?
-    // instructionsReminderTime: 10, // How long into Pull phase?
-    // noRewardGoalReminderTime: 2, // How long into long time penalty?
-    // instructionsClickWaitTime: 1, // How long before next click will be accepted?
+    //timePenaltyAbsDecay: 0.0005, // wait until decaying to this spring oscillation envelope magnitude
 
     environmentLighting: environmentLightingURL,
     sceneBackground: sceneBackgroundURL,
-    textureName: 'Wood049_1K',
-  });
-
-  // Create trial structure using an array of block objects (in desired order)
-  // A block object consists of N equal-length arrays
-  // The combination of elements at index i are the variable values for one trial
-  // BlockOptions are used to control trial sequencing behavior of Experiment.js
-  let blocks = [
-    {
-      targetId: [0, 1, 3, 4],
-      options: new BlockOptions('train', true, 0),
-    },
-    {
-      targetId: [0, 1, 2, 3, 4],
-      options: new BlockOptions('test', true, 2),
-    },
-  ];
-  exp.createTrialSequence(blocks);
-
-  // Add any additional config info needed later
-  exp.cfg.numObjects = 5;
-  exp.cfg.targetWeights = [0.3, 0.4, 0.8, 0.6, 0.7];
-  exp.cfg.targetHeights = [0.05, 0.06, 0.07, 0.08, 0.09];
-  exp.cfg.palette = colormap({
-    colormap: 'par',
-    nshades: 20,
-    format: 'hex',
-    alpha: 1,
+    textureName: 'plastic',
   });
 
   // Create finite state machine (experiment flow manager)
   exp.cfg.stateNames = [
-    // assigned to experiment so they are saved
     'BROWSER',
     'CONSENT',
     'SIGNIN',
@@ -158,8 +124,7 @@ async function main() {
     'BLOCKED',
   ];
   const state = new State(exp.cfg.stateNames, handleStateChange);
-
-  // In what states must we prompt FS / PL
+  // In which states must we prompt FS / PL?
   exp.fullscreenStates = exp.pointerlockStates = [
     'POINTERLOCK',
     'SETUP',
@@ -171,76 +136,125 @@ async function main() {
     'ADVANCE',
   ].map((s) => state[s]);
 
-  // Create elements
-  const firebase = new Firebase({
-    expName: exp.name,
-    workerId: exp.cfg.workerId,
-  });
-  const survey = new Survey();
-
+  // Create any customizable elements
+  const survey = new Survey(); // here we use the default demographic survey
   const instructions = new DisplayElement({
     element: `
     <div id="instruction-detail" class="panel-detail collapsible">
-      Click and drag upward to stretch the spring.<br />
-      Press the Shift key to release the object.<br />
-      Try to remember how much each object weighs,<br />
-      and stretch the spring so they do not move.<br />
-      When the object stays still, you earn 100 points.<br />
+      Each object weighs a different amount, but they are clamped in place so they cannot move.<br />
+      1. Click and drag upward to stretch the spring, which pulls up on the object.<br />
+      2. Press the Shift key to release the object from the clamp.<br />
+      If you stretch the spring too much, the object moves up; not enough and it drops down.<br />
+      <b>GOAL: For each object, stretch the spring just the right amount, so the object stays still.</b>
     </div>`,
     hide: false,
     display: 'block',
     parent: document.getElementById('instruction-panel'),
   });
 
+  // Add listeners for default weblab events
+  addDefaultEventListeners();
+
   // set debug options
+  let gui = new GUI({
+    width: 150,
+    title: 'Debug',
+    container: document.getElementById('panel-container'),
+  });
+  //gui.close();
+  //gui.add(exp, 'trialNumber').listen().disable();
   if (location.hostname === 'localhost') {
-    //exp.consented = true;
-    //exp.fullscreenStates = [];
-    //const gui = new GUI({ title: 'Information' });
+    exp.consented = true;
+    exp.fullscreenStates = [];
+    exp.pointerlockStates = [];
   } else {
+    //gui.hide();
+    exp.consented = true;
+    exp.fullscreenStates = [];
+    exp.pointerlockStates = [];
     console.log = function () {}; // disable in production
   }
-
   const stats = new Stats(); // performance monitor
   stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
   document.body.appendChild(stats.dom);
 
-  // Add listeners for default weblab events
-  addDefaultEventListeners();
-
-  //
-  const springOscillationTimer = new Timer();
-
-  // on each trial, trial object will be deep-copied from exp.trials[exp.trialNumber]
+  // on each trial, this trial object will be deep-copied from exp.trials[exp.trialNumber]
   let trial = {};
-  // declare here all the values you would like to reset on each trial
+  // declare all values that must be specifically re-initialized on each trial
   const trialInitialize = {
     saveSuccessful: false,
     // render loops
     tFrame: [],
     stateFrame: [],
     stretchFrame: [],
+
     // mousemove events
     dx: [],
     dy: [],
     btn: [],
     t: [],
     state: [],
+
     // vr events
     posn_RH: [],
-    // pointer events (coalesced)
-    dxCo: [],
-    dyCo: [],
-    tCo: [],
-    stateCo: [],
+
+    // coalesced pointer events
+    // dxCo: [],
+    // dyCo: [],
+    // tCo: [],
+    // stateCo: [],
+
     // state change events
     stateChange: [],
     stateChangeTime: [],
   };
+  trial = trialInitialize;
 
-  // Create threejs scene
-  // Assume 1 unit = 1 meter (required for renderer.physicallyCorrectLights, physics, imported meshes, etc)
-  // Remember +y is up, -z is forward
+  // Set up the targets
+  // Baseline condition: Four family objects, linear family, no noise, equal presentation frequencies, permanence
+  exp.cfg.targetIds = [0, 1, 2, 3, 4];
+  exp.cfg.targetWeights = [0.3, 0.4, 0.8, 0.6, 0.7];
+  exp.cfg.targetHeights = [0.05, 0.06, 0.07, 0.08, 0.09];
+  exp.cfg.noisyWeights = false;
+  //exp.cfg.timeLimit = Infinity;
+
+  // Condition-specific settings
+  exp.cfg.condition = 4;
+  // Two family objects
+  if (exp.cfg.condition === 1) exp.cfg.targetIds = [1, 2, 3];
+  // Add noise
+  if (exp.cfg.condition === 2) exp.cfg.noisyWeights = true;
+  gui.add(exp.cfg, 'noisyWeights').disable;
+  // Sigmoidal family (family = two densities)
+  if (exp.cfg.condition === 3)
+    exp.cfg.targetWeights = [0.3, 0.32, 0.8, 0.68, 0.7];
+  // Permanence
+  if (exp.cfg.condition === 4) {
+    exp.cfg.oneByOne = true;
+    exp.cfg.carouselRotationSpeed /= 1.5;
+  }
+  // 4x outlier frequency
+  if (exp.cfg.condition === 5) exp.cfg.targetIds = [0, 1, 2, 2, 2, 2, 3, 4];
+  // Time limit of 1.5 seconds
+  //if (exp.cfg.condition === 5) exp.cfg.timeLimit = 1.5;
+
+  // Create trial structure using an array of block objects (in desired order)
+  let blocks = [
+    // The keys of a block object are the variables, the values must be equal-length arrays
+    // The combination of elements at index i are the variable values for one trial
+    {
+      targetId: [...exp.cfg.targetIds],
+      // BlockOptions control trial sequencing behavior
+      options: new BlockOptions('test', true, 10),
+    },
+  ];
+  exp.createTrialSequence(blocks); // construct the exp.trials object array
+
+  //
+  const springOscillationTimer = new Timer();
+  const idleTimer = new Timer();
+
+  // Create threejs scene (1 unit = 1 meter, RH coordinate space)
   let [
     camera,
     scene,
@@ -249,253 +263,150 @@ async function main() {
     cssRenderer,
     controller1,
     controller2,
-  ] = await initScene();
+  ] = await initScene(environmentLightingURL);
 
-  //controls.enabled = false;
-  //document.body.addEventListener('pointerdown', (e) => console.log(e));
-
-  // Add CSS2D objects
+  // Add CSS2D objects to cssScene
   cssScene.add(exp.points.css2d.object);
+
+  // Prepare texture loader
+  const pbrMapper = new PBRMapper();
+
+  // Compute some scene parameters
+  exp.cfg.numObjects = new Set(exp.cfg.targetIds).size; // Set(array) gives unique elements
+  exp.cfg.targetOrder = range(exp.cfg.numObjects); //shuffle(range(exp.cfg.numObjects));
 
   // Create carousel
   const carouselParams = {
-    // threejs torus parameters
-    majorRadius: 0.15,
+    majorRadius: exp.cfg.oneByOne ? 0.6 : 0.2,
     minorRadius: 0.003,
-    tubularSegments: 48,
+    tubularSegments: 200,
     radialSegments: 12,
-    // experiment parameters
-    spacing: (2 * Math.PI) / exp.cfg.numObjects,
-    targetOrder: shuffle(range(exp.cfg.numObjects)),
   };
   let carousel = MeshFactory.torus(carouselParams);
-  carousel.material.color = new Color('black');
-  carousel.material.side = DoubleSide;
-  // Remember to position things for VR room space
+  // If using VR, remember to set positions in room space (floor origin)
   carousel.position.z = -1.0;
   carousel.position.y = 1.5;
-  // tilt it back
-  carousel.rotation.x = -Math.PI / 2;
-  // rotate CCW so arc starts at origin and wraps around CCW
-  // then rotate CW by half object spacing to center the gap on the origin
-  carousel.rotation.z = -Math.PI / 2 + carouselParams.spacing / 2;
+  // Torus is initially oriented in XY plane, so tilt it back
+  carousel.rotation.x = Math.PI / 2;
+  // Then rotate CCW by half of the gap to center it on the origin
+  exp.cfg.carouselGap =
+    1.5 * 2 * Math.tan(exp.cfg.targetWidth / carouselParams.majorRadius);
+  carousel.rotation.z = exp.cfg.carouselGap / 2;
+  carousel.material.color = new Color('black');
+  carousel.material.side = DoubleSide;
   scene.add(carousel);
 
-  // Create spring
-  // Remember clone() does not clone geometry, which is how we stretch springs...
-  // So we will need to create multiple (or maybe we should only have one spring?)
+  // Create spring template
   const springParams = {
     majorRadius: 0.01,
     minorRadius: 0.01 / 7,
     numCoils: 7,
     tubularSegments: 120,
   };
-  const springs = [];
   const springRing = MeshFactory.torus({
     majorRadius: 0.01,
     minorRadius: 0.01 / 7,
     tubularSegments: 24,
   });
   springRing.rotation.x = -Math.PI / 2;
-
-  // Create target object type
-  // let object = MeshFactory.cylinder({ radialSegments: 64 });
-  // //let object = MeshFactory.sphere({ radialSegments: 64 });
-  // object.material.roughness = 0; //0.6;
-  // object.material.metalness = 0; //0.8;
+  const carouselOuterSegment = MeshFactory.torus({
+    majorRadius: exp.cfg.oneByOne ? 0.6 : 0.2,
+    minorRadius: carouselParams.minorRadius * 1.2,
+    tubularSegments: 40,
+    radialSegments: 12,
+    arc: Math.PI / exp.cfg.numObjects,
+  });
+  carouselOuterSegment.material.color = new Color('gray');
+  carouselOuterSegment.rotation.x = Math.PI / 2;
+  carouselOuterSegment.rotation.z = (0.5 * Math.PI) / exp.cfg.numObjects;
+  carouselOuterSegment.position.y -= carouselParams.minorRadius * 2;
 
   // Create object group, centered at the carousel
-  const objects = [];
   const objectGroup = new Group();
   objectGroup.position.copy(carousel.position);
   objectGroup.position.y += carouselParams.minorRadius * 2; // for cylinders
-
-  const textureURLs = [
-    colorMapURL,
-    displacementMapURL,
-    normalMapURL,
-    roughnessMapURL,
-  ];
-  let textures;
-  try {
-    textures = await PBRMapper.load(textureURLs, exp.cfg.textureName);
-  } catch (error) {
-    console.error(error.message);
-  }
+  scene.add(objectGroup);
 
   // Arrange object+spring around the object group
-  for (let oi = 0; oi < exp.cfg.numObjects; oi++) {
-    // minus pi/2 to rotate the unit circle CW 90 degrees
-    let theta = carouselParams.spacing * carouselParams.targetOrder[oi];
-    let x = carouselParams.majorRadius * Math.cos(theta);
-    let z = carouselParams.majorRadius * Math.sin(theta);
-
-    //let obji = object.clone();
-    // Create target object type
+  const objects = [];
+  const springs = [];
+  for (let [oi, objid] of new Set(exp.cfg.targetIds).entries()) {
+    // Create objects
     let obji = MeshFactory.cylinder({ radialSegments: 64 });
-    obji.name = `object${oi}`;
-    obji.yInit = -exp.cfg.targetHeights[oi] / 2;
-    obji.carouselAngle = theta - Math.PI / 2;
+    objectGroup.add(obji);
+    let cari = carouselOuterSegment.clone();
+    if (!exp.cfg.oneByOne) objectGroup.add(cari);
+    let spring = MeshFactory.spring(springParams);
+    let ringi = springRing.clone();
+    obji.add(ringi);
+    obji.add(spring);
+    // Save references in arrays
+    springs[objid] = spring;
+    objects[objid] = obji;
+
+    // Distribute objects around the carousel (CW from RHS origin)
+    let theta = ((2 * Math.PI) / exp.cfg.numObjects) * exp.cfg.targetOrder[oi]; // oi = count, not id
+    let x = exp.cfg.oneByOne ? 0 : carouselParams.majorRadius * Math.cos(theta);
+    let z = exp.cfg.oneByOne ? 0 : carouselParams.majorRadius * Math.sin(theta);
+    // Store the initial y position (this is wrt objectGroup)
+    obji.yInit = -exp.cfg.targetHeights[objid] / 2;
+    // Store the carousel angle
+    obji.carouselAngle = theta;
     obji.position.x = x;
     obji.position.y = obji.yInit;
     obji.position.z = z;
-    obji.rotation.y = obji.carouselAngle + Math.PI / 2;
-    obji.scale.x = 0.03;
-    obji.scale.y = exp.cfg.targetHeights[oi];
-    obji.scale.z = 0.03;
-
-    PBRMapper.setPBRMaps(textures, obji.material, 0, 1.5);
-    obji.material.map.repeat.set(
-      1,
-      (0.2 * obji.scale.y) / exp.cfg.targetHeights[0]
-    );
-
-    let spring = MeshFactory.spring(springParams);
-    spring.material.color = new Color('slategray');
-    spring.material.roughness = 0.3;
-    spring.material.metalness = 1;
-    let ringi = springRing.clone();
-    ringi.material.copy(spring.material);
-
+    //obji.rotation.y = theta;
+    cari.rotation.z += theta;
+    obji.scale.x = exp.cfg.targetWidth;
+    obji.scale.y = exp.cfg.targetHeights[objid];
+    obji.scale.z = exp.cfg.targetWidth;
     // put the spring on top (in local space, 1 y-unit = full object height)
     ringi.position.y = 0.5;
     spring.position.y = 0.5;
     // springs are manufactured at the correct absolute size, so undo the parent scaling
     ringi.scale.set(1 / obji.scale.x, 1 / obji.scale.z, 1 / obji.scale.y); // z and y swapped due to prior x-rotation
     spring.scale.set(1 / obji.scale.x, 1 / obji.scale.y, 1 / obji.scale.z);
-    obji.add(ringi);
-    obji.add(spring); // child of the object, so we can move objects and not worry about springs
 
-    // So we can rotate all the objects as a group
-    objectGroup.add(obji);
-
-    springs.push(spring);
-    objects.push(obji);
+    spring.material.color = new Color('slategray');
+    spring.material.roughness = 0.3;
+    spring.material.metalness = 1;
+    ringi.material.copy(spring.material);
   }
-  scene.add(objectGroup);
-  // Initialize so first object is already at the front
-  objectGroup.rotation.y = objects[exp.trials[0].targetId].carouselAngle;
 
-  // Position the camera to look at the front object
-  objects[exp.trials[0].targetId].getWorldPosition(camera.position);
-  camera.position.add(new Vector3(0, 0.16, 0.4));
-  let tmp = new Vector3();
-  objects[exp.trials[0].targetId].getWorldPosition(tmp);
+  // Set object material
+  applyNewTexture(); //pbrMapper, objects);
+  gui
+    .add(exp.cfg, 'textureName', ['wood', 'metal', 'plastic'])
+    .onChange(applyNewTexture);
+
+  // Position the camera to look at the home position (i.e. origin: (1,0,0))
+  let offset;
+  if (exp.cfg.oneByOne) {
+    carousel.rotation.z += Math.PI;
+    objectGroup.rotation.y += Math.PI;
+    offset = new Vector3(-carouselParams.majorRadius, 0, 0);
+  } else {
+    offset = new Vector3(carouselParams.majorRadius, 0, 0);
+  }
+  let tmp = new Vector3().copy(carousel.position).add(offset);
+  camera.position.set(...new Vector3(0.4, 0.16, 0).add(tmp));
   camera.lookAt(tmp);
 
-  mainLoopFunc(); // requires calcFunc(), stateFunc(), and displayFunc() to be defined
+  // Start the rAF loop
+  mainLoopFunc(); // calcFunc() -> stateFunc() -> displayFunc()
 
-  // Helper functions
-  async function initScene() {
-    // 0. Define renderer(s)
-    let renderer = new WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    //renderer.physicallyCorrectLights = true;
-    renderer.outputEncoding = sRGBEncoding;
-    renderer.toneMapping = ACESFilmicToneMapping;
-
-    // 1. Create a scene
-    let scene = new Scene();
-    // Default background matches CSS background
-    scene.background = new Color(exp.cfg.cssBackground);
-
-    // Scene Lighting Option 1: Add your own lights
-    const light = new AmbientLight('white', 0.3);
-    scene.add(light);
-    //const directionalLight = new DirectionalLight('white', 1.2);
-    //directionalLight.position.set(-2, 100, 2);
-    //scene.add(directionalLight);
-
-    // Lighting Option 2: Environment maps (if set, used as default envMap in Materials)
-    const pmremGenerator = new PMREMGenerator(renderer);
-
-    // Load a custom background
-    if (sceneBackgroundURL.endsWith('.jpg')) {
-      new TextureLoader().load(sceneBackgroundURL, (texture) => {
-        exp.background = pmremGenerator.fromEquirectangular(texture).texture;
-        texture.dispose();
-      });
+  function mainLoopFunc(timestamp) {
+    if (exp.vrAllowed && exp.vrSupported) {
+      renderer.setAnimationLoop(mainLoopFunc); // VR
+    } else {
+      requestAnimationFrame(mainLoopFunc); // normal rAF
     }
 
-    if (environmentLightingURL.endsWith('.js')) {
-      // Option 1: Provide a pre-built Scene object (see RoomEnvironment.js)
-      // Note: exported class should always be called RoomEnvironment!
-      scene.environment = pmremGenerator.fromScene(
-        new RoomEnvironment(0.5), // see import
-        0.04
-      ).texture;
-      pmremGenerator.dispose();
-    } else if (
-      environmentLightingURL.endsWith('.exr') ||
-      environmentLightingURL.endsWith('.hdr')
-    ) {
-      let envLoader;
-      if (environmentLightingURL.endsWith('.exr')) {
-        //Option 2a: Provide a .exr image
-        envLoader = new EXRLoader();
-      } else {
-        //Option 2b: Provide a .hdr image
-        //envLoader = new RGBELoader();
-      }
-      envLoader.load(environmentLightingURL, (texture) => {
-        scene.environment = pmremGenerator.fromEquirectangular(texture).texture;
-        pmremGenerator.dispose();
-        texture.dispose();
-      });
-    }
-
-    // 2. Define camera (if not added to scene, used as default by all renderers)
-    let camera = new PerspectiveCamera(
-      70,
-      window.innerWidth / window.innerHeight,
-      0.01,
-      10
-    );
-    scene.add(camera);
-
-    // 3. Setup VR if enabled
-    let controller1, controller2; // hand1, hand2;
-    if (navigator.xr) {
-      try {
-        exp.vrSupported = await navigator.xr.isSessionSupported('immersive-vr');
-      } catch (error) {
-        console.error(error.message);
-      }
-      if (exp.vrAllowed && exp.vrSupported) {
-        exp.fullscreenStates = exp.pointerlockStates = [];
-        [controller1, controller2] = initVR(renderer, scene);
-        console.log(controller1);
-        console.log(controller2);
-      }
-    }
-
-    // 4. Manage DOM
-    document.getElementById('screen').appendChild(renderer.domElement);
-    DisplayElement.hide(renderer.domElement);
-
-    let cssRenderer = new CSS2DRenderer();
-    cssRenderer.setSize(window.innerWidth, window.innerHeight);
-    cssRenderer.domElement.style.position = 'absolute';
-    document.getElementById('screen').appendChild(cssRenderer.domElement);
-    DisplayElement.hide(cssRenderer.domElement);
-    let cssScene = new Scene();
-
-    // 4. Add resize listener
-    // for consistent scene scale despite window dimensions (see also handleResize)
-    // exp.cfg.tanFOV = Math.tan(((Math.PI / 180) * camera.fov) / 2);
-    // exp.cfg.windowHeight = window.innerHeight;
-    window.addEventListener('resize', handleResize);
-
-    return [
-      camera,
-      scene,
-      renderer,
-      cssScene,
-      cssRenderer,
-      controller1,
-      controller2,
-    ];
+    stats.begin();
+    calcFunc();
+    stateFunc();
+    displayFunc(timestamp);
+    stats.end();
   }
 
   function calcFunc() {
@@ -506,7 +417,7 @@ async function main() {
 
   function stateFunc() {
     // Process interrupt flags (FS & PL, add exp.pause?) as needed
-    if (!firebase.databaseConnected) {
+    if (!exp.firebase.databaseConnected) {
       springOscillationTimer.pause();
       state.push(state.DBCONNECT);
     } else if (
@@ -551,7 +462,7 @@ async function main() {
 
       case state.CONSENT: {
         if (exp.consented) {
-          firebase.signInAnonymously();
+          exp.firebase.signInAnonymously();
           state.next(state.SIGNIN);
         }
         if (exp.consent.hidden) {
@@ -560,9 +471,9 @@ async function main() {
         break;
       }
       case state.SIGNIN: {
-        if (firebase.uid) {
+        if (exp.firebase.uid) {
           exp.consent.hide();
-          // threejs dom elements don't have show() and hide()
+          // regular dom elements don't have show() and hide()
           DisplayElement.show(renderer.domElement);
           DisplayElement.show(cssRenderer.domElement);
           state.next(state.SETUP);
@@ -582,7 +493,7 @@ async function main() {
         trial.clamped = true;
         trial.carouselRotated = false;
         trial.stretch = 0;
-        trial.massNoise = 0;
+        trial.massNoise = exp.cfg.noisyWeights * randomNormal(-0.1, 0.1, 2.5);
         trial.mass = exp.cfg.targetWeights[trial.targetId] + trial.massNoise;
         trial.correct = (trial.mass * exp.cfg.gravity) / exp.cfg.springConstant; // equilibrium displacement
         trial.correctWithoutNoise =
@@ -602,17 +513,30 @@ async function main() {
       case state.START: {
         // plan carousel movement such that ITI = delay + duration
         const startAngle = objectGroup.rotation.y;
+        // Rotations go positive CCW, but positioning loop (cos,y,sin) was positive CW
+        // So rotating the group by obji.carouselAngle should put obji at the origin (1,0,0)
         let targetAngle = objects[trial.targetId].carouselAngle;
-        let distance;
-        [targetAngle, distance] = rotationHelper(startAngle, targetAngle);
-        let duration = distance / exp.cfg.carouselRotationSpeed;
-        if (distance < Math.PI && exp.cfg.ITI < duration) {
-          exp.cfg.carouselRotationSpeed = distance / (exp.cfg.ITI * 0.95);
-          console.warn(
-            `Configured ITI too short to complete movement at configured carousel speed. Carousel speed increased to ${exp.cfg.carouselRotationSpeed}`
-          );
-          duration = distance / exp.cfg.carouselRotationSpeed;
+        let dir = 0;
+        if (exp.cfg.oneByOne) {
+          // in the one-by-one (non-permanent) condition, put the new object
+          // behind the camera (but a little less to make sure it comes from the left)
+          targetAngle = startAngle - Math.PI;
+          let x = carouselParams.majorRadius * -Math.cos(targetAngle);
+          let z = carouselParams.majorRadius * Math.sin(targetAngle);
+          objects[trial.targetId].position.x = x;
+          objects[trial.targetId].position.z = z;
+          dir = 1;
         }
+        let distance;
+        [targetAngle, distance] = rotationHelper(startAngle, targetAngle, dir);
+        let duration = distance / exp.cfg.carouselRotationSpeed;
+        // if (distance < Math.PI && exp.cfg.ITI < duration) {
+        //   exp.cfg.carouselRotationSpeed = distance / (exp.cfg.ITI * 0.95);
+        //   console.warn(
+        //     `Configured ITI too short to complete movement at configured carousel speed. Carousel speed increased to ${exp.cfg.carouselRotationSpeed}`
+        //   );
+        //   duration = distance / exp.cfg.carouselRotationSpeed;
+        // }
         let delay = Math.max(0, exp.cfg.ITI - duration);
         new Tween(objectGroup.rotation)
           .easing(Easing.Sinusoidal.InOut)
@@ -620,6 +544,14 @@ async function main() {
           .delay(delay)
           .onComplete(() => {
             trial.carouselRotated = true;
+            if (exp.cfg.oneByOne) {
+              for (let [id, obji] of objects.entries()) {
+                if (id !== trial.targetId) {
+                  obji.position.x = 0;
+                  obji.position.z = 0;
+                }
+              }
+            }
           })
           .start();
         state.next(state.CAROUSEL);
@@ -645,8 +577,8 @@ async function main() {
           document.body.removeEventListener('keydown', releaseClamp);
           // Modify carousel geometry to create the cutout
           // again animation would be better... (three arcs, two thinner slide out into thicker ring)
-          let arcLength =
-            (2 * Math.PI * (exp.cfg.numObjects - 1)) / exp.cfg.numObjects;
+          let arcLength = 2 * Math.PI - exp.cfg.carouselGap;
+          //(2 * Math.PI * (exp.cfg.numObjects - 1)) / exp.cfg.numObjects;
           MeshFactory.torus({ ...carouselParams, arc: arcLength }, carousel);
 
           // Compute trial results
@@ -706,7 +638,7 @@ async function main() {
         // make sure all the data we need is in the trial object
         trial.size = [window.innerWidth, window.innerHeight];
         trial.points = exp.points.total;
-        firebase.saveTrial(trial);
+        exp.firebase.saveTrial(trial);
         state.next(state.ADVANCE);
         break;
       }
@@ -726,8 +658,8 @@ async function main() {
         if (exp.trialNumber < exp.numTrials) {
           state.next(state.SETUP);
         } else {
-          firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(firebase.uid);
+          exp.firebase.recordCompletion();
+          exp.goodbye.updateGoodbye(exp.firebase.uid);
           // remember: threejs canvas doesn't have show() and hide()
           DisplayElement.hide(renderer.domElement);
           DisplayElement.hide(cssRenderer.domElement);
@@ -743,7 +675,7 @@ async function main() {
         }
         if (exp.surveysubmitted) {
           // we save the config object
-          firebase.saveTrial(exp.cfg, 'survey');
+          exp.firebase.saveTrial(exp.cfg, 'survey');
           survey.hide();
           state.next(state.CODE);
         }
@@ -787,7 +719,7 @@ async function main() {
         if (exp.blocker.connection.hidden) {
           exp.blocker.show('connection');
         }
-        if (firebase.databaseConnected) {
+        if (exp.firebase.databaseConnected) {
           exp.blocker.hide();
           state.pop();
         }
@@ -822,7 +754,11 @@ async function main() {
     tweenUpdate();
     renderer.render(scene, camera);
     cssRenderer.render(cssScene, camera);
-    if (state.current > state.SETUP && state.current <= state.ADVANCE) {
+    if (
+      state.current >= state.PULL &&
+      state.current <= state.FINISH &&
+      idleTimer.elapsed() < 3
+    ) {
       recordFrameData(timestamp);
     }
   }
@@ -916,6 +852,7 @@ async function main() {
   // Default event handlers
   function recordMouseMoveData(event) {
     if (event.target === document.body) {
+      idleTimer.reset();
       trial.t.push(event.timeStamp);
       trial.btn.push(event.buttons);
       trial.dx.push(event.movementX);
@@ -939,40 +876,36 @@ async function main() {
 
   function handleStateChange() {
     if (trial.stateChange) {
-      state.numClicks = 0;
+      //state.numClicks = 0;
       //clickTimer.reset();
       trial.stateChange.push(state.current);
       trial.stateChangeTime.push(performance.now());
     }
   }
 
-  function mainLoopFunc(timestamp) {
-    if (exp.vrAllowed && exp.vrSupported) {
-      renderer.setAnimationLoop(mainLoopFunc); // for VR
-    } else {
-      requestAnimationFrame(mainLoopFunc); // normal
-    }
-
-    stats.begin();
-    calcFunc();
-    stateFunc();
-    displayFunc(timestamp);
-    stats.end();
-  }
-
   function addDefaultEventListeners() {
     document.body.addEventListener('keydown', (event) => {
-      if (event.key === ' ') {
+      if (event.key === ' ' && !event.repeat) {
         let hint = document.getElementById('instruction-show-hide');
-        if (instructions.collapsed) {
-          instructions.expand();
-          hint.textContent = 'hide';
-        } else {
-          instructions.collapse();
-          hint.textContent = 'show';
+        if (!instructions.transitioning) {
+          if (instructions.collapsed) {
+            instructions.expand();
+            hint.textContent = 'hide';
+          } else {
+            instructions.collapse();
+            hint.textContent = 'show';
+          }
         }
       }
     });
+
+    if (location.hostname === 'localhost') {
+      document.body.addEventListener('keydown', (event) => {
+        if (event.key === 'S') {
+          exp.firebase.localSave();
+        }
+      });
+    }
 
     document.body.addEventListener('consent', () => {
       console.log('document.body received consent event, signing in...');
@@ -1023,16 +956,120 @@ async function main() {
     });
   }
 
-  function initVR(renderer, scene) {
+  async function initScene(environmentLightingURL = '') {
+    // 0. Define renderer(s)
+    let renderer = new WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    //renderer.physicallyCorrectLights = true;
+    renderer.outputEncoding = sRGBEncoding;
+    renderer.toneMapping = 4; //ACESFilmicToneMapping;
+    gui.add(renderer, 'toneMapping', [0, 3, 4]);
+
+    // 1. Create a scene
+    let scene = new Scene();
+    // Default background matches CSS background
+    scene.background = new Color(exp.cfg.cssBackground);
+
+    // Add your own lights
+    //const light = new AmbientLight('white', 0.3);
+    //scene.add(light);
+    //const directionalLight = new DirectionalLight('white', 1.2);
+    //directionalLight.position.set(-2, 100, 2);
+    //scene.add(directionalLight);
+
+    // Add light using an environment map
+    const pmremGenerator = new PMREMGenerator(renderer);
+    if (environmentLightingURL.endsWith('.js')) {
+      // Option 1: Provide a pre-built Scene object (see RoomEnvironment.js)
+      const module = import('./components/RoomEnvironment.js');
+      scene.environment = pmremGenerator.fromScene(
+        new module.RoomEnvironment(0.5),
+        0.04
+      ).texture;
+      pmremGenerator.dispose();
+    } else if (
+      // Option 2: Provide a .hdr or .exr image
+      environmentLightingURL.endsWith('.exr') ||
+      environmentLightingURL.endsWith('.hdr')
+    ) {
+      let envLoader;
+      if (environmentLightingURL.endsWith('.exr')) {
+        const module = await import('./components/EXRLoader.js');
+        envLoader = new module.EXRLoader();
+      } else {
+        const module = await import('three/examples/jsm/loaders/RGBELoader.js');
+        envLoader = new module.RGBELoader();
+      }
+      envLoader.load(environmentLightingURL, (texture) => {
+        scene.environment = pmremGenerator.fromEquirectangular(texture).texture;
+        pmremGenerator.dispose();
+        texture.dispose();
+      });
+    }
+
+    // 2. Define camera (if not added to scene, used as default by all renderers)
+    let camera = new PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      10
+    );
+    scene.add(camera);
+
+    // 3. Setup VR if enabled
+    let controller1, controller2; // hand1, hand2;
+    if (navigator.xr) {
+      exp.cfg.vrSupported = await navigator.xr.isSessionSupported(
+        'immersive-vr'
+      );
+      if (exp.cfg.vrAllowed && exp.cfg.vrSupported) {
+        //exp.fullscreenStates = exp.pointerlockStates = [];
+        [controller1, controller2] = await initVR(renderer, scene);
+        console.log(controller1);
+        console.log(controller2);
+      }
+    }
+
+    // 4. Manage DOM
+    document.getElementById('screen').appendChild(renderer.domElement);
+    DisplayElement.hide(renderer.domElement);
+
+    let cssRenderer = new CSS2DRenderer();
+    cssRenderer.setSize(window.innerWidth, window.innerHeight);
+    cssRenderer.domElement.style.position = 'absolute';
+    document.getElementById('screen').appendChild(cssRenderer.domElement);
+    DisplayElement.hide(cssRenderer.domElement);
+    let cssScene = new Scene();
+
+    // 4. Add resize listener
+    // for consistent scene scale despite window dimensions (see also handleResize)
+    // exp.cfg.tanFOV = Math.tan(((Math.PI / 180) * camera.fov) / 2);
+    // exp.cfg.windowHeight = window.innerHeight;
+    window.addEventListener('resize', handleResize);
+
+    return [
+      camera,
+      scene,
+      renderer,
+      cssScene,
+      cssRenderer,
+      controller1,
+      controller2,
+    ];
+  }
+
+  async function initVR(renderer, scene) {
     renderer.xr.enabled = true;
 
-    let vrButton = VRButton.createButton(renderer);
+    let module = await import('three/examples/jsm/webxr/VRButton.js');
+    let vrButton = module.VRButton.createButton(renderer);
     // adjust css so it fits in flexbox at top
     vrButton.style.position = '';
     vrButton.style.marginTop = '10px';
     vrButton.style.order = 2; // center
     vrButton.addEventListener('click', () => {
-      scene.background = exp.background;
+      loadBackground(sceneBackgroundURL, scene);
       exp.vrEnabled = true;
     });
     document.getElementById('panel-container').appendChild(vrButton);
@@ -1067,7 +1104,10 @@ async function main() {
     // that match what the user is holding as closely as possible. The models
     // should be attached to the object returned from getControllerGrip in
     // order to match the orientation of the held device.
-    const controllerModelFactory = new XRControllerModelFactory();
+    module = await import(
+      'three/examples/jsm/webxr/XRControllerModelFactory.js'
+    );
+    const controllerModelFactory = new module.XRControllerModelFactory();
 
     let controllerGrip1 = renderer.xr.getControllerGrip(0);
     controllerGrip1.add(
@@ -1083,14 +1123,81 @@ async function main() {
 
     return [controller1, controller2];
 
+    // HANDS
+    // module = await import('three/examples/jsm/webxr/OculusHandModel.js');
     // // hand 1
     // hand1 = renderer.xr.getHand(0);
-    // hand1.add(new OculusHandModel(hand1));
+    // hand1.add(new module.OculusHandModel(hand1));
     // scene.add(hand1);
     // // hand 2
     // hand2 = renderer.xr.getHand(1);
-    // hand2.add(new OculusHandModel(hand2));
+    // hand2.add(new module.OculusHandModel(hand2));
     // scene.add(hand2);
+  }
+
+  function loadBackground(sceneBackgroundURL, scene) {
+    // Load a custom background
+    if (sceneBackgroundURL.endsWith('.jpg')) {
+      const loader = new TextureLoader();
+      loader.load(sceneBackgroundURL, (texture) => {
+        const generator = new PMREMGenerator(renderer);
+        texture = generator.fromEquirectangular(texture).texture;
+        scene.background = texture;
+        texture.dispose();
+        generator.dispose();
+      });
+    }
+  }
+
+  function applyNewTexture() {
+    if (!Object.keys(pbrMapper.textures).includes(exp.cfg.textureName)) {
+      switch (exp.cfg.textureName) {
+        case 'wood':
+          pbrMapper.load(
+            [
+              woodColorMapURL,
+              woodDisplacementMapURL,
+              woodNormalMapURL,
+              woodRoughnessMapURL,
+            ],
+            'wood'
+          );
+          break;
+
+        case 'metal':
+          pbrMapper.load(
+            [
+              brassColorMapURL,
+              brassDisplacementMapURL,
+              brassNormalMapURL,
+              brassRoughnessMapURL,
+              brassMetalnessMapURL,
+            ],
+            'metal'
+          );
+          break;
+
+        case 'plastic':
+          pbrMapper.load(
+            [
+              plasticColorMapURL,
+              plasticDisplacementMapURL,
+              plasticNormalMapURL,
+              plasticRoughnessMapURL,
+            ],
+            'plastic'
+          );
+          break;
+      }
+    }
+    for (let obji of objects) {
+      if (!obji) continue;
+      pbrMapper.setPBRMaps(exp.cfg.textureName, obji.material, 0, 1);
+      obji.material.map.repeat.set(
+        1,
+        (0.2 * obji.scale.y) / Math.min(...exp.cfg.targetHeights)
+      );
+    }
   }
 }
 

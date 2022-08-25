@@ -40,11 +40,13 @@ export class DisplayElement {
     // have the element transition to the height of its inner content
     this.dom.style.height = sectionHeight + 'px';
     // when the next css transition finishes (which should be the one we just triggered)
+    this.transitioning = true;
     this.dom.addEventListener(
       'transitionend',
       () => {
         // remove "height" from the element's inline styles, so it can return to its initial value
         this.dom.style.height = null;
+        this.transitioning = false;
       },
       { once: true }
     );
@@ -67,6 +69,14 @@ export class DisplayElement {
       // have the element transition to height: 0
       requestAnimationFrame(() => {
         this.dom.style.height = 0;
+        this.transitioning = true;
+        this.dom.addEventListener(
+          'transitionend',
+          () => {
+            this.transitioning = false;
+          },
+          { once: true }
+        );
       });
     });
     this.collapsed = true;

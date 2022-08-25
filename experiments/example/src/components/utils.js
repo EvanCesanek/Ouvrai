@@ -17,11 +17,11 @@ export function truncQuadCost(error, trunc = 1) {
  * @param {number} targetAngle - radians
  * @returns
  */
-export function rotationHelper(startAngle, targetAngle) {
+export function rotationHelper(startAngle, targetAngle, direction = 0) {
   let movementAngle = targetAngle - startAngle;
   movementAngle = movementAngle % (2 * Math.PI);
   let distance = Math.abs(movementAngle);
-  if (distance > Math.PI) {
+  if (distance > Math.PI && direction === 0) {
     const oppositeSign = -Math.sign(movementAngle);
     movementAngle = oppositeSign * (Math.PI * 2 - distance);
   }
@@ -176,25 +176,25 @@ export class DateTime {
 //   return output;
 // }
 
-// function randomNormal(min, max, truncateStd = 3) {
-//   let u = 0;
-//   let v = 0;
-//   while (u === 0) {
-//     u = Math.random();
-//   } // Converting [0,1) to (0,1)
-//   while (v === 0) {
-//     v = Math.random();
-//   }
-//   let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-//   if (Math.abs(num) > truncateStd) {
-//     num = randomNormal(min, max, truncateStd); // resample if out of range
-//   } else {
-//     num = (num + truncateStd) / (2 * truncateStd); // Translate to 0 -> 1
-//     num *= max - min; // Stretch to fill range
-//     num += min; // offset to min
-//   }
-//   return num;
-// }
+export function randomNormal(min, max, truncateStd = 3) {
+  let u = 0;
+  let v = 0;
+  while (u === 0) {
+    u = Math.random();
+  } // Converting [0,1) to (0,1)
+  while (v === 0) {
+    v = Math.random();
+  }
+  let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  if (Math.abs(num) > truncateStd) {
+    num = randomNormal(min, max, truncateStd); // resample if out of range
+  } else {
+    num = (num + truncateStd) / (2 * truncateStd); // Translate to 0 -> 1
+    num *= max - min; // Stretch to fill range
+    num += min; // offset to min
+  }
+  return num;
+}
 
 // function randomInteger(min, max) {
 //   // Integer between min and max (inclusive)
@@ -249,27 +249,27 @@ export class DateTime {
 //   ];
 // }
 
-// function round(value, places) {
-//   // Round a value to specified number of decimal places.
-//   if (typeof places == 'undefined') {
-//     places = 0;
-//   }
-//   for (var m = 1.0, i = 0; i < places; i++) {
-//     m *= 10.0;
-//   }
-//   value = Math.round(value * m) / m;
+export function round(value, places) {
+  // Round a value to specified number of decimal places.
+  if (typeof places == 'undefined') {
+    places = 0;
+  }
+  for (var m = 1.0, i = 0; i < places; i++) {
+    m *= 10.0;
+  }
+  value = Math.round(value * m) / m;
 
-//   return value;
-// }
+  return value;
+}
 
-// function linspace(startValue, stopValue, cardinality) {
-//   var arr = [];
-//   var step = (stopValue - startValue) / (cardinality - 1);
-//   for (var i = 0; i < cardinality; i++) {
-//     arr.push(startValue + step * i);
-//   }
-//   return arr;
-// }
+export function linspace(startValue, stopValue, cardinality) {
+  var arr = [];
+  var step = (stopValue - startValue) / (cardinality - 1);
+  for (var i = 0; i < cardinality; i++) {
+    arr.push(startValue + step * i);
+  }
+  return arr;
+}
 
 // // EXPLOSION
 // class Explosion {

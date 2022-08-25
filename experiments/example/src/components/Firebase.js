@@ -47,8 +47,8 @@ export class Firebase {
           detail: {},
         });
         document.body.dispatchEvent(connectedEvent);
-        console.log(`dispatched dbconnect event to body:`);
-        console.log(connectedEvent);
+        //console.log(`dispatched dbconnect event to body:`);
+        //console.log(connectedEvent);
       } else {
         this.databaseConnected = false;
         const disconnectedEvent = new CustomEvent('dbdisconnect', {
@@ -57,8 +57,8 @@ export class Firebase {
           detail: {},
         });
         document.body.dispatchEvent(disconnectedEvent);
-        console.log(`dispatched dbdisconnect event to body:`);
-        console.log(disconnectedEvent);
+        //console.log(`dispatched dbdisconnect event to body:`);
+        //console.log(disconnectedEvent);
       }
     });
 
@@ -98,7 +98,7 @@ export class Firebase {
       });
       document.body.dispatchEvent(saveSuccessfulEvent);
     } catch (error) {
-      console.log(error.message);
+      console.error(error.message);
     }
   }
 
@@ -140,11 +140,11 @@ export class Firebase {
     return trialdata;
   }
 
-  async localSave(uid) {
+  async localSave() {
     var snapshot;
     try {
       snapshot = await get(
-        ref(this.database, `experiments/${this.expName}/${uid}`)
+        ref(this.database, `/experiments/${this.expName}/${this.uid}`)
       );
     } catch (error) {
       console.error(error.message);
@@ -154,12 +154,10 @@ export class Firebase {
       var a = document.createElement('a');
       var file = new Blob([subjData], { type: 'text/plain' });
       a.href = URL.createObjectURL(file);
-      a.download = `${this.expName}-${uid}.json`;
+      a.download = `${this.expName}-${this.uid}.json`;
       a.click();
     } else {
-      console.log(
-        '\n----- ERROR: Failed to find UID in the database. Aborting program.\n\n'
-      );
+      console.error('Failed to find data in the database.');
     }
   }
 }

@@ -7,8 +7,7 @@ export class Timer {
     return performance.now() / 1000.0;
   }
   reset() {
-    this.mark = this.#getSecs();
-    this.pauseMark = this.mark;
+    this.mark = this.pauseMark = this.#getSecs();
     this.paused = false;
   }
   pause() {

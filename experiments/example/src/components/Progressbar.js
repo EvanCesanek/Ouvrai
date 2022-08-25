@@ -22,7 +22,7 @@ export class Progressbar extends DisplayElement {
         ><br
       /></span>
       <div id="progressbar-outer" class="weblab-component-div">
-        <div id="progressbar-inner" class="weblab-component-div"></div>
+        <div id="progressbar-inner"></div>
       </div>
     </div>`;
     super({

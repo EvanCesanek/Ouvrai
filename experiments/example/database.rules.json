@@ -17,6 +17,7 @@
     "experiments": {
       "$expName": {
         "$uid": {
+          ".read": true,
           "$trialN": {
             ".write": "$uid === auth.uid && !data.exists()"
           }
