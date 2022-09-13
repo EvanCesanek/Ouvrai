@@ -1,6 +1,6 @@
 # weblab
 
-> Develop and run behavioral experiments on the web (2D, 3D, and VR).  
+> Develop and run behavioral experiments on the web.  
 > Database and hosting with [Firebase](https://firebase.google.com)  
 > Crowdsourcing with [MTurk](https://www.mturk.com) and [Prolific](https://www.prolific.co)
 
@@ -12,7 +12,7 @@ If you use bash on a Mac, open _`~/.bash_profile`_ and add the line `source ~/.b
 
 ### git
 
-- You probably have it, but you can make sure with `git --version`. If not, get it from https://git-scm.com.
+- Check that you have git installed by running `git --version`. If not, get it from https://git-scm.com.
 
 ### Node.js
 
@@ -191,6 +191,8 @@ You will notice that the experiment is blocked with a message saying you are not
         <li>A recently updated web browser</li>
         <li>Full-screen mode with pointer lock</li>
       </ul>
+
+      ...
     </div>
   </body>
   ```
@@ -212,3 +214,5 @@ const exp = new Experiment({
   ...
 });
 ```
+
+Note: CLI integration with the Prolific API is in development. Eventually you will not need to use the web interface as described above. Try it out by getting your API Token from the Prolific website, and saving this securely in `~/.prolific/credentials.txt`. You can then use all Prolific-prefixed **weblab** functions (e.g, `p-get-submissions`). Use the `workersToXXX` fields of `mturk-config.mjs` as needed for `download-workers`, `p-approve`, and `p-send-bonus`.
