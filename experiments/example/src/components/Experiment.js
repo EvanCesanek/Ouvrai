@@ -91,7 +91,6 @@ export class Experiment {
   createTrialSequence(blocks, append = false) {
     if (!append) this.trial = [];
     let cycleNumber = 0; // cycles = block repetitions
-    //let lastBlockNumber;
     for (let [blockNumber, bk] of blocks.entries()) {
       // Get the ordering options and delete them to avoid problems
       const options = bk.options;
@@ -111,31 +110,34 @@ export class Experiment {
 
       // Push trial objects onto this.trials, one by one
       // Respecting repetitions and shuffling options
-      let lastOrder = [];
       for (let ri = 0; ri < options.repetitions; ri++) {
+        let bkCopy = { ...bk };
         let order = range(0, numTrials);
-        if (options.shuffle) {
+        if (options.shuffle && numTrials > 1) {
           shuffle(order);
           while (
-            !options.repBoundaryRepeats &&
-            order[0] === lastOrder[lastOrder.length - 1]
-          )
+            // Reshuffle while 1st trial == last trial on any of indicated keys
+            // Note this does not prevent consecutive repeats within a block!
+            options.noConsecutiveRepeats.every(
+              (key) =>
+                this.trials[this.trials.length - 1] &&
+                this.trials[this.trials.length - 1][key] === bk[key][order[0]]
+            )
+          ) {
             shuffle(order); // Fisher-Yates shuffle in place
+          }
           // TODO: Allow for location and adjacency constraints on shuffled orders
-          // e.g., check if order violates constraints and repeat while (!satisfied)
         }
-        lastOrder = order;
-        //console.log(bk);
-        Object.keys(bk).forEach((key) => {
-          bk[key] = permute(bk[key], order);
+        Object.keys(bkCopy).forEach((key) => {
+          bkCopy[key] = permute(bk[key], order);
         });
         // For each trial (ti) in this block repetition
         for (let ti = 0; ti < numTrials; ti++) {
           // Create a trial object
           let trial = {};
           // Inject corresponding values (ti) for each key
-          for (let key of Object.keys(bk)) {
-            trial[key] = bk[key][ti];
+          for (let key of Object.keys(bkCopy)) {
+            trial[key] = bkCopy[key][ti];
           }
           trial.blockName = options.blockName;
           trial.block = blockNumber;

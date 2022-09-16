@@ -9,11 +9,11 @@ export class BlockOptions {
     blockName = required('blockName'),
     shuffle = required('shuffle'),
     repetitions = required('repetitions'),
-    repBoundaryRepeats = false
+    noConsecutiveRepeats = []
   ) {
     this.blockName = blockName;
     this.shuffle = shuffle;
     this.repetitions = repetitions;
-    this.repBoundaryRepeats = repBoundaryRepeats;
+    this.noConsecutiveRepeats = noConsecutiveRepeats;
   }
 }

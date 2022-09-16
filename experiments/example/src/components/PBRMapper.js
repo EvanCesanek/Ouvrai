@@ -1,4 +1,4 @@
-import { Color, RepeatWrapping, Texture, TextureLoader } from 'three';
+import { RepeatWrapping, Texture, TextureLoader } from 'three';
 
 /**
  * A static class for using PBR texture maps from https://ambientcg.com/list?type=Atlas,Decal,Material
@@ -56,13 +56,27 @@ export class PBRMapper {
       material[key] = entry.val;
     }
     // Set defaults that allow PBR maps to work
-    material.color = new Color('white');
+    //material.color = new Color('white');
     material.transparent = true;
     material.opacity = 1;
     material.roughness = 1;
-    material.metalness = 1;
+    material.metalness = this.textures[textureName]['metalnessMap'] ? 1 : 0;
     material.displacementScale = displacementScale;
     material.displacementBias = material.displacementScale / 2;
     material.normalScale.set(normalScale, normalScale);
+  }
+
+  applyNewTexture(objects, name, urls, xRepeatTimes = 1, yRepeatTimes = 1) {
+    if (!Object.keys(this.textures).includes(name)) {
+      this.load(urls, name);
+    }
+    for (let obji of objects) {
+      if (!obji) continue;
+      this.setPBRMaps(name, obji.material, 0, 1);
+      obji.material.map.repeat.set(
+        obji.scale.x * xRepeatTimes,
+        obji.scale.y * yRepeatTimes
+      );
+    }
   }
 }

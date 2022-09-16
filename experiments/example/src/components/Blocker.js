@@ -48,6 +48,19 @@ export class Blocker extends DisplayElement {
           hide: true,
           parent: this.dom,
         }),
+        attention: new DisplayElement({
+          element: `
+            <div id="attention-check-content" class="weblab-component-div">
+              <h3 style="margin-block: 0">
+                Warning! You are not scoring enough points.<br />
+              </h3>
+              Please review the instructions if necessary.<br />
+              Your work may be rejected if you do not improve your performance.<br /><br />
+              Press Enter to proceed.
+            </div>`,
+          hide: true,
+          parent: this.dom,
+        }),
       },
       ...children,
     };

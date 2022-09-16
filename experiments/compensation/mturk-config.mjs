@@ -38,7 +38,7 @@ parameters.assignments = parameters.workersToCompensate.length;
 parameters.qualificationsDisabled = parameters.sandbox;
 
 if (parameters.sandbox) {
-  console.log('\n[mturk-config] You are using the Requester Sandbox');
+  console.log('\n[mturk-config] MTurk Requester Sandbox is enabled.');
   parameters.endpoint = parameters.sandboxEndpoint;
   parameters.previewURL = parameters.sandboxPreviewURL;
 }

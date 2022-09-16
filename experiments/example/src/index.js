@@ -8,6 +8,7 @@ import {
   Color,
   DoubleSide,
   Group,
+  MeshStandardMaterial,
   PerspectiveCamera,
   PMREMGenerator,
   Scene,
@@ -16,16 +17,18 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-//import colormap from 'colormap'; // https://github.com/bpostlethwaite/colormap#readme
+import colormap from 'colormap'; // https://github.com/bpostlethwaite/colormap
 import bowser from 'bowser';
 import { range } from 'd3-array'; // https://www.npmjs.com/package/d3-array
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
+import { models } from 'jstat-esm'; // https://jstat.github.io //https://www.npmjs.com/package/jstat-esm
 
 /*** weblab imports ***/
 import { Experiment } from './components/Experiment.js';
 import { BlockOptions } from './components/BlockOptions.js';
 import { State } from './components/State.js';
 import { DisplayElement } from './components/DisplayElement.js';
+import { CSS2D } from './components/CSS2D.js';
 import { Survey } from './components/Survey.js';
 import { Timer } from './components/Timer.js';
 import { MeshFactory } from './components/MeshFactory.js';
@@ -46,29 +49,37 @@ import {
 
 /*** static asset URL imports ***/
 import consentURL from './consent.pdf';
-import sceneBackgroundURL from './environments/IndoorHDRI003_4K-TONEMAPPED.jpg';
+// import sceneBackgroundURL from './environments/IndoorHDRI003_4K-TONEMAPPED.jpg';
 import environmentLightingURL from './environments/IndoorHDRI003_1K-HDR.exr?url';
 
-import woodColorMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Color.jpg';
-import woodDisplacementMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Displacement.jpg';
-import woodNormalMapURL from './textures/Wood049_1K-JPG/Wood049_1K_NormalGL.jpg';
-import woodRoughnessMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Roughness.jpg';
-import brassColorMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Color.jpg';
-import brassDisplacementMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Displacement.jpg';
-import brassNormalMapURL from './textures/Metal007_1K-JPG/Metal007_1K_NormalGL.jpg';
-import brassRoughnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Roughness.jpg';
-import brassMetalnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Metalness.jpg';
-import plasticColorMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Color.jpg';
-import plasticDisplacementMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Displacement.jpg';
-import plasticNormalMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_NormalGL.jpg';
-import plasticRoughnessMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Roughness.jpg';
+// import woodColorMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Color.jpg';
+// import woodDisplacementMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Displacement.jpg';
+// import woodNormalMapURL from './textures/Wood049_1K-JPG/Wood049_1K_NormalGL.jpg';
+// import woodRoughnessMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Roughness.jpg';
+// import brassColorMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Color.jpg';
+// import brassDisplacementMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Displacement.jpg';
+// import brassNormalMapURL from './textures/Metal007_1K-JPG/Metal007_1K_NormalGL.jpg';
+// import brassRoughnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Roughness.jpg';
+// import brassMetalnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Metalness.jpg';
+// import plasticColorMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Color.jpg';
+// import plasticDisplacementMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Displacement.jpg';
+// import plasticNormalMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_NormalGL.jpg';
+// import plasticRoughnessMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Roughness.jpg';
+// import porcelainColorMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_Color.jpg';
+// import porcelainDisplacementMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_Displacement.jpg';
+// import porcelainNormalMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_NormalGL.jpg';
+// import porcelainRoughnessMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_Roughness.jpg';
+import leatherColorMapURL from './textures/Leather025_1K-JPG/Leather025_1K_Color.jpg';
+import leatherDisplacementMapURL from './textures/Leather025_1K-JPG/Leather025_1K_Displacement.jpg';
+import leatherNormalMapURL from './textures/Leather025_1K-JPG/Leather025_1K_NormalGL.jpg';
+import leatherRoughnessMapURL from './textures/Leather025_1K-JPG/Leather025_1K_Roughness.jpg';
 
 async function main() {
   // create new experiment with configuration options
   const exp = new Experiment({
     name: 'example',
     consentPath: consentURL,
-    prolificLink: '', // Get completion link from Prolific study details (e.g., 'https://app.prolific.co/submissions/complete?cc=ABC123XY')
+    prolificLink: 'https://app.prolific.co/submissions/complete?cc=COOMA7DK', // Get completion link from Prolific study details
     requireDesktop: true,
     requireChrome: true,
     vrAllowed: false,
@@ -100,8 +111,8 @@ async function main() {
     //timePenaltyAbsDecay: 0.0005, // wait until decaying to this spring oscillation envelope magnitude
 
     environmentLighting: environmentLightingURL,
-    sceneBackground: sceneBackgroundURL,
-    textureName: 'plastic',
+    //sceneBackground: sceneBackgroundURL,
+    textureName: 'leather',
   });
 
   // Create finite state machine (experiment flow manager)
@@ -121,6 +132,7 @@ async function main() {
     'FULLSCREEN',
     'POINTERLOCK',
     'DBCONNECT',
+    'ATTENTION',
     'BLOCKED',
   ];
   const state = new State(exp.cfg.stateNames, handleStateChange);
@@ -134,6 +146,7 @@ async function main() {
     'DROP',
     'FINISH',
     'ADVANCE',
+    'ATTENTION',
   ].map((s) => state[s]);
 
   // Create any customizable elements
@@ -141,16 +154,21 @@ async function main() {
   const instructions = new DisplayElement({
     element: `
     <div id="instruction-detail" class="panel-detail collapsible">
-      Each object weighs a different amount, but they are clamped in place so they cannot move.<br />
-      1. Click and drag upward to stretch the spring, which pulls up on the object.<br />
-      2. Press the Shift key to release the object from the clamp.<br />
-      If you stretch the spring too much, the object moves up; not enough and it drops down.<br />
-      <b>GOAL: For each object, stretch the spring just the right amount, so the object stays still.</b>
+      1. Click and drag up to stretch the spring on the current object.<br />
+      2. Press Shift to release the object from the ring.<br />
+      Stretch the spring to perfectly support each object's weight.<br />
+      The objects should not move up or down when they are released!<br />
     </div>`,
     hide: false,
     display: 'block',
     parent: document.getElementById('instruction-panel'),
   });
+  instructions.dom.style.height = 0;
+  document.getElementById('instruction-show-hide').innerText = 'show';
+  instructions.collapsed = true;
+
+  const demoTrialText = new CSS2D('');
+  demoTrialText.object.element.style.fontSize = '14pt';
 
   // Add listeners for default weblab events
   addDefaultEventListeners();
@@ -161,17 +179,15 @@ async function main() {
     title: 'Debug',
     container: document.getElementById('panel-container'),
   });
+  gui.hide();
   //gui.close();
   //gui.add(exp, 'trialNumber').listen().disable();
   if (location.hostname === 'localhost') {
-    exp.consented = true;
-    exp.fullscreenStates = [];
-    exp.pointerlockStates = [];
+    // exp.consented = true;
+    // exp.fullscreenStates = [];
+    // exp.pointerlockStates = [];
   } else {
-    //gui.hide();
-    exp.consented = true;
-    exp.fullscreenStates = [];
-    exp.pointerlockStates = [];
+    gui.hide();
     console.log = function () {}; // disable in production
   }
   const stats = new Stats(); // performance monitor
@@ -210,6 +226,11 @@ async function main() {
   };
   trial = trialInitialize;
 
+  // Create a history object to allow computing performance metrics via OLS
+  exp.history = { x: [], y: [], cycle: [], p: -1, slope: -1 };
+  gui.add(exp.history, 'p').listen();
+  gui.add(exp.history, 'slope').listen();
+
   // Set up the targets
   // Baseline condition: Four family objects, linear family, no noise, equal presentation frequencies, permanence
   exp.cfg.targetIds = [0, 1, 2, 3, 4];
@@ -218,34 +239,82 @@ async function main() {
   exp.cfg.noisyWeights = false;
   //exp.cfg.timeLimit = Infinity;
 
+  let colors = colormap({
+    colormap: 'viridis',
+    nshades: 9,
+    format: 'hex',
+    alpha: 1,
+  });
+  exp.materials = [];
+  for (let oi of exp.cfg.targetIds) {
+    let col = new Color(colors[4]);
+    let tmp = col.getHSL({});
+    tmp.l = 0.3; // enforce equal luminance
+    col.setHSL(tmp.h, tmp.s, tmp.l);
+    exp.materials[oi] = new MeshStandardMaterial({
+      color: col,
+    });
+  }
+
   // Condition-specific settings
-  exp.cfg.condition = 4;
+  // Outlier from start (note: requires change to blocks = {})
+  //exp.cfg.condition = 0;
+  // Outlier after 10 reps
+  //exp.cfg.condition = 1;
+  // Outlier after 10 reps + unique colors
+  //exp.cfg.condition = 2;
+  if (exp.cfg.condition == 2) {
+    for (let oi of exp.cfg.targetIds) {
+      let col = new Color(colors[oi * 2]);
+      let tmp = col.getHSL({});
+      tmp.l = 0.3; // enforce equal luminance
+      col.setHSL(tmp.h, tmp.s, tmp.l);
+      exp.materials[oi] = new MeshStandardMaterial({
+        color: col,
+      });
+    }
+  }
   // Two family objects
-  if (exp.cfg.condition === 1) exp.cfg.targetIds = [1, 2, 3];
+  exp.cfg.condition = 3;
+  if (exp.cfg.condition === 3) exp.cfg.targetIds = [1, 2, 3];
   // Add noise
-  if (exp.cfg.condition === 2) exp.cfg.noisyWeights = true;
+  if (exp.cfg.condition === 4) exp.cfg.noisyWeights = true;
   gui.add(exp.cfg, 'noisyWeights').disable;
   // Sigmoidal family (family = two densities)
-  if (exp.cfg.condition === 3)
+  if (exp.cfg.condition === 5)
     exp.cfg.targetWeights = [0.3, 0.32, 0.8, 0.68, 0.7];
   // Permanence
-  if (exp.cfg.condition === 4) {
+  if (exp.cfg.condition === 6) {
     exp.cfg.oneByOne = true;
     exp.cfg.carouselRotationSpeed /= 1.5;
   }
   // 4x outlier frequency
-  if (exp.cfg.condition === 5) exp.cfg.targetIds = [0, 1, 2, 2, 2, 2, 3, 4];
+  if (exp.cfg.condition === 7) exp.cfg.targetIds = [0, 1, 2, 2, 2, 2, 3, 4];
   // Time limit of 1.5 seconds
-  //if (exp.cfg.condition === 5) exp.cfg.timeLimit = 1.5;
+  //if (exp.cfg.condition === 8) exp.cfg.timeLimit = 1.5;
 
   // Create trial structure using an array of block objects (in desired order)
   let blocks = [
     // The keys of a block object are the variables, the values must be equal-length arrays
     // The combination of elements at index i are the variable values for one trial
     {
-      targetId: [...exp.cfg.targetIds],
+      targetId: exp.cfg.condition === 3 ? [1, 3] : [0, 1, 3, 4],
       // BlockOptions control trial sequencing behavior
-      options: new BlockOptions('test', true, 10),
+      options: new BlockOptions(
+        'train',
+        true,
+        exp.cfg.condition === 3 ? 20 : 10,
+        ['targetId']
+      ),
+    },
+    {
+      targetId: [...exp.cfg.targetIds],
+      options: new BlockOptions(
+        'test',
+        true,
+        exp.cfg.condition === 3 ? 20 : 12,
+        ['targetId']
+      ),
     },
   ];
   exp.createTrialSequence(blocks); // construct the exp.trials object array
@@ -267,6 +336,7 @@ async function main() {
 
   // Add CSS2D objects to cssScene
   cssScene.add(exp.points.css2d.object);
+  cssScene.add(demoTrialText.object);
 
   // Prepare texture loader
   const pbrMapper = new PBRMapper();
@@ -327,12 +397,16 @@ async function main() {
   objectGroup.position.y += carouselParams.minorRadius * 2; // for cylinders
   scene.add(objectGroup);
 
+  demoTrialText.object.position.copy(carousel.position);
+  demoTrialText.object.position.y += 0.2;
+
   // Arrange object+spring around the object group
   const objects = [];
   const springs = [];
-  for (let [oi, objid] of new Set(exp.cfg.targetIds).entries()) {
+  for (let [oi, objid] of Array.from(new Set(exp.cfg.targetIds)).entries()) {
     // Create objects
     let obji = MeshFactory.cylinder({ radialSegments: 64 });
+    obji.material = exp.materials[objid];
     objectGroup.add(obji);
     let cari = carouselOuterSegment.clone();
     if (!exp.cfg.oneByOne) objectGroup.add(cari);
@@ -373,11 +447,19 @@ async function main() {
     ringi.material.copy(spring.material);
   }
 
-  // Set object material
-  applyNewTexture(); //pbrMapper, objects);
-  gui
-    .add(exp.cfg, 'textureName', ['wood', 'metal', 'plastic'])
-    .onChange(applyNewTexture);
+  // Set objects material
+  pbrMapper.applyNewTexture(
+    objects,
+    'leather',
+    [
+      leatherColorMapURL,
+      leatherDisplacementMapURL,
+      leatherNormalMapURL,
+      leatherRoughnessMapURL,
+    ],
+    1 / exp.cfg.targetWidth,
+    0.2 / Math.min(...exp.cfg.targetHeights.slice(exp.cfg.targetIds[0]))
+  );
 
   // Position the camera to look at the home position (i.e. origin: (1,0,0))
   let offset;
@@ -389,8 +471,8 @@ async function main() {
     offset = new Vector3(carouselParams.majorRadius, 0, 0);
   }
   let tmp = new Vector3().copy(carousel.position).add(offset);
-  camera.position.set(...new Vector3(0.4, 0.16, 0).add(tmp));
-  camera.lookAt(tmp);
+  camera.position.set(...new Vector3(0.4, 0.12, 0).add(tmp));
+  camera.lookAt(...new Vector3(0, 0, 0).add(tmp));
 
   // Start the rAF loop
   mainLoopFunc(); // calcFunc() -> stateFunc() -> displayFunc()
@@ -470,12 +552,14 @@ async function main() {
         }
         break;
       }
+
       case state.SIGNIN: {
         if (exp.firebase.uid) {
           exp.consent.hide();
           // regular dom elements don't have show() and hide()
           DisplayElement.show(renderer.domElement);
           DisplayElement.show(cssRenderer.domElement);
+          DisplayElement.show(document.getElementById('panel-container'));
           state.next(state.SETUP);
         }
         break;
@@ -489,7 +573,7 @@ async function main() {
         // Reset data arrays and other weblab defaults
         trial = { ...trial, ...structuredClone(trialInitialize) };
         // Set trial parameters
-        trial.demoTrial = false;
+        trial.demoTrial = exp.trialNumber === 0;
         trial.clamped = true;
         trial.carouselRotated = false;
         trial.stretch = 0;
@@ -506,7 +590,17 @@ async function main() {
           exp.cfg.springDamping
         );
 
-        state.next(state.START);
+        // Attention checks at ~25, 50 and 75% completion
+        if (
+          trial.trialNumber > 0 &&
+          trial.trialNumber % Math.ceil(exp.numTrials / 4) === 0 &&
+          ((exp.cfg.condition !== 3 && exp.history.p > 0.01) ||
+            exp.history.slope < 0.5) // attention check parameters
+        ) {
+          state.next(state.ATTENTION);
+        } else {
+          state.next(state.START);
+        }
         break;
       }
 
@@ -570,6 +664,19 @@ async function main() {
       }
 
       case state.PULL: {
+        if (trial.demoTrial) {
+          if (trial.stretch === 0) {
+            demoTrialText.object.element.innerText = `Each of these objects weighs a different amount.
+              The spring on top is used to support the weight of the object.
+              Click and drag upward to stretch the spring.
+            `;
+          } else {
+            demoTrialText.object.element.innerText = `The more you stretch the spring, the harder it pulls on the object.
+              Notice it can't move because it is clamped in place by the ring.
+              When you are ready, press Shift to release the object from the ring.
+            `;
+          }
+        }
         if (!trial.clamped) {
           document.body.removeEventListener('mousemove', recordMouseMoveData);
           document.body.removeEventListener('mousemove', updateSpringLength);
@@ -583,6 +690,22 @@ async function main() {
 
           // Compute trial results
           trial.error = trial.stretch - trial.correct;
+          if (trial.targetId !== 2 && trial.trialNumber > 0) {
+            exp.history.x.push([1, trial.correct]);
+            exp.history.y.push(trial.stretch);
+            exp.history.cycle.push(trial.cycle);
+            if (trial.cycle > 0) {
+              let endog = exp.history.y.filter(
+                (_, i) => exp.history.cycle[i] > trial.cycle - 10
+              );
+              let exog = exp.history.x.filter(
+                (_, i) => exp.history.cycle[i] > trial.cycle - 10
+              );
+              exp.history.model = models.ols(endog, exog);
+              exp.history.p = exp.history.model.t.p[1];
+              exp.history.slope = exp.history.model.coef[1];
+            }
+          }
 
           // Natural spring exponential time penalty (with slight adjustments)
           // trial.timePenalty =
@@ -628,7 +751,36 @@ async function main() {
             endPosn: endPosn,
           });
         }
-        if (state.expired(exp.cfg.minDropWaitTime + trial.timePenalty)) {
+        if (trial.demoTrial) {
+          if (trial.error > 0.015) {
+            demoTrialText.object.element.innerText = `You applied too much force so the object was pulled up.
+              Next time you see this object, stretch the spring less.
+              Try to make each object stay perfectly still.
+              Press Enter to continue.
+            `;
+          } else if (trial.error < -0.015) {
+            demoTrialText.object.element.innerText = `You applied too little force so the object fell down.
+              Next time you see this object, stretch the spring more.
+              Try to make each object stay perfectly still.
+              Press Enter to continue.
+            `;
+          } else {
+            demoTrialText.object.element.innerText = `
+              Good job!
+              Try to make each object stay perfectly still.
+              Press Enter to continue.
+            `;
+          }
+          document.body.addEventListener(
+            'keydown',
+            (e) => {
+              if (e.key === 'Enter') {
+                state.next(state.FINISH);
+              }
+            },
+            { once: true }
+          );
+        } else if (state.expired(exp.cfg.minDropWaitTime + trial.timePenalty)) {
           state.next(state.FINISH); // advance
         }
         break;
@@ -725,6 +877,22 @@ async function main() {
         }
         break;
       }
+
+      case state.ATTENTION: {
+        if (exp.blocker.attention.hidden) {
+          exp.blocker.show('attention');
+          document.body.addEventListener(
+            'keydown',
+            (e) => {
+              if (e.key === 'Enter') {
+                exp.blocker.hide();
+                state.next(state.START);
+              }
+            },
+            { once: true }
+          );
+        }
+      }
     }
   }
 
@@ -754,10 +922,11 @@ async function main() {
     tweenUpdate();
     renderer.render(scene, camera);
     cssRenderer.render(cssScene, camera);
+    exp.idle = idleTimer.elapsed() >= 0.5;
     if (
-      state.current >= state.PULL &&
-      state.current <= state.FINISH &&
-      idleTimer.elapsed() < 3
+      state.current == state.PULL &&
+      //state.current <= state.FINISH &&
+      !exp.idle
     ) {
       recordFrameData(timestamp);
     }
@@ -766,6 +935,13 @@ async function main() {
   // Custom event handlers
   function updateSpringLength(event) {
     if (event.buttons && trial.clamped && state.current === state.PULL) {
+      if (demoTrialText && trial.stretch === 0 && event.movementY < 0) {
+        demoTrialText.object.element.style.display = 'none';
+        // setTimeout(
+        //   () => (demoTrialText.object.element.style.display = 'block'),
+        //   1000
+        // );
+      }
       trial.stretch -= exp.cfg.springStretchSpeed * event.movementY;
       trial.stretch = clamp(trial.stretch, 0, exp.cfg.maxStretch);
       MeshFactory.spring(
@@ -842,9 +1018,33 @@ async function main() {
     trial.state.push(state.current);
   }
 
+  // function advanceDemoTrialText(event) {
+  //   if (
+  //     demoTrialText &&
+  //     demoTrialText.text[state.names[state.current]] &&
+  //     (!event ||
+  //       (event.key === ' ' &&
+  //         !event.repeat &&
+  //         state.demoTrialTextProgress <
+  //           demoTrialText.text[state.names[state.current]].length - 1))
+  //   ) {
+  //     console.log(state.demoTrialTextProgress);
+  //     state.demoTrialTextProgress++;
+  //     demoTrialText.object.element.innerText = demoTrialText.text[
+  //       state.names[state.current]
+  //     ]
+  //       .slice(0, state.demoTrialTextProgress)
+  //       .join('\n');
+  //   }
+  // }
+
   // IMPORTANT: Modify to record what was actually displayed & when
   function recordFrameData(timestamp) {
     trial.tFrame.push(timestamp);
+    if (exp.exitIdling) {
+      trial.exitIdleFrame.push(trial.tFrame.length);
+      exp.exitIdling = false;
+    }
     trial.stateFrame.push(state.current);
     trial.stretchFrame.push(trial.stretch);
   }
@@ -853,6 +1053,7 @@ async function main() {
   function recordMouseMoveData(event) {
     if (event.target === document.body) {
       idleTimer.reset();
+      exp.exitIdle = exp.idle;
       trial.t.push(event.timeStamp);
       trial.btn.push(event.buttons);
       trial.dx.push(event.movementX);
@@ -876,26 +1077,32 @@ async function main() {
 
   function handleStateChange() {
     if (trial.stateChange) {
-      //state.numClicks = 0;
+      if (demoTrialText) {
+        demoTrialText.object.element.innerText = '';
+      }
       //clickTimer.reset();
       trial.stateChange.push(state.current);
       trial.stateChangeTime.push(performance.now());
     }
   }
 
+  function toggleInstructions() {
+    let hint = document.getElementById('instruction-show-hide');
+    if (!instructions.transitioning) {
+      if (instructions.collapsed) {
+        instructions.expand();
+        hint.textContent = 'hide';
+      } else {
+        instructions.collapse();
+        hint.textContent = 'show';
+      }
+    }
+  }
+
   function addDefaultEventListeners() {
     document.body.addEventListener('keydown', (event) => {
-      if (event.key === ' ' && !event.repeat) {
-        let hint = document.getElementById('instruction-show-hide');
-        if (!instructions.transitioning) {
-          if (instructions.collapsed) {
-            instructions.expand();
-            hint.textContent = 'hide';
-          } else {
-            instructions.collapse();
-            hint.textContent = 'show';
-          }
-        }
+      if (event.key === 'i' && !event.repeat) {
+        toggleInstructions();
       }
     });
 
@@ -1042,7 +1249,7 @@ async function main() {
     DisplayElement.hide(cssRenderer.domElement);
     let cssScene = new Scene();
 
-    // 4. Add resize listener
+    // 5. Add resize listener
     // for consistent scene scale despite window dimensions (see also handleResize)
     // exp.cfg.tanFOV = Math.tan(((Math.PI / 180) * camera.fov) / 2);
     // exp.cfg.windowHeight = window.innerHeight;
@@ -1069,7 +1276,7 @@ async function main() {
     vrButton.style.marginTop = '10px';
     vrButton.style.order = 2; // center
     vrButton.addEventListener('click', () => {
-      loadBackground(sceneBackgroundURL, scene);
+      loadBackground(exp.cfg.sceneBackgroundURL, scene);
       exp.vrEnabled = true;
     });
     document.getElementById('panel-container').appendChild(vrButton);
@@ -1137,7 +1344,7 @@ async function main() {
 
   function loadBackground(sceneBackgroundURL, scene) {
     // Load a custom background
-    if (sceneBackgroundURL.endsWith('.jpg')) {
+    if (sceneBackgroundURL && sceneBackgroundURL.endsWith('.jpg')) {
       const loader = new TextureLoader();
       loader.load(sceneBackgroundURL, (texture) => {
         const generator = new PMREMGenerator(renderer);
@@ -1146,57 +1353,6 @@ async function main() {
         texture.dispose();
         generator.dispose();
       });
-    }
-  }
-
-  function applyNewTexture() {
-    if (!Object.keys(pbrMapper.textures).includes(exp.cfg.textureName)) {
-      switch (exp.cfg.textureName) {
-        case 'wood':
-          pbrMapper.load(
-            [
-              woodColorMapURL,
-              woodDisplacementMapURL,
-              woodNormalMapURL,
-              woodRoughnessMapURL,
-            ],
-            'wood'
-          );
-          break;
-
-        case 'metal':
-          pbrMapper.load(
-            [
-              brassColorMapURL,
-              brassDisplacementMapURL,
-              brassNormalMapURL,
-              brassRoughnessMapURL,
-              brassMetalnessMapURL,
-            ],
-            'metal'
-          );
-          break;
-
-        case 'plastic':
-          pbrMapper.load(
-            [
-              plasticColorMapURL,
-              plasticDisplacementMapURL,
-              plasticNormalMapURL,
-              plasticRoughnessMapURL,
-            ],
-            'plastic'
-          );
-          break;
-      }
-    }
-    for (let obji of objects) {
-      if (!obji) continue;
-      pbrMapper.setPBRMaps(exp.cfg.textureName, obji.material, 0, 1);
-      obji.material.map.repeat.set(
-        1,
-        (0.2 * obji.scale.y) / Math.min(...exp.cfg.targetHeights)
-      );
     }
   }
 }
