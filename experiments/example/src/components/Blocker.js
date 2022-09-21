@@ -50,12 +50,14 @@ export class Blocker extends DisplayElement {
         }),
         attention: new DisplayElement({
           element: `
-            <div id="attention-check-content" class="weblab-component-div">
+            <div id="attention-check-content" class="weblab-component-div" style="line-height:1.5em">
               <h3 style="margin-block: 0">
-                Warning! You are not scoring enough points.<br />
+                Warning!<br />
               </h3>
-              Please review the instructions if necessary.<br />
-              Your work may be rejected if you do not improve your performance.<br /><br />
+              Our performance-monitoring algorithm thinks you are not trying very hard.<br />
+              Please review the instructions and adjust your strategy if necessary.<br />
+              All submissions are reviewed for quality before approval.<br />
+              Please do your best, otherwise we cannot use your data.<br /><br />
               Press Enter to proceed.
             </div>`,
           hide: true,

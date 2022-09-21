@@ -39,7 +39,6 @@ import {
   computeMassSpringDamperPosition,
   truncQuadCost,
   rotationHelper,
-  randomNormal,
 } from './components/utils.js';
 import {
   buildController,
@@ -155,7 +154,7 @@ async function main() {
     element: `
     <div id="instruction-detail" class="panel-detail collapsible">
       1. Click and drag up to stretch the spring on the current object.<br />
-      2. Press Shift to release the object from the ring.<br />
+      2. Press Space (or Shift) to release the object from the ring.<br />
       Stretch the spring to perfectly support each object's weight.<br />
       The objects should not move up or down when they are released!<br />
     </div>`,
@@ -232,7 +231,7 @@ async function main() {
   gui.add(exp.history, 'slope').listen();
 
   // Set up the targets
-  // Baseline condition: Four family objects, linear family, no noise, equal presentation frequencies, permanence
+  // Baseline condition = 1: Four family objects, outlier after 10 reps, linear family, no noise, equal presentation frequencies, permanence
   exp.cfg.targetIds = [0, 1, 2, 3, 4];
   exp.cfg.targetWeights = [0.3, 0.4, 0.8, 0.6, 0.7];
   exp.cfg.targetHeights = [0.05, 0.06, 0.07, 0.08, 0.09];
@@ -249,7 +248,7 @@ async function main() {
   for (let oi of exp.cfg.targetIds) {
     let col = new Color(colors[4]);
     let tmp = col.getHSL({});
-    tmp.l = 0.3; // enforce equal luminance
+    tmp.l = 0.2; // enforce equal luminance
     col.setHSL(tmp.h, tmp.s, tmp.l);
     exp.materials[oi] = new MeshStandardMaterial({
       color: col,
@@ -257,13 +256,17 @@ async function main() {
   }
 
   // Condition-specific settings
-  // Outlier from start (note: requires change to blocks = {})
+  // Condition 0: Outlier from start, 20 reps (note: requires change to blocks = {})
   //exp.cfg.condition = 0;
-  // Outlier after 10 reps
-  //exp.cfg.condition = 1;
-  // Outlier after 10 reps + unique colors
-  //exp.cfg.condition = 2;
-  if (exp.cfg.condition == 2) {
+
+  exp.cfg.condition = 0;
+
+  // Unique colors
+  if (
+    exp.cfg.condition === 2 ||
+    exp.cfg.condition === 4 ||
+    exp.cfg.condition === 5
+  ) {
     for (let oi of exp.cfg.targetIds) {
       let col = new Color(colors[oi * 2]);
       let tmp = col.getHSL({});
@@ -274,22 +277,39 @@ async function main() {
       });
     }
   }
+  // Graded colors
+  if (exp.cfg.condition === 2.5) {
+    let colors = colormap({
+      colormap: 'viridis',
+      nshades: 13,
+      format: 'hex',
+      alpha: 1,
+    });
+    for (let oi of exp.cfg.targetIds) {
+      let col = new Color(colors[7 - oi]);
+      let tmp = col.getHSL({});
+      tmp.l = 0.3; // enforce equal luminance
+      col.setHSL(tmp.h, tmp.s, tmp.l);
+      exp.materials[oi] = new MeshStandardMaterial({
+        color: col,
+      });
+    }
+  }
   // Two family objects
-  exp.cfg.condition = 3;
   if (exp.cfg.condition === 3) exp.cfg.targetIds = [1, 2, 3];
-  // Add noise
+  // Different colors + noise
   if (exp.cfg.condition === 4) exp.cfg.noisyWeights = true;
   gui.add(exp.cfg, 'noisyWeights').disable;
-  // Sigmoidal family (family = two densities)
+  // Different colors + sigmoidal family (family = two densities)
   if (exp.cfg.condition === 5)
     exp.cfg.targetWeights = [0.3, 0.32, 0.8, 0.68, 0.7];
-  // Permanence
+  // Different colors + disappearing from view
   if (exp.cfg.condition === 6) {
     exp.cfg.oneByOne = true;
     exp.cfg.carouselRotationSpeed /= 1.5;
   }
   // 4x outlier frequency
-  if (exp.cfg.condition === 7) exp.cfg.targetIds = [0, 1, 2, 2, 2, 2, 3, 4];
+  if (exp.cfg.condition === 7) exp.cfg.targetIds = [0, 1, 2, 2, 2, 3, 4];
   // Time limit of 1.5 seconds
   //if (exp.cfg.condition === 8) exp.cfg.timeLimit = 1.5;
 
@@ -303,7 +323,7 @@ async function main() {
       options: new BlockOptions(
         'train',
         true,
-        exp.cfg.condition === 3 ? 20 : 10,
+        exp.cfg.condition === 0 ? 0 : exp.cfg.condition === 3 ? 20 : 10,
         ['targetId']
       ),
     },
@@ -312,7 +332,11 @@ async function main() {
       options: new BlockOptions(
         'test',
         true,
-        exp.cfg.condition === 3 ? 20 : 12,
+        exp.cfg.condition === 0 || exp.cfg.condition === 3
+          ? 20
+          : exp.cfg.condition === 7
+          ? 9
+          : 12,
         ['targetId']
       ),
     },
@@ -573,12 +597,13 @@ async function main() {
         // Reset data arrays and other weblab defaults
         trial = { ...trial, ...structuredClone(trialInitialize) };
         // Set trial parameters
-        trial.demoTrial = exp.trialNumber === 0;
+        trial.demoTrial = exp.trialNumber === 0 || exp.repeatDemoTrial;
         trial.clamped = true;
         trial.carouselRotated = false;
         trial.stretch = 0;
-        trial.massNoise = exp.cfg.noisyWeights * randomNormal(-0.1, 0.1, 2.5);
+        trial.massNoise = exp.cfg.noisyWeights * (0.3 * Math.random() - 0.15);
         trial.mass = exp.cfg.targetWeights[trial.targetId] + trial.massNoise;
+        console.log(trial.mass);
         trial.correct = (trial.mass * exp.cfg.gravity) / exp.cfg.springConstant; // equilibrium displacement
         trial.correctWithoutNoise =
           (exp.cfg.targetWeights[trial.targetId] * exp.cfg.gravity) /
@@ -672,8 +697,9 @@ async function main() {
             `;
           } else {
             demoTrialText.object.element.innerText = `The more you stretch the spring, the harder it pulls on the object.
-              Notice it can't move because it is clamped in place by the ring.
-              When you are ready, press Shift to release the object from the ring.
+              Right now the object is clamped in place by the ring, so it can't move.
+              When you are ready, press Space (or Shift) to release the object from the ring.
+              You can let go of the mouse button after you release the object.
             `;
           }
         }
@@ -691,7 +717,7 @@ async function main() {
           // Compute trial results
           trial.error = trial.stretch - trial.correct;
           if (trial.targetId !== 2 && trial.trialNumber > 0) {
-            exp.history.x.push([1, trial.correct]);
+            exp.history.x.push([1, trial.correctWithoutNoise]);
             exp.history.y.push(trial.stretch);
             exp.history.cycle.push(trial.cycle);
             if (trial.cycle > 0) {
@@ -750,38 +776,46 @@ async function main() {
             startPosn: startPosn,
             endPosn: endPosn,
           });
-        }
-        if (trial.demoTrial) {
-          if (trial.error > 0.015) {
-            demoTrialText.object.element.innerText = `You applied too much force so the object was pulled up.
+
+          if (trial.demoTrial) {
+            if (trial.error > 0.015) {
+              demoTrialText.object.element.innerText = `You applied too much force so the object was pulled up.
               Next time you see this object, stretch the spring less.
               Try to make each object stay perfectly still.
-              Press Enter to continue.
+              
             `;
-          } else if (trial.error < -0.015) {
-            demoTrialText.object.element.innerText = `You applied too little force so the object fell down.
+            } else if (trial.error < -0.015) {
+              demoTrialText.object.element.innerText = `You applied too little force so the object fell down.
               Next time you see this object, stretch the spring more.
               Try to make each object stay perfectly still.
-              Press Enter to continue.
+              
             `;
-          } else {
-            demoTrialText.object.element.innerText = `
+            } else {
+              demoTrialText.object.element.innerText = `
               Good job!
               Try to make each object stay perfectly still.
-              Press Enter to continue.
+              
             `;
+            }
+            setTimeout(() => {
+              demoTrialText.object.element.innerText =
+                demoTrialText.object.element.innerText.slice(0, -1);
+              demoTrialText.object.element.innerText +=
+                'Press Enter to continue (or press D to repeat the demo).';
+              document.body.addEventListener('keydown', pressEnterToContinue);
+            }, 2000);
+            exp.awaitingPressEnter = true;
           }
-          document.body.addEventListener(
-            'keydown',
-            (e) => {
-              if (e.key === 'Enter') {
-                state.next(state.FINISH);
-              }
-            },
-            { once: true }
-          );
-        } else if (state.expired(exp.cfg.minDropWaitTime + trial.timePenalty)) {
-          state.next(state.FINISH); // advance
+        }
+        if (state.expired(exp.cfg.minDropWaitTime + trial.timePenalty)) {
+          if (!exp.awaitingPressEnter) {
+            state.next(state.FINISH); // advance
+          }
+        } else {
+          let progress =
+            (100 * state.elapsed()) /
+            (exp.cfg.minDropWaitTime + trial.timePenalty);
+          document.getElementById('loadingbar').style.width = progress + '%';
         }
         break;
       }
@@ -881,16 +915,12 @@ async function main() {
       case state.ATTENTION: {
         if (exp.blocker.attention.hidden) {
           exp.blocker.show('attention');
-          document.body.addEventListener(
-            'keydown',
-            (e) => {
-              if (e.key === 'Enter') {
-                exp.blocker.hide();
-                state.next(state.START);
-              }
-            },
-            { once: true }
-          );
+          document.body.addEventListener('keydown', pressEnterToContinue);
+          exp.awaitingPressEnter = true;
+        }
+        if (!exp.awaitingPressEnter) {
+          exp.blocker.hide();
+          state.next(state.START);
         }
       }
     }
@@ -963,11 +993,12 @@ async function main() {
   }
 
   function releaseClamp(event) {
+    console.log(event.key);
     if (
       state.current === state.PULL &&
       trial.clamped &&
       trial.stretch !== 0 &&
-      event.key === 'Shift'
+      (event.key === 'Shift' || event.key === ' ')
     ) {
       // Here we set a flag instead of creating a state in the FSM
       // Allows immediate blocking of events that might be processed before the next rAF loop
@@ -1096,6 +1127,19 @@ async function main() {
         instructions.collapse();
         hint.textContent = 'show';
       }
+    }
+  }
+
+  function pressEnterToContinue(e) {
+    if (e.key === 'Enter') {
+      document.body.removeEventListener('keydown', pressEnterToContinue);
+      exp.awaitingPressEnter = false;
+      exp.repeatDemoTrial = false;
+    }
+    if (e.key.toLowerCase() === 'd') {
+      document.body.removeEventListener('keydown', pressEnterToContinue);
+      exp.awaitingPressEnter = false;
+      exp.repeatDemoTrial = true;
     }
   }
 

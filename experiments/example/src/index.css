@@ -174,3 +174,11 @@ button {
   width: 0;
   display: block;
 }
+
+#loadingbar {
+  background-color: skyblue;
+  width: 102%;
+  height: 5px;
+  display: block;
+  margin-top: 0.2em;
+}
