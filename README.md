@@ -50,7 +50,7 @@ If you use bash on a Mac, open _`~/.bash_profile`_ and add the line `source ~/.b
        - Linux/Mac: _`~/.firebase/credentials.json`_
        - Windows: _`C:\Users\%USERNAME%\.firebase\credentials.json`_
   5. **Configuration**
-     - Project Overview → Web (</>) → Choose nickname → click through remaining
+     - Project Overview → Web (</>) → Choose nickname → click through remaining (skip the commands)
      - Gear icon → Project settings → scroll to bottom → select Config.
        - Leave this tab open, you will need to copy-paste the displayed code into a file later.
 
@@ -78,6 +78,15 @@ If you use bash on a Mac, open _`~/.bash_profile`_ and add the line `source ~/.b
 - Move this file to:
   - Linux/Mac: _`~/.aws/credentials`_
   - Windows: _`C:\Users\%USERNAME%\.aws\credentials`_
+
+### Prolific (optional)
+
+- Create a new Prolific researcher account [here](https://app.prolific.co/register/researcher).
+- Workspaces → Settings → Go to API token page → Create API token
+- Copy the generated token (just a long string of characters) into a plain text file at:
+  - Linux/Mac: _`~/.prolific/credentials.txt`_
+  - Windows: _`C:\Users\%USERNAME%\.prolific\credentials.txt`_
+- **Note**: CLI integration with the Prolific API is in development. **weblab** functions that use the Prolific API start with `_p-)` (e.g, `p-get-submissions`). The Prolific API is incomplete and must still be used for some operations.
 
 ## 1. Installation
 
@@ -215,4 +224,4 @@ const exp = new Experiment({
 });
 ```
 
-Note: CLI integration with the Prolific API is in development. Eventually you will not need to use the web interface as described above. Try it out by getting your API Token from the Prolific website, and saving this securely in `~/.prolific/credentials.txt`. You can then use all Prolific-prefixed **weblab** functions (e.g, `p-get-submissions`). Use the `workersToXXX` fields of `mturk-config.mjs` as needed for `download-workers`, `p-approve`, and `p-send-bonus`.
+Note: CLI integration with the Prolific API is in development. Try out Prolific-prefixed **weblab** functions (e.g, `p-get-submissions`). Use the `workersToXXX` fields of `mturk-config.mjs` as needed for `download-workers`, `p-approve`, and `p-send-bonus`.
