@@ -92,7 +92,7 @@ Now you're ready to start building and running experiments with **weblab**!
   weblab install-completion
   ```
   - If you use zsh, add `autoload -Uz compinit && compinit` to _`~/.zshrc`_ to get tab-completions working.
-- Return to the Firebase Console and copy the `const firebaseConfig = {...}` configuration object mentioned [earlier](#firebase).
+- Return to the Firebase Console and copy the `const firebaseConfig = {...}` configuration object mentioned [earlier](#firebase) (grab them from https://console.firebase.google.com/project/PROJECT_NAME/settings/general/, replacing PROJECT_NAME with your own project name).
 - Open _`weblab/firebase-config.js`_ in your editor, replace the configuration object with your own, and save. **Make sure you keep the `export` keyword!** You should have `export const firebaseConfig = {...}`.
 
 **Simple test**
@@ -132,7 +132,7 @@ In **weblab**, an experiment is a stand-alone JavaScript web app using ES module
   - _`src/components/`_ contains the **weblab** component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. Important components used in _`src/index.js`_ include `Experiment`, `BlockOptions`, `State`, and `Firebase`.
 - **Important files to replace**
   - Replace _`src/consent.pdf`_ with your own consent form.
-  - Replace _`src/firebase-config.js`_ with your own Firebase configuration details (same as _`weblab/firebase-config.js`_ from [earlier](#installation).
+  - Replace _`src/firebase-config.js`_ with your own Firebase configuration details (same as _`weblab/firebase-config.js`_ from [earlier](#installation)).
 
 #### Test the example experiment
 
