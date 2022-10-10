@@ -35,9 +35,9 @@ export class Points {
   ) {
     const updatePointsTween = new Tween(this)
       // duration depends on amount
-      .to({ total: this.total + earned }, earned * 10)
+      .to({ total: this.total + earned }, Math.abs(earned) * 10)
       .onUpdate(() => {
-        this.total = Math.round(this.total);
+        this.total = Math.max(0, Math.round(this.total));
         this.panelPoints.textContent = this.total;
       })
       .onComplete(() => {
@@ -49,7 +49,8 @@ export class Points {
       // Initialize
       this.css2d.object.position.set(...animateParams.startPosn);
       this.css2d.object.element.style.opacity = 1;
-      this.css2d.object.element.innerHTML = `+${earned}`;
+      this.css2d.object.element.innerHTML =
+        earned >= 0 ? `+${earned}` : `\u2212${Math.abs(earned)}`;
       this.css2d.object.element.style.color = animateParams.color;
 
       // movement+fade -> score increase
@@ -66,10 +67,10 @@ export class Points {
         .chain(updatePointsTween);
     } else {
       updatePointsTween.delay(700).start();
-      this.total += earned;
-      this.panelPoints.textContent = this.total;
-      this.text = this.currencyFormatter.format(this.total / 10000);
-      this.panelBonus.textContent = this.text;
+      // this.total += earned;
+      // this.panelPoints.textContent = this.total;
+      // this.text = this.currencyFormatter.format(this.total / 10000);
+      // this.panelBonus.textContent = this.text;
     }
   }
 }

@@ -9,6 +9,7 @@ import {
   DoubleSide,
   Group,
   MeshStandardMaterial,
+  OrthographicCamera,
   PerspectiveCamera,
   PMREMGenerator,
   Scene,
@@ -83,7 +84,7 @@ async function main() {
     requireChrome: true,
     vrAllowed: false,
 
-    cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
+    cssBackground: 'white', //'dimgray', // color name string: http://davidbau.com/colors/
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
@@ -112,6 +113,10 @@ async function main() {
     environmentLighting: environmentLightingURL,
     //sceneBackground: sceneBackgroundURL,
     textureName: 'leather',
+
+    timeLimitExceededWaitDuration: 6,
+
+    screenshots: false,
   });
 
   // Create finite state machine (experiment flow manager)
@@ -145,7 +150,6 @@ async function main() {
     'DROP',
     'FINISH',
     'ADVANCE',
-    'ATTENTION',
   ].map((s) => state[s]);
 
   // Create any customizable elements
@@ -155,8 +159,8 @@ async function main() {
     <div id="instruction-detail" class="panel-detail collapsible">
       1. Click and drag up to stretch the spring on the current object.<br />
       2. Press Space (or Shift) to release the object from the ring.<br />
-      Stretch the spring to perfectly support each object's weight.<br />
-      The objects should not move up or down when they are released!<br />
+      Stretch the spring the right amount to support each object's weight.<br />
+      The object should not move up or down when it is released!<br />
     </div>`,
     hide: false,
     display: 'block',
@@ -168,6 +172,49 @@ async function main() {
 
   const demoTrialText = new CSS2D('');
   demoTrialText.object.element.style.fontSize = '14pt';
+
+  const timeLimitIcon = new CSS2D('');
+  let timeLimitCircle = new DisplayElement({
+    element: `<svg style="transform: rotateY(-180deg) rotateZ(-90deg);"><circle id="timeLimitIcon" r="18" style="stroke-dasharray: 113px; stroke-dashoffset: 0px; stroke-linecap: round; stroke-width: 4px; fill: none; stroke: black; transform: translate(50%, 50%)"></circle></svg>`,
+    hide: false,
+    display: 'block',
+    parent: timeLimitIcon.object.element,
+  });
+
+  exp.blocker.addChild(
+    new DisplayElement({
+      element: `
+        <div id="time-limit-attention-content" class="weblab-component-div" style="line-height:1.5em">
+          <h3 style="margin-block: 0">
+            Attention: Now there is a time limit!
+          </h3>
+          A circular icon will display the countdown.<br />
+          Stretch the spring and release the object before time runs out.<br />
+          If you run out of time, you lose 100 points and get stuck in a brief timeout.<br />
+          <div id="time-limit-attention-press-enter" style="display: none">Press Enter to proceed.</div>
+        </div>`,
+      hide: true,
+      parent: exp.blocker.dom,
+    }),
+    'timeLimit'
+  );
+
+  exp.blocker.addChild(
+    new DisplayElement({
+      element: `
+        <div id="time-limit-warning-content" class="weblab-component-div" style="line-height:1.5em">
+          <h3 style="margin-block: 0">
+            Warning: Respond within the time limit!
+          </h3>
+          Do not let the timer run out without attempting a response.<br />
+          <div id='time-limit-warning-please-wait'>You must wait&nbsp;<a id='time-limit-warning-time-remaining'>5</a>&nbsp;more seconds...</div>
+          <div id='time-limit-warning-press-enter'>Press Enter to proceed.</div>
+        </div>`,
+      hide: true,
+      parent: exp.blocker.dom,
+    }),
+    'timeLimitWarning'
+  );
 
   // Add listeners for default weblab events
   addDefaultEventListeners();
@@ -236,7 +283,6 @@ async function main() {
   exp.cfg.targetWeights = [0.3, 0.4, 0.8, 0.6, 0.7];
   exp.cfg.targetHeights = [0.05, 0.06, 0.07, 0.08, 0.09];
   exp.cfg.noisyWeights = false;
-  //exp.cfg.timeLimit = Infinity;
 
   let colors = colormap({
     colormap: 'viridis',
@@ -259,13 +305,16 @@ async function main() {
   // Condition 0: Outlier from start, 20 reps (note: requires change to blocks = {})
   //exp.cfg.condition = 0;
 
-  exp.cfg.condition = 0;
+  exp.cfg.condition = 9;
 
   // Unique colors
   if (
     exp.cfg.condition === 2 ||
     exp.cfg.condition === 4 ||
-    exp.cfg.condition === 5
+    exp.cfg.condition === 5 ||
+    exp.cfg.condition === 6 ||
+    exp.cfg.condition === 8 ||
+    exp.cfg.condition === 9
   ) {
     for (let oi of exp.cfg.targetIds) {
       let col = new Color(colors[oi * 2]);
@@ -303,15 +352,23 @@ async function main() {
   // Different colors + sigmoidal family (family = two densities)
   if (exp.cfg.condition === 5)
     exp.cfg.targetWeights = [0.3, 0.32, 0.8, 0.68, 0.7];
-  // Different colors + disappearing from view
+  // FromStart5
   if (exp.cfg.condition === 6) {
-    exp.cfg.oneByOne = true;
-    exp.cfg.carouselRotationSpeed /= 1.5;
+    //
   }
   // 4x outlier frequency
   if (exp.cfg.condition === 7) exp.cfg.targetIds = [0, 1, 2, 2, 2, 3, 4];
-  // Time limit of 1.5 seconds
-  //if (exp.cfg.condition === 8) exp.cfg.timeLimit = 1.5;
+  // Time limit of 2 seconds
+  if (exp.cfg.condition === 8) {
+    exp.cfg.timeLimit = 2250;
+    exp.cfg.timeLimitStartTrial = 12;
+  }
+  if (exp.cfg.condition === 9) {
+    exp.cfg.oneByOne = true;
+  }
+  if (exp.cfg.condition === 10) {
+    exp.cfg.targetWeights = [0.3, 0.32, 0.8, 0.68, 0.7];
+  }
 
   // Create trial structure using an array of block objects (in desired order)
   let blocks = [
@@ -323,7 +380,11 @@ async function main() {
       options: new BlockOptions(
         'train',
         true,
-        exp.cfg.condition === 0 ? 0 : exp.cfg.condition === 3 ? 20 : 10,
+        exp.cfg.condition === 6 || exp.cfg.condition === 0
+          ? 0
+          : exp.cfg.condition === 3
+          ? 20
+          : 10,
         ['targetId']
       ),
     },
@@ -332,7 +393,9 @@ async function main() {
       options: new BlockOptions(
         'test',
         true,
-        exp.cfg.condition === 0 || exp.cfg.condition === 3
+        exp.cfg.condition === 0 ||
+        exp.cfg.condition === 3 ||
+        exp.cfg.condition === 6
           ? 20
           : exp.cfg.condition === 7
           ? 9
@@ -361,6 +424,7 @@ async function main() {
   // Add CSS2D objects to cssScene
   cssScene.add(exp.points.css2d.object);
   cssScene.add(demoTrialText.object);
+  cssScene.add(timeLimitIcon.object);
 
   // Prepare texture loader
   const pbrMapper = new PBRMapper();
@@ -371,7 +435,7 @@ async function main() {
 
   // Create carousel
   const carouselParams = {
-    majorRadius: exp.cfg.oneByOne ? 0.6 : 0.2,
+    majorRadius: 0.2,
     minorRadius: 0.003,
     tubularSegments: 200,
     radialSegments: 12,
@@ -388,6 +452,7 @@ async function main() {
   carousel.rotation.z = exp.cfg.carouselGap / 2;
   carousel.material.color = new Color('black');
   carousel.material.side = DoubleSide;
+  carousel.visible = !exp.cfg.screenshots;
   scene.add(carousel);
 
   // Create spring template
@@ -404,16 +469,19 @@ async function main() {
   });
   springRing.rotation.x = -Math.PI / 2;
   const carouselOuterSegment = MeshFactory.torus({
-    majorRadius: exp.cfg.oneByOne ? 0.6 : 0.2,
+    majorRadius: 0.2,
     minorRadius: carouselParams.minorRadius * 1.2,
     tubularSegments: 40,
     radialSegments: 12,
-    arc: Math.PI / exp.cfg.numObjects,
+    arc: exp.cfg.oneByOne
+      ? Math.PI * (1 + (exp.cfg.numObjects - 1) / exp.cfg.numObjects)
+      : Math.PI / exp.cfg.numObjects,
   });
   carouselOuterSegment.material.color = new Color('gray');
   carouselOuterSegment.rotation.x = Math.PI / 2;
   carouselOuterSegment.rotation.z = (0.5 * Math.PI) / exp.cfg.numObjects;
   carouselOuterSegment.position.y -= carouselParams.minorRadius * 2;
+  carouselOuterSegment.name = 'carouselOuter';
 
   // Create object group, centered at the carousel
   const objectGroup = new Group();
@@ -432,8 +500,18 @@ async function main() {
     let obji = MeshFactory.cylinder({ radialSegments: 64 });
     obji.material = exp.materials[objid];
     objectGroup.add(obji);
-    let cari = carouselOuterSegment.clone();
-    if (!exp.cfg.oneByOne) objectGroup.add(cari);
+    let cari;
+    if (!(exp.cfg.oneByOne && oi > 0)) {
+      cari = carouselOuterSegment.clone();
+      if (exp.cfg.oneByOne) {
+        carousel.visible = false;
+        cari.position.copy(carousel.position);
+        //cari.position.y += carouselParams.minorRadius * 2; // for cylinders
+        scene.add(cari);
+      } else {
+        objectGroup.add(cari);
+      }
+    }
     let spring = MeshFactory.spring(springParams);
     let ringi = springRing.clone();
     obji.add(ringi);
@@ -444,8 +522,8 @@ async function main() {
 
     // Distribute objects around the carousel (CW from RHS origin)
     let theta = ((2 * Math.PI) / exp.cfg.numObjects) * exp.cfg.targetOrder[oi]; // oi = count, not id
-    let x = exp.cfg.oneByOne ? 0 : carouselParams.majorRadius * Math.cos(theta);
-    let z = exp.cfg.oneByOne ? 0 : carouselParams.majorRadius * Math.sin(theta);
+    let x = carouselParams.majorRadius * Math.cos(theta);
+    let z = carouselParams.majorRadius * Math.sin(theta);
     // Store the initial y position (this is wrt objectGroup)
     obji.yInit = -exp.cfg.targetHeights[objid] / 2;
     // Store the carousel angle
@@ -454,7 +532,9 @@ async function main() {
     obji.position.y = obji.yInit;
     obji.position.z = z;
     //obji.rotation.y = theta;
-    cari.rotation.z += theta;
+    if (cari) {
+      cari.rotation.z += theta;
+    }
     obji.scale.x = exp.cfg.targetWidth;
     obji.scale.y = exp.cfg.targetHeights[objid];
     obji.scale.z = exp.cfg.targetWidth;
@@ -469,6 +549,45 @@ async function main() {
     spring.material.roughness = 0.3;
     spring.material.metalness = 1;
     ringi.material.copy(spring.material);
+    if (exp.cfg.oneByOne) {
+      obji.traverse((o) => (o.visible = false));
+    }
+    if (exp.cfg.screenshots) {
+      cari.visible = false;
+      obji.position.x = carouselParams.majorRadius;
+      obji.yInit = exp.cfg.targetHeights[objid] / 2;
+      obji.position.y = obji.yInit;
+      obji.position.z =
+        4.4 * exp.cfg.targetWidth - 2.2 * objid * exp.cfg.targetWidth;
+      obji.sp = computeMassSpringDamperParameters(
+        exp.cfg.targetWeights[objid],
+        exp.cfg.springConstant,
+        exp.cfg.springDamping
+      );
+      let newPosn = computeMassSpringDamperPosition(
+        10, // time since clamp release
+        0, // error
+        obji.sp.gamma,
+        obji.sp.Gamma,
+        obji.sp.Omega,
+        obji.sp.regime,
+        obji.yInit
+      );
+      // move the object
+      obji.position.y = newPosn;
+      // stretch the spring by the distance of the movement
+      MeshFactory.spring(
+        {
+          ...springParams,
+          stretch:
+            (exp.cfg.targetWeights[objid] * exp.cfg.gravity) /
+            exp.cfg.springConstant,
+        },
+        spring
+      );
+      ringi.visible = false;
+      spring.visible = false;
+    }
   }
 
   // Set objects material
@@ -487,15 +606,13 @@ async function main() {
 
   // Position the camera to look at the home position (i.e. origin: (1,0,0))
   let offset;
-  if (exp.cfg.oneByOne) {
-    carousel.rotation.z += Math.PI;
-    objectGroup.rotation.y += Math.PI;
-    offset = new Vector3(-carouselParams.majorRadius, 0, 0);
-  } else {
-    offset = new Vector3(carouselParams.majorRadius, 0, 0);
-  }
+  offset = new Vector3(carouselParams.majorRadius, 0, 0);
   let tmp = new Vector3().copy(carousel.position).add(offset);
-  camera.position.set(...new Vector3(0.4, 0.12, 0).add(tmp));
+  camera.position.set(
+    ...new Vector3(0.4, 0.12, 0)
+      .multiplyScalar(exp.cfg.screenshots ? 1.5 : 1)
+      .add(tmp)
+  );
   camera.lookAt(...new Vector3(0, 0, 0).add(tmp));
 
   // Start the rAF loop
@@ -590,6 +707,8 @@ async function main() {
       }
 
       case state.SETUP: {
+        // Grab anything we might need from the previous trial
+        let showTimeLimitWarning = trial.timeLimitExceeded;
         // Start with a deep copy of the initialized trial from exp.trials
         trial = structuredClone(exp.trials[exp.trialNumber]);
         trial.trialNumber = exp.trialNumber;
@@ -598,6 +717,11 @@ async function main() {
         trial = { ...trial, ...structuredClone(trialInitialize) };
         // Set trial parameters
         trial.demoTrial = exp.trialNumber === 0 || exp.repeatDemoTrial;
+        trial.timeLimitExceeded = false;
+        trial.timeLimit =
+          trial.trialNumber >= exp.cfg.timeLimitStartTrial
+            ? exp.cfg.timeLimit
+            : false;
         trial.clamped = true;
         trial.carouselRotated = false;
         trial.stretch = 0;
@@ -615,6 +739,7 @@ async function main() {
           exp.cfg.springDamping
         );
 
+        // Pre-trial blocker notification screens
         // Attention checks at ~25, 50 and 75% completion
         if (
           trial.trialNumber > 0 &&
@@ -622,6 +747,55 @@ async function main() {
           ((exp.cfg.condition !== 3 && exp.history.p > 0.01) ||
             exp.history.slope < 0.5) // attention check parameters
         ) {
+          exp.blocker.show('attention');
+          exp.proceedKey = 'Enter';
+          document.body.addEventListener('keydown', handleProceedKey);
+          exp.awaitingPressEnter = true;
+          state.next(state.ATTENTION);
+        } else if (
+          exp.cfg.timeLimit &&
+          trial.trialNumber === exp.cfg.timeLimitStartTrial
+        ) {
+          // Time limit imposed after some trials
+          exp.blocker.show('timeLimit');
+          exp.proceedKey = 'Enter';
+          exp.awaitingPressEnter = true;
+          let pressEnterText = document.getElementById(
+            'time-limit-attention-press-enter'
+          );
+          setTimeout(() => {
+            DisplayElement.show(pressEnterText);
+            document.body.addEventListener('keydown', handleProceedKey);
+          }, 10000);
+          state.next(state.ATTENTION);
+        } else if (showTimeLimitWarning) {
+          exp.blocker.show('timeLimitWarning');
+          exp.proceedKey = 'Enter';
+          exp.awaitingPressEnter = true;
+          let timeRemainingText = document.getElementById(
+            'time-limit-warning-time-remaining'
+          );
+          timeRemainingText.innerText = exp.cfg.timeLimitExceededWaitDuration;
+          let pleaseWaitText = document.getElementById(
+            'time-limit-warning-please-wait'
+          );
+          let pressEnterText = document.getElementById(
+            'time-limit-warning-press-enter'
+          );
+
+          DisplayElement.show(pleaseWaitText);
+          DisplayElement.hide(pressEnterText);
+          exp.timeLimitCountdown = setInterval(() => {
+            let t = Math.floor(timeRemainingText.innerText);
+            timeRemainingText.innerText = Math.max(0, t - 1);
+          }, 1000);
+          setTimeout(() => {
+            clearInterval(exp.timeLimitCountdown);
+            DisplayElement.hide(pleaseWaitText);
+            DisplayElement.show(pressEnterText);
+            document.body.addEventListener('keydown', handleProceedKey);
+            exp.cfg.timeLimitExceededWaitDuration += 2;
+          }, exp.cfg.timeLimitExceededWaitDuration * 1000);
           state.next(state.ATTENTION);
         } else {
           state.next(state.START);
@@ -630,22 +804,15 @@ async function main() {
       }
 
       case state.START: {
+        if (exp.cfg.screenshots) {
+          break;
+        }
         // plan carousel movement such that ITI = delay + duration
         const startAngle = objectGroup.rotation.y;
         // Rotations go positive CCW, but positioning loop (cos,y,sin) was positive CW
         // So rotating the group by obji.carouselAngle should put obji at the origin (1,0,0)
         let targetAngle = objects[trial.targetId].carouselAngle;
         let dir = 0;
-        if (exp.cfg.oneByOne) {
-          // in the one-by-one (non-permanent) condition, put the new object
-          // behind the camera (but a little less to make sure it comes from the left)
-          targetAngle = startAngle - Math.PI;
-          let x = carouselParams.majorRadius * -Math.cos(targetAngle);
-          let z = carouselParams.majorRadius * Math.sin(targetAngle);
-          objects[trial.targetId].position.x = x;
-          objects[trial.targetId].position.z = z;
-          dir = 1;
-        }
         let distance;
         [targetAngle, distance] = rotationHelper(startAngle, targetAngle, dir);
         let duration = distance / exp.cfg.carouselRotationSpeed;
@@ -663,14 +830,6 @@ async function main() {
           .delay(delay)
           .onComplete(() => {
             trial.carouselRotated = true;
-            if (exp.cfg.oneByOne) {
-              for (let [id, obji] of objects.entries()) {
-                if (id !== trial.targetId) {
-                  obji.position.x = 0;
-                  obji.position.z = 0;
-                }
-              }
-            }
           })
           .start();
         state.next(state.CAROUSEL);
@@ -683,6 +842,37 @@ async function main() {
           document.body.addEventListener('mousemove', updateSpringLength);
           document.body.addEventListener('mouseup', resetSpringLength);
           document.body.addEventListener('keydown', releaseClamp);
+          // Reset time limit icon
+          if (trial.timeLimit) {
+            carousel.getWorldPosition(timeLimitIcon.object.position);
+            timeLimitIcon.object.position.y -= 0.12;
+            timeLimitIcon.object.position.z -= 0.12;
+            timeLimitCircle.dom.children[0].style.stroke = 'black';
+            timeLimitCircle.dom.children[0].style.strokeDashoffset = 0;
+            exp.timeLimitTween = new Tween(
+              timeLimitCircle.dom.children[0].style
+            )
+              .to({ strokeDashoffset: 113 }, exp.cfg.timeLimit - 250)
+              .delay(250)
+              .onComplete(() => {
+                if (!trial.demoTrial) {
+                  demoTrialText.object.element.innerText = `Too slow!`;
+                  demoTrialText.object.element.color = 'darkred';
+                }
+                timeLimitCircle.dom.children[0].style.strokeDashoffset = 0;
+                timeLimitCircle.dom.children[0].style.stroke = 'darkred';
+                trial.timeLimitExceeded = true;
+                trial.clamped = false;
+              })
+              .start();
+          }
+          if (exp.cfg.oneByOne) {
+            objects[trial.targetId].traverse((o) => (o.visible = true));
+            carousel.visible = true;
+          }
+          if (exp.cfg.screenshots) {
+            objects[trial.targetId].traverse((o) => (o.visible = true));
+          }
           state.next(state.PULL);
         }
         break;
@@ -691,10 +881,17 @@ async function main() {
       case state.PULL: {
         if (trial.demoTrial) {
           if (trial.stretch === 0) {
-            demoTrialText.object.element.innerText = `Each of these objects weighs a different amount.
+            if (exp.cfg.oneByOne) {
+              demoTrialText.object.element.innerText = `You will see objects that weigh different amounts.
+              The spring on top is used to support the weight of each object.
+              Click and drag upward to stretch the spring.
+            `;
+            } else {
+              demoTrialText.object.element.innerText = `Each of these objects weighs a different amount.
               The spring on top is used to support the weight of the object.
               Click and drag upward to stretch the spring.
             `;
+            }
           } else {
             demoTrialText.object.element.innerText = `The more you stretch the spring, the harder it pulls on the object.
               Right now the object is clamped in place by the ring, so it can't move.
@@ -704,6 +901,11 @@ async function main() {
           }
         }
         if (!trial.clamped) {
+          if (exp.timeLimitTween && !trial.timeLimitExceeded) {
+            //timeLimitCircle.dom.children[0].style.strokeDashoffset = 0;
+            timeLimitCircle.dom.children[0].style.stroke = 'darkgreen';
+            exp.timeLimitTween.stop();
+          }
           document.body.removeEventListener('mousemove', recordMouseMoveData);
           document.body.removeEventListener('mousemove', updateSpringLength);
           document.body.removeEventListener('mouseup', resetSpringLength);
@@ -747,6 +949,7 @@ async function main() {
           // Start the oscillation animation timer
 
           springOscillationTimer.reset();
+          demoTrialText.object.element.innerText = '';
           state.next(state.DROP);
         }
         break;
@@ -761,13 +964,14 @@ async function main() {
             exp.cfg.maxTrialPoints *
               (1 - truncQuadCost(trial.error / exp.cfg.errorForZeroPoints))
           );
+          if (trial.timeLimitExceeded) {
+            trial.earned = -100;
+          }
           let startPosn = new Vector3();
           objects[trial.targetId].getWorldPosition(startPosn);
           let endPosn = startPosn.clone();
-          let color;
-          if (trial.earned === 0) {
-            color = 'red';
-          } else {
+          let color = 'red';
+          if (trial.earned > 0) {
             color = 'white';
             endPosn.y += 0.1;
           }
@@ -802,13 +1006,15 @@ async function main() {
                 demoTrialText.object.element.innerText.slice(0, -1);
               demoTrialText.object.element.innerText +=
                 'Press Enter to continue (or press D to repeat the demo).';
-              document.body.addEventListener('keydown', pressEnterToContinue);
+              exp.proceedKey = 'Enter';
+              document.body.addEventListener('keydown', handleProceedKey);
             }, 2000);
             exp.awaitingPressEnter = true;
           }
         }
         if (state.expired(exp.cfg.minDropWaitTime + trial.timePenalty)) {
           if (!exp.awaitingPressEnter) {
+            demoTrialText.object.element.innerText = '';
             state.next(state.FINISH); // advance
           }
         } else {
@@ -839,6 +1045,13 @@ async function main() {
         MeshFactory.torus(carouselParams, carousel);
         MeshFactory.spring(springParams, springs[trial.targetId]);
         objects[trial.targetId].position.y = objects[trial.targetId].yInit;
+        if (exp.cfg.oneByOne) {
+          objects[trial.targetId].traverse((o) => (o.visible = false));
+          carousel.visible = false;
+        }
+        if (exp.cfg.screenshots) {
+          objects[trial.targetId].traverse((o) => (o.visible = false));
+        }
 
         exp.nextTrial();
         if (exp.trialNumber < exp.numTrials) {
@@ -913,15 +1126,11 @@ async function main() {
       }
 
       case state.ATTENTION: {
-        if (exp.blocker.attention.hidden) {
-          exp.blocker.show('attention');
-          document.body.addEventListener('keydown', pressEnterToContinue);
-          exp.awaitingPressEnter = true;
-        }
         if (!exp.awaitingPressEnter) {
           exp.blocker.hide();
           state.next(state.START);
         }
+        break;
       }
     }
   }
@@ -965,13 +1174,13 @@ async function main() {
   // Custom event handlers
   function updateSpringLength(event) {
     if (event.buttons && trial.clamped && state.current === state.PULL) {
-      if (demoTrialText && trial.stretch === 0 && event.movementY < 0) {
-        demoTrialText.object.element.style.display = 'none';
-        // setTimeout(
-        //   () => (demoTrialText.object.element.style.display = 'block'),
-        //   1000
-        // );
-      }
+      // if (demoTrialText && trial.stretch === 0 && event.movementY < 0) {
+      //   demoTrialText.object.element.style.display = 'none';
+      //   setTimeout(
+      //     () => (demoTrialText.object.element.style.display = 'block'),
+      //     1000
+      //   );
+      // }
       trial.stretch -= exp.cfg.springStretchSpeed * event.movementY;
       trial.stretch = clamp(trial.stretch, 0, exp.cfg.maxStretch);
       MeshFactory.spring(
@@ -993,12 +1202,11 @@ async function main() {
   }
 
   function releaseClamp(event) {
-    console.log(event.key);
     if (
       state.current === state.PULL &&
       trial.clamped &&
       trial.stretch !== 0 &&
-      (event.key === 'Shift' || event.key === ' ')
+      (event.key === 'shift' || event.key === ' ')
     ) {
       // Here we set a flag instead of creating a state in the FSM
       // Allows immediate blocking of events that might be processed before the next rAF loop
@@ -1094,6 +1302,15 @@ async function main() {
   }
 
   function handleResize() {
+    if (exp.cfg.screenshots) {
+      let aspect = window.innerWidth / window.innerHeight;
+      let height_ortho = 0.42 * 2 * Math.atan((70 * (Math.PI / 180)) / 2);
+      let width_ortho = height_ortho * aspect;
+      camera.left = width_ortho / -2;
+      camera.right = width_ortho / 2;
+      camera.top = height_ortho / 2;
+      camera.bottom = height_ortho / -2;
+    }
     camera.aspect = window.innerWidth / window.innerHeight;
     // for consistent scene scale despite window dimensions (see also initScene)
     // camera.fov =
@@ -1108,9 +1325,6 @@ async function main() {
 
   function handleStateChange() {
     if (trial.stateChange) {
-      if (demoTrialText) {
-        demoTrialText.object.element.innerText = '';
-      }
       //clickTimer.reset();
       trial.stateChange.push(state.current);
       trial.stateChangeTime.push(performance.now());
@@ -1130,16 +1344,18 @@ async function main() {
     }
   }
 
-  function pressEnterToContinue(e) {
-    if (e.key === 'Enter') {
-      document.body.removeEventListener('keydown', pressEnterToContinue);
+  function handleProceedKey(e) {
+    if (e.key === exp.proceedKey) {
+      document.body.removeEventListener('keydown', handleProceedKey);
       exp.awaitingPressEnter = false;
       exp.repeatDemoTrial = false;
+      exp.proceedKey = undefined;
     }
     if (e.key.toLowerCase() === 'd') {
-      document.body.removeEventListener('keydown', pressEnterToContinue);
+      document.body.removeEventListener('keydown', handleProceedKey);
       exp.awaitingPressEnter = false;
       exp.repeatDemoTrial = true;
+      exp.proceedKey = undefined;
     }
   }
 
@@ -1168,7 +1384,7 @@ async function main() {
         'document.body received surveysubmitted event, saving data...'
       );
       for (let [k, v] of Object.entries(e.detail.survey)) {
-        exp[k] = v;
+        exp.cfg[k] = v;
       }
       exp.surveysubmitted = true;
     });
@@ -1266,6 +1482,19 @@ async function main() {
       0.01,
       10
     );
+    if (exp.cfg.screenshots) {
+      let aspect = window.innerWidth / window.innerHeight;
+      let height_ortho = 0.42 * 2 * Math.atan((70 * (Math.PI / 180)) / 2);
+      let width_ortho = height_ortho * aspect;
+      camera = new OrthographicCamera(
+        width_ortho / -2,
+        width_ortho / 2,
+        height_ortho / 2,
+        height_ortho / -2,
+        0.01,
+        10
+      );
+    }
     scene.add(camera);
 
     // 3. Setup VR if enabled
