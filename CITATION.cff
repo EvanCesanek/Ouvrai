@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+title: weblab
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Evan
+    family-names: Cesanek
+    email: evan.cesanek@gmail.com
+    affiliation: Columbia University
+    orcid: 'https://orcid.org/0000-0002-5335-6604'
+repository-code: 'https://github.com/EvanCesanek/weblab'

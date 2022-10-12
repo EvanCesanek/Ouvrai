@@ -148,11 +148,11 @@ In **weblab**, an experiment is a stand-alone JavaScript web app using ES module
 - Run
   ```
   cd experiments/example
-  firebase init database # Enter N when prompted to overwrite database.rules.json
-  npm i
+  firebase init # Select Realtime Database (space), press Enter, type N when prompted to overwrite database.rules.json
+  npm i -D
   npm run dev # Start development server
   ```
-- Open the localhost development server (indicated in the console output) in Chrome. Note that the example experiments are restricted to run only in Chrome for performance reasons. If you open them in another browser, you will encounter a message telling you to use Chrome.
+- Open the development server in Chrome (see console output, it is probably localhost:5173). Note that the example experiments are restricted to run only in Chrome for performance reasons. If you open them in another browser, you will encounter a message telling you to use Chrome.
 - Any changes to the source code are rapidly reflected in the local host, while reloading only the necessary resources.
 
 #### Firebase Emulator Suite
