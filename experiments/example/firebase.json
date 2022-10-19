@@ -1,8 +1,12 @@
 {
   "hosting": {
-    "site": "cogsci-lab04",
+    "site": "cogsci-lab10",
     "public": "dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
         "source": "**",

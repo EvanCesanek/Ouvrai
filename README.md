@@ -101,7 +101,7 @@ Now you're ready to start building and running experiments with **weblab**!
   weblab install-completion
   ```
   - If you use zsh, add `autoload -Uz compinit && compinit` to _`~/.zshrc`_ to get tab-completions working.
-- Return to the Firebase Console and copy the `const firebaseConfig = {...}` configuration object mentioned [earlier](#firebase) (grab them from https://console.firebase.google.com/project/PROJECT_NAME/settings/general/, replacing PROJECT_NAME with your own project name).
+- Return to the Firebase Console and copy the `const firebaseConfig = {...}` configuration object mentioned [earlier](#firebase) (grab it from https://console.firebase.google.com/project/PROJECT_NAME/settings/general/, replacing PROJECT_NAME with your own).
 - Open _`weblab/firebase-config.js`_ in your editor, replace the configuration object with your own, and save. **Make sure you keep the `export` keyword!** You should have `export const firebaseConfig = {...}`.
 
 **Simple test**

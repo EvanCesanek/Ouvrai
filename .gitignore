@@ -2,9 +2,14 @@
 experiments/*
 !experiments/compensation
 !experiments/example
+**/analysis
 
 # extras folder
 extras
+
+# data
+data_*.json
+*.pkl
 
 # Mac OSX
 .DS_Store

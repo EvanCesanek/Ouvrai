@@ -82,7 +82,7 @@ program.command('completion').action(() => {
   const __dirname = new URL('.', import.meta.url).pathname;
 
   if (env.prev === 'weblab') {
-    const libFolder = join(__dirname, '../lib');
+    const libFolder = join(__dirname, '../cli');
     var commands = [];
     readdirSync(libFolder).forEach((file) => {
       commands.push(file.replace(/weblab-|\.js/g, ''));

@@ -9,7 +9,7 @@ import {
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { URL } from 'url';
-import { dateStringMMDDYY } from 'weblab-utils';
+import { dateStringMMDDYY } from './cli-utils';
 
 const __dirname = new URL('.', import.meta.url).pathname;
 

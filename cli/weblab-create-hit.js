@@ -15,8 +15,8 @@ import { existsSync, readFileSync } from 'fs';
 import { URL } from 'url';
 import replace from 'replace-in-file';
 import readline from 'readline';
-import { dateStringYMDHMS, DaysHoursMinutesToSeconds, ask } from 'weblab-utils';
-import { firebaseConfig } from '../firebase-config.js';
+import { dateStringYMDHMS, DaysHoursMinutesToSeconds, ask } from './cli-utils';
+import { firebaseConfig } from '../firebase-config';
 
 const __dirname = new URL('.', import.meta.url).pathname;
 

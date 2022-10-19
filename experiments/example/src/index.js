@@ -25,54 +25,38 @@ import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // htt
 import { models } from 'jstat-esm'; // https://jstat.github.io //https://www.npmjs.com/package/jstat-esm
 
 /*** weblab imports ***/
-import { Experiment } from './components/Experiment.js';
-import { BlockOptions } from './components/BlockOptions.js';
-import { State } from './components/State.js';
-import { DisplayElement } from './components/DisplayElement.js';
-import { CSS2D } from './components/CSS2D.js';
-import { Survey } from './components/Survey.js';
-import { Timer } from './components/Timer.js';
-import { MeshFactory } from './components/MeshFactory.js';
-import { PBRMapper } from './components/PBRMapper.js';
+import {
+  Experiment,
+  BlockOptions,
+  State,
+  DisplayElement,
+  CSS2D,
+  Survey,
+  Timer,
+  MeshFactory,
+  PBRMapper,
+} from 'weblab';
 import {
   clamp,
   computeMassSpringDamperParameters,
   computeMassSpringDamperPosition,
   truncQuadCost,
   rotationHelper,
-} from './components/utils.js';
+} from 'weblab/lib/components/utils';
 import {
   buildController,
   onSelectEnd,
   onSelectStart,
-} from './components/utils-xr.js';
+} from 'weblab/lib/components/utils-xr.js';
 
 /*** static asset URL imports ***/
 import consentURL from './consent.pdf';
 // import sceneBackgroundURL from './environments/IndoorHDRI003_4K-TONEMAPPED.jpg';
-import environmentLightingURL from './environments/IndoorHDRI003_1K-HDR.exr?url';
-
-// import woodColorMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Color.jpg';
-// import woodDisplacementMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Displacement.jpg';
-// import woodNormalMapURL from './textures/Wood049_1K-JPG/Wood049_1K_NormalGL.jpg';
-// import woodRoughnessMapURL from './textures/Wood049_1K-JPG/Wood049_1K_Roughness.jpg';
-// import brassColorMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Color.jpg';
-// import brassDisplacementMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Displacement.jpg';
-// import brassNormalMapURL from './textures/Metal007_1K-JPG/Metal007_1K_NormalGL.jpg';
-// import brassRoughnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Roughness.jpg';
-// import brassMetalnessMapURL from './textures/Metal007_1K-JPG/Metal007_1K_Metalness.jpg';
-// import plasticColorMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Color.jpg';
-// import plasticDisplacementMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Displacement.jpg';
-// import plasticNormalMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_NormalGL.jpg';
-// import plasticRoughnessMapURL from './textures/Plastic007_1K-JPG/Plastic007_1K_Roughness.jpg';
-// import porcelainColorMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_Color.jpg';
-// import porcelainDisplacementMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_Displacement.jpg';
-// import porcelainNormalMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_NormalGL.jpg';
-// import porcelainRoughnessMapURL from './textures/Porcelain001_1K-JPG/Porcelain001_1K_Roughness.jpg';
-import leatherColorMapURL from './textures/Leather025_1K-JPG/Leather025_1K_Color.jpg';
-import leatherDisplacementMapURL from './textures/Leather025_1K-JPG/Leather025_1K_Displacement.jpg';
-import leatherNormalMapURL from './textures/Leather025_1K-JPG/Leather025_1K_NormalGL.jpg';
-import leatherRoughnessMapURL from './textures/Leather025_1K-JPG/Leather025_1K_Roughness.jpg';
+import environmentLightingURL from 'weblab/lib/environments/IndoorHDRI003_1K-HDR.exr?url';
+import leatherColorMapURL from 'weblab/lib/textures/Leather025_1K-JPG/Leather025_1K_Color.jpg';
+import leatherDisplacementMapURL from 'weblab/lib/textures/Leather025_1K-JPG/Leather025_1K_Displacement.jpg';
+import leatherNormalMapURL from 'weblab/lib/textures/Leather025_1K-JPG/Leather025_1K_NormalGL.jpg';
+import leatherRoughnessMapURL from 'weblab/lib/textures/Leather025_1K-JPG/Leather025_1K_Roughness.jpg';
 
 async function main() {
   // create new experiment with configuration options
@@ -84,7 +68,7 @@ async function main() {
     requireChrome: true,
     vrAllowed: false,
 
-    cssBackground: 'white', //'dimgray', // color name string: http://davidbau.com/colors/
+    cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
@@ -117,6 +101,7 @@ async function main() {
     timeLimitExceededWaitDuration: 6,
 
     screenshots: false,
+    fixedAspect: false, //1.7778,
   });
 
   // Create finite state machine (experiment flow manager)
@@ -305,7 +290,7 @@ async function main() {
   // Condition 0: Outlier from start, 20 reps (note: requires change to blocks = {})
   //exp.cfg.condition = 0;
 
-  exp.cfg.condition = 9;
+  exp.cfg.condition = 6;
 
   // Unique colors
   if (
@@ -838,6 +823,38 @@ async function main() {
 
       case state.CAROUSEL: {
         if (trial.carouselRotated) {
+          let topback = new Vector3();
+          topback.copy(carousel.position);
+          topback.add(
+            new Vector3(
+              carouselParams.majorRadius - exp.cfg.targetWidth,
+              carouselParams.minorRadius * 2,
+              0
+            )
+          );
+          let bottomfront = new Vector3();
+          bottomfront.copy(carousel.position);
+          bottomfront.add(
+            new Vector3(
+              carouselParams.majorRadius + exp.cfg.targetWidth,
+              carouselParams.minorRadius * 2 -
+                exp.cfg.targetHeights[trial.targetId],
+              0
+            )
+          );
+          topback.project(camera);
+          bottomfront.project(camera);
+          console.log(
+            'topback NDC = ' + topback.x + ',' + topback.y + ',' + topback.z
+          );
+          console.log(
+            'bottomfront NDC = ' +
+              bottomfront.x +
+              ',' +
+              bottomfront.y +
+              ',' +
+              bottomfront.z
+          );
           document.body.addEventListener('mousemove', recordMouseMoveData);
           document.body.addEventListener('mousemove', updateSpringLength);
           document.body.addEventListener('mouseup', resetSpringLength);
@@ -1303,7 +1320,8 @@ async function main() {
 
   function handleResize() {
     if (exp.cfg.screenshots) {
-      let aspect = window.innerWidth / window.innerHeight;
+      let aspect =
+        exp.cfg.fixedAspect || window.innerWidth / window.innerHeight;
       let height_ortho = 0.42 * 2 * Math.atan((70 * (Math.PI / 180)) / 2);
       let width_ortho = height_ortho * aspect;
       camera.left = width_ortho / -2;
@@ -1311,7 +1329,8 @@ async function main() {
       camera.top = height_ortho / 2;
       camera.bottom = height_ortho / -2;
     }
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect =
+      exp.cfg.fixedAspect || window.innerWidth / window.innerHeight;
     // for consistent scene scale despite window dimensions (see also initScene)
     // camera.fov =
     //   (360 / Math.PI) *
@@ -1449,7 +1468,7 @@ async function main() {
     const pmremGenerator = new PMREMGenerator(renderer);
     if (environmentLightingURL.endsWith('.js')) {
       // Option 1: Provide a pre-built Scene object (see RoomEnvironment.js)
-      const module = import('./components/RoomEnvironment.js');
+      const module = import('weblab/lib/components/RoomEnvironment.js');
       scene.environment = pmremGenerator.fromScene(
         new module.RoomEnvironment(0.5),
         0.04
@@ -1462,7 +1481,7 @@ async function main() {
     ) {
       let envLoader;
       if (environmentLightingURL.endsWith('.exr')) {
-        const module = await import('./components/EXRLoader.js');
+        const module = await import('weblab/lib/components/EXRLoader.js');
         envLoader = new module.EXRLoader();
       } else {
         const module = await import('three/examples/jsm/loaders/RGBELoader.js');
@@ -1478,12 +1497,13 @@ async function main() {
     // 2. Define camera (if not added to scene, used as default by all renderers)
     let camera = new PerspectiveCamera(
       70,
-      window.innerWidth / window.innerHeight,
+      exp.cfg.fixedAspect || window.innerWidth / window.innerHeight,
       0.01,
       10
     );
     if (exp.cfg.screenshots) {
-      let aspect = window.innerWidth / window.innerHeight;
+      let aspect =
+        exp.cfg.fixedAspect || window.innerWidth / window.innerHeight;
       let height_ortho = 0.42 * 2 * Math.atan((70 * (Math.PI / 180)) / 2);
       let width_ortho = height_ortho * aspect;
       camera = new OrthographicCamera(

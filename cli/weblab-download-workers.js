@@ -6,8 +6,8 @@ import { existsSync, writeFileSync } from 'fs';
 import { URL } from 'url';
 import { initializeApp, deleteApp } from 'firebase-admin/app';
 import { getDatabase } from 'firebase-admin/database';
-import { dateStringYMDHMS } from 'weblab-utils';
-import { firebaseConfig } from '../firebase-config.js';
+import { dateStringYMDHMS } from './cli-utils';
+import { firebaseConfig } from '../firebase-config';
 
 const __dirname = new URL('.', import.meta.url).pathname;
 const program = new Command();
