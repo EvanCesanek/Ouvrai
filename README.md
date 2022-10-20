@@ -42,7 +42,7 @@ If you use bash on a Mac, open _`~/.bash_profile`_ and add the line `source ~/.b
      - Build → Authentication → Get started → Anonymous (under Native providers) → Enable → Save
   3. **Hosting**
      - Build → Hosting → Get started → click through remaining
-     - Scroll to the bottom of the Hosting page → Add another site → choose a site name → (repeat up to 35x)
+     - Scroll to the bottom of the Hosting page → Add another site → choose a site name → (repeat as desired)
        - Recommended naming convention: <a href="_">projname-lab01.web.app</a>
   4. **Credentials**
      - Gear icon → Project settings → Service accounts → Create service account → Generate new private key
@@ -86,7 +86,7 @@ If you use bash on a Mac, open _`~/.bash_profile`_ and add the line `source ~/.b
 - Copy the generated token (just a long string of characters) into a plain text file at:
   - Linux/Mac: _`~/.prolific/credentials.txt`_
   - Windows: _`C:\Users\%USERNAME%\.prolific\credentials.txt`_
-- **Note**: CLI integration with the Prolific API is in development. **weblab** functions that use the Prolific API start with `_p-)` (e.g, `p-get-submissions`). The Prolific API is incomplete and must still be used for some operations.
+- **Note**: CLI integration with the Prolific API is in development. See **weblab** functions that start with **`p-`** (e.g, `p-get-submissions`). The Prolific API is incomplete and must still be used for some operations.
 
 ## 1. Installation
 
@@ -134,14 +134,12 @@ In **weblab**, an experiment is a stand-alone JavaScript web app using ES module
 - The example experiments rely on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
 - I recommend using [Vite](https://vitejs.dev) for developing and building experiments using JavaScript modules. It is included as a dev dependency in the example experiments, and the provided _`vite.config.js`_ configuration file is set up to build a production version of your experiment in _`dist/`_ that will be hosted on Firebase.
 
-#### Familiarize yourself with the directory structure of an example experiment
+#### Experiment structure
 
+- _`weblab/lib/components/`_ contains the **weblab** component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. Important components include `Experiment`, `BlockOptions`, `State`, and `Firebase`.
 - The _`src/`_ folder contains all the source code and other assets needed for an experiment.
   - `src/index.js` is the main experiment code that you would edit for a new experiment.
-  - _`src/components/`_ contains the **weblab** component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. Important components used in _`src/index.js`_ include `Experiment`, `BlockOptions`, `State`, and `Firebase`.
-- **Important files to replace**
   - Replace _`src/consent.pdf`_ with your own consent form.
-  - Replace _`src/firebase-config.js`_ with your own Firebase configuration details (same as _`weblab/firebase-config.js`_ from [earlier](#installation)).
 
 #### Test the example experiment
 

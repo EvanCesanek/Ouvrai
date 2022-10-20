@@ -246,7 +246,12 @@ function generateHIT(html_q, quals) {
   if (!config.qualificationsDisabled) {
     myHIT.QualificationRequirements = quals;
   }
-  myHIT.UniqueRequestToken = `${expName}_${config.batchLabel}`;
+  let batchLabel = dateStringYMDHMS().slice(0, 13); // default is 'YYYYMMDD_HHMM' - so you can only post one a minute
+  if (typeof config.batchLabel === 'string') {
+    // append any additional labeling (for faster posting)
+    batchLabel += `_${config.batchLabel}`;
+  }
+  myHIT.UniqueRequestToken = `${expName}_${batchLabel}`;
   return myHIT;
 }
 

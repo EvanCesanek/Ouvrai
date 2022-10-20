@@ -1,7 +1,5 @@
 // =============================== PARAMETERS ===============================
 
-import { dateStringMMDDYY } from 'weblab-utils';
-
 const parameters = {
   sandbox: true,
 
@@ -21,7 +19,7 @@ const parameters = {
   restrictToQIDs: [],
   restrictLocation: 'US',
   restrictApprovalRate: 97,
-  batchLabel: 'batch00_' + dateStringMMDDYY(), // increment to post multiple batches
+  batchLabel: 'batch00', // increment to post multiple batches
 
   // [create-qual]
   newQualDescription: `Object families with outliers, stabilization by stretching springs`,
