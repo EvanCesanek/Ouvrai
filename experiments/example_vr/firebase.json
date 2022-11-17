@@ -1,0 +1,31 @@
+{
+  "hosting": {
+    "site": "cogsci-lab01",
+    "public": "dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "emulators": {
+    "hosting": {
+      "port": 4000
+    },
+    "auth": {
+      "port": 9099
+    },
+    "database": {
+      "port": 8000
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4001
+    }
+  },
+  "database": {
+    "rules": "database.rules.json"
+  }
+}

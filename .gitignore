@@ -2,7 +2,11 @@
 experiments/*
 !experiments/compensation
 !experiments/example
+!experiments/example_vr
 **/analysis
+
+# Firebase cache
+**/.firebase/
 
 # extras folder
 extras

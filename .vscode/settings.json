@@ -2,5 +2,11 @@
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
   "editor.formatOnPaste": false,
-  "eslint.validate": ["javascript", "html"]
+  "eslint.validate": ["javascript", "html"],
+  "python.linting.enabled": true,
+  "python.formatting.provider": "black",
+  "python.formatting.blackPath": "/opt/anaconda3/envs/envy/bin/black",
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python"
+  }
 }
