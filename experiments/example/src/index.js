@@ -255,7 +255,7 @@ async function main() {
     stateChange: [],
     stateChangeTime: [],
   };
-  trial = trialInitialize;
+  trial = structuredClone(trialInitialize);
 
   // Create a history object to allow computing performance metrics via OLS
   exp.history = { x: [], y: [], cycle: [], p: -1, slope: -1 };
