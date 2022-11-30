@@ -670,6 +670,8 @@ async function main() {
 
       case state.CONSENT: {
         if (exp.consented) {
+          exp.cfg.date = new Date().toISOString();
+          exp.cfg.timeOrigin = performance.timeOrigin;
           exp.firebase.signInAnonymously();
           state.next(state.SIGNIN);
         }

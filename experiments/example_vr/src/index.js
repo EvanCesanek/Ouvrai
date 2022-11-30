@@ -18,6 +18,7 @@ import {
   PositionalAudio,
   AudioLoader,
   Matrix4,
+  Clock,
 } from 'three';
 import { BoxLineGeometry } from 'three/examples/jsm/geometries/BoxLineGeometry.js';
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
@@ -65,8 +66,13 @@ async function main() {
     numPlateauCycles: 5,
     numWashoutCycles: 10,
     rampDegreesPerCycle: 0.5,
+    restTrials: [30, 70],
 
-    startDelay: 0.3,
+    startDelay: 0.25,
+
+    // reset view events (VR-specific)
+    resetView: [],
+    resetViewTime: [],
   });
   exp.progress.hide();
 
@@ -76,6 +82,7 @@ async function main() {
     'CONSENT',
     'SIGNIN',
     'WELCOME',
+    'WELCOME2',
     'SETHOME',
     'CONFIRMSETHOME',
     'SETUP',
@@ -85,6 +92,8 @@ async function main() {
     'RETURN',
     'FINISH',
     'ADVANCE',
+    'REST',
+    'RESUME',
     'SURVEY',
     'CODE',
     'CONTROLLER',
@@ -106,16 +115,10 @@ async function main() {
     console.log = function () {}; // disable console logs in production
   }
 
-  // For performance monitoring, consider using:
-  // https://github.com/Sean-Bradley/StatsVR
-  // Alternatively, Meta Quest Dev Hub supports complex profiling
-
   // on each trial, this trial object will be deep-copied from exp.trials[exp.trialNumber]
   let trial = {};
   // declare all values that must be specifically re-initialized on each trial
   const trialInitialize = {
-    saveSuccessful: false,
-
     // render frames
     t: [],
     state: [],
@@ -129,10 +132,6 @@ async function main() {
     stateChangeTime: [],
     stateChangeHeadPos: [],
     stateChangeHeadOri: [],
-
-    // reset view events
-    resetView: [],
-    resetViewTime: [],
   };
   trial = structuredClone(trialInitialize);
 
@@ -194,7 +193,7 @@ async function main() {
   // TEXT
   UI.textPanel = new ThreeMeshUI.Block({
     padding: 0.05,
-    height: 0.4,
+    height: 0.5,
     width: 1.0,
     textAlign: 'left',
     fontSize: 0.05,
@@ -229,25 +228,22 @@ async function main() {
     material: toolMaterial,
   });
   toolHandle.rotateX(-Math.PI / 2);
-  const toolBar = MeshFactory.cube({
-    width: exp.cfg.targetSeparation,
-    height: exp.cfg.controlPointDimensions.y * 0.98,
-    depth: exp.cfg.controlPointDimensions.z * 0.98,
+  const toolBar = MeshFactory.cylinder({
+    radius: exp.cfg.controlPointDimensions.y * 0.98,
+    height: exp.cfg.targetSeparation,
+    heightSegments: 2,
+    openEnded: true,
     material: toolMaterial,
   });
-  toolBar.position.setY(exp.cfg.handleLength / 2);
+  toolBar.translateY(exp.cfg.handleLength / 2);
+  toolBar.rotateZ(-Math.PI / 2);
   toolHandle.add(toolBar);
 
-  // Create two targets and corresponding control points
-  const targ = MeshFactory.cube({
-    width: exp.cfg.targetDimensions.x,
-    height: exp.cfg.targetDimensions.y,
-    depth: exp.cfg.targetDimensions.z,
-  });
-  const cp = MeshFactory.cube({
-    width: exp.cfg.controlPointDimensions.x,
-    height: exp.cfg.controlPointDimensions.y,
-    depth: exp.cfg.controlPointDimensions.z,
+  // Create template mesh for the targets and control points
+  const cp = MeshFactory.cylinder({
+    radius: exp.cfg.controlPointDimensions.y,
+    height: exp.cfg.controlPointDimensions.x,
+    heightSegments: 2,
   });
   const targets = [];
   const controlPoints = [];
@@ -260,9 +256,10 @@ async function main() {
     let mati = new MeshStandardMaterial({ color: col });
 
     // Create target
-    let targi = targ.clone();
+    let targi = cp.clone(); //targ.clone();
     targi.position.set(...exp.cfg.targetPosn);
     targi.position.x += (oi - 0.5) * exp.cfg.targetSeparation;
+    targi.rotateZ(-Math.PI / 2);
     targi.material = mati;
     targi.userData.sound = new PositionalAudio(exp.listener);
     targi.add(targi.userData.sound);
@@ -280,7 +277,7 @@ async function main() {
 
     // Create control point
     let cpi = cp.clone();
-    cpi.position.setX((oi - 0.5) * exp.cfg.targetSeparation);
+    cpi.translateY((oi - 0.5) * exp.cfg.targetSeparation);
     cpi.material = mati;
     // glow effect
     cpi.material.emissive = new Color('white');
@@ -336,7 +333,7 @@ async function main() {
   home.material = homeMaterial;
   home.fadeTween = new Tween(home)
     .to(
-      { material: { opacity: 0 }, scale: { x: 1.25, y: 1.25, z: 1.25 } },
+      { material: { opacity: 0 }, scale: { x: 1.18, y: 1.18, z: 1.18 } },
       exp.cfg.startDelay * 1000
     )
     .onStop(function () {
@@ -360,16 +357,6 @@ async function main() {
   home.add(homeBar);
   scene.add(home);
   home.visible = false;
-
-  // Text displays
-  // const setHomeHeight = createText('set near chest height', 0.025);
-  // setHomeHeight.position.set(0, -0.085, 0.01);
-  // home.add(setHomeHeight);
-
-  // const holdToolHere = createText('start here', 0.02);
-  // holdToolHere.position.y = -0.06;
-  // holdToolHere.position.z = 0.03;
-  // home.add(holdToolHere);
 
   const visor = {};
   visor.container = new ThreeMeshUI.Block({
@@ -445,48 +432,7 @@ async function main() {
     displayFunc();
   }
 
-  function calcFunc() {
-    if (state.current === state.REACH) {
-      // collision detection
-      let cpi = controlPoints[trial.targetId];
-      for (
-        let vertexIndex = 0;
-        vertexIndex < cpi.geometry.attributes.position.count;
-        vertexIndex++
-      ) {
-        collisionDetector.localVertex.fromBufferAttribute(
-          cpi.geometry.attributes.position,
-          vertexIndex
-        ); // get vertex position on object A
-        collisionDetector.localVertex.applyMatrix4(cpi.matrix); // apply local transform
-        collisionDetector.localVertex.sub(cpi.position); // remove position component of local transform -> direction vector
-        // get world space rotation of object A
-        cpi.getWorldQuaternion(collisionDetector.tmpQuat);
-        // rotate direction vector so it is in world space
-        collisionDetector.localVertex.applyQuaternion(
-          collisionDetector.tmpQuat
-        );
-        // set origin and direction of raycaster
-        cpi.getWorldPosition(collisionDetector.ray.origin);
-        collisionDetector.ray.direction = collisionDetector.localVertex
-          .clone()
-          .normalize();
-        // check for intersection
-        let collisionResults = collisionDetector.intersectObject(
-          targets[trial.targetId],
-          false
-        );
-        // collision occurred if there is an intersection that is closer than the vertex
-        if (
-          collisionResults.length > 0 &&
-          collisionResults[0].distance < collisionDetector.localVertex.length()
-        ) {
-          trial.hitTarget = true;
-          break;
-        }
-      }
-    }
-  }
+  function calcFunc() {}
 
   function stateFunc() {
     // Process interrupt flags as needed
@@ -520,6 +466,8 @@ async function main() {
           exp.consent.show();
         });
         if (exp.consented) {
+          exp.cfg.date = new Date().toISOString();
+          exp.cfg.timeOrigin = performance.timeOrigin;
           exp.firebase.signInAnonymously();
           state.next(state.SIGNIN);
         }
@@ -542,17 +490,60 @@ async function main() {
         state.once(function () {
           UI.instructions.set({
             content:
-              'Welcome! In this study, you will use the T-shaped tool in your right hand to reach different targets. You may sit or stand. Once you are comfortable, you may want to reset your view.',
+              'Welcome!\nIn this study, you will use the T-shaped tool in your right hand to hit red and blue targets. \
+              You can sit or stand.\nOnce you are comfortable, you may want to reset your view.',
           });
           UI.backButton.setState('disabled');
           UI.nextButton.states['selected'].onSet = function () {
-            exp.welcomed = true;
+            exp.proceed = true;
             UI.nextButton.states['selected'].onSet = null;
           };
         });
 
-        if (exp.welcomed) {
+        if (exp.proceed) {
+          exp.proceed = false;
+          state.next(state.WELCOME2);
+        }
+        break;
+      }
+
+      case state.WELCOME2: {
+        state.once(function () {
+          UI.instructions.set({
+            content: `Please find the start position (the flashing outline). \
+            You will reach from this position to hit the colored targets.\n\
+            Next, you will use your right hand to adjust the height of the start position.`,
+          });
+          home.visible = true;
+          targets.forEach((o) => (o.visible = true));
+          home.glowTween.start();
+
+          home.position.setY(exp.grip.position.y);
+          // target height = grip + half of handle length * account for forward tilt at start posn
+          let targetY =
+            exp.grip.position.y +
+            (exp.cfg.handleLength / 2) *
+              Math.cos(exp.cfg.handleStartTiltRadians);
+          exp.cfg.targetPosn.y = targetY;
+          targets.forEach((o) => (o.position.y = targetY));
+
+          UI.backButton.setState('idle');
+          UI.nextButton.states['selected'].onSet = function () {
+            exp.proceed = true;
+            UI.nextButton.states['selected'].onSet = null;
+          };
+          UI.backButton.states['selected'].onSet = function () {
+            exp.goBack = true;
+            UI.backButton.states['selected'].onSet = null;
+          };
+        });
+
+        if (exp.proceed) {
+          exp.proceed = false;
           state.next(state.SETHOME);
+        } else if (exp.goBack) {
+          exp.goBack = false;
+          state.next(state.WELCOME);
         }
         break;
       }
@@ -562,13 +553,10 @@ async function main() {
           UI.backButton.setState('disabled');
           UI.nextButton.setState('disabled');
           UI.instructions.set({
-            content: `Set the start position (flashing tool outline) to a comfortable height. \
-          You will reach forward from this position to hit the colored targets.
-          Press the trigger to continue.`,
+            content: `Raise or lower your hand to adjust the start position. \
+            Set it near chest height so you can comfortably reach the targets. \
+            Press the trigger to continue.`,
           });
-          home.visible = true;
-          targets.forEach((o) => (o.visible = true));
-          home.glowTween.start();
           // require new select action
           exp.ray.userData.isSelecting = false;
         });
@@ -603,7 +591,9 @@ async function main() {
             UI.nextButton.states['selected'].onSet = null;
           };
           UI.instructions.set({
-            content: `Make sure you can reach the targets easily. If you are ready to begin, click Next. To adjust the start position more, click Back.`,
+            content: `Make sure you can comfortably reach the targets from the start.\n\
+            If you are ready to begin, click Next.\n\
+            To adjust the start position more, click Back.`,
           });
         });
 
@@ -616,7 +606,7 @@ async function main() {
           exp.ray.traverse((o) => (o.visible = false));
           UI.buttonPanel.visible = false;
           UI.backButton.setState('disabled');
-          UI.nextButton.setState('disabled');
+          //UI.nextButton.setState('disabled');
           targets.forEach((o) => (o.visible = false));
           state.next(state.SETUP);
         }
@@ -638,7 +628,6 @@ async function main() {
         trial.demoTrial = exp.trialNumber === 0;
 
         trial.rotation *= exp.cfg.targetRotationSigns[trial.targetId];
-        trial.rotationRadians = (trial.rotation * Math.PI) / 180;
 
         state.next(state.START);
         break;
@@ -657,20 +646,25 @@ async function main() {
           }
         });
 
-        trial.atHome = checkAlignment(toolHandle, home);
-
-        if (trial.atHome) {
+        if (checkAlignment(toolHandle, home)) {
           home.glowTween.stop();
           home.fadeTween.start();
           controlPoints[trial.targetId].glowTween.start();
+          // clear the frame data before we start recording
+          trial.t = [];
+          trial.state = [];
+          trial.rhPos = [];
+          trial.rhOri = [];
           state.next(state.DELAY);
         }
         break;
       }
 
       case state.DELAY: {
-        trial.atHome = checkAlignment(toolHandle, home);
-        if (!trial.atHome) {
+        // push device data to arrays
+        handleFrameData();
+
+        if (!checkAlignment(toolHandle, home)) {
           controlPoints[trial.targetId].glowTween.stop();
           home.fadeTween.stop();
           home.glowTween.start();
@@ -680,17 +674,10 @@ async function main() {
           targets[trial.targetId].visible = true;
           // we update the rotation origin on each trial to avoid jitter
           trial.rotationOrigin = exp.grip.position.clone();
+          // rotationRadians is used to actually do the rotation
+          // so we don't update it until here otherwise will see a blip
+          trial.rotationRadians = (trial.rotation * Math.PI) / 180;
 
-          // exp.timeLimitTween = new Tween(targets[trial.targetId].material)
-          //   .to({ opacity: 0.15 }, 1000)
-          //   .delay(150)
-          //   .onComplete(() => {
-          //     if (!trial.demoTrial) {
-          //       // TODO: alert too slow!
-          //     }
-          //     trial.timeLimitExceeded = true;
-          //   })
-          //   .start();
           state.next(state.REACH);
         }
         break;
@@ -706,14 +693,9 @@ async function main() {
         });
 
         // push device data to arrays
-        if (exp.grip) {
-          handleFrameData();
-        }
+        handleFrameData();
 
-        if (trial.hitTarget) {
-          // if (exp.timeLimitTween && !trial.timeLimitExceeded) {
-          //   exp.timeLimitTween.stop();
-          // }
+        if (collisionDetect()) {
           targets[trial.targetId].userData.sound.play();
 
           if (exp.cfg.supportHaptic) {
@@ -731,8 +713,6 @@ async function main() {
             })
             .start();
 
-          // TODO: Results/error? Points?
-
           home.visible = true;
           state.next(state.RETURN);
         }
@@ -744,8 +724,15 @@ async function main() {
           home.glowTween.start();
         });
 
-        trial.atHome = checkAlignment(toolHandle, home);
-        if (trial.atHome && exp.grip.linearVelocity.length() < 0.02) {
+        // push device data to arrays
+        if (exp.grip) {
+          handleFrameData();
+        }
+
+        if (
+          checkAlignment(toolHandle, home) &&
+          exp.grip.linearVelocity.length() < 0.02
+        ) {
           // TODO: Handle proceed
           state.next(state.FINISH);
         }
@@ -757,7 +744,10 @@ async function main() {
           // demo trial requires button press.
           if (trial.demoTrial) {
             UI.instructions.set({
-              content: `Great! Please aim the tip of the tool directly at the target (following the arrow) and avoid rotating the tool (keep it level).`,
+              content: `Great! On each trial, aim the tip of the tool \
+              directly at the target (follow the arrow). Avoid rotating the tool. \
+              There are short rest breaks after trials ${exp.cfg.restTrials[0]} and ${exp.cfg.restTrials[1]}. \
+              Please rest your arm during these breaks.`,
             });
             exp.ray.traverse((o) => (o.visible = true));
             UI.buttonPanel.visible = true;
@@ -767,7 +757,7 @@ async function main() {
               exp.demoTrialComplete = true;
               exp.ray.traverse((o) => (o.visible = false));
               UI.buttonPanel.visible = false;
-              UI.nextButton.setState('disabled');
+              //UI.nextButton.setState('disabled');
               UI.textPanel.visible = false;
             };
           }
@@ -779,14 +769,13 @@ async function main() {
         }
 
         // make sure all the data we need is in the trial object
-        //trial.points = exp.points.total;
         exp.firebase.saveTrial(trial);
         state.next(state.ADVANCE);
         break;
       }
 
       case state.ADVANCE: {
-        if (!trial.saveSuccessful) {
+        if (!exp.firebase.saveSuccessful) {
           // don't do anything until firebase save returns successful
           break;
         }
@@ -794,7 +783,14 @@ async function main() {
         exp.nextTrial();
 
         if (exp.trialNumber < exp.numTrials) {
-          state.next(state.SETUP);
+          if (
+            exp.cfg.restTrials &&
+            exp.cfg.restTrials.includes(exp.trialNumber)
+          ) {
+            state.next(state.REST);
+          } else {
+            state.next(state.SETUP);
+          }
         } else {
           home.visible = false;
           exp.firebase.recordCompletion();
@@ -803,6 +799,73 @@ async function main() {
           DisplayElement.hide(renderer.domElement);
           state.next(state.SURVEY);
         }
+        break;
+      }
+
+      case state.REST: {
+        state.once(function () {
+          UI.instructions.set({
+            content: `Good work! Please take a short rest break. \
+            Do not leave the game or remove your headset. \
+            Relax your arm until the timer reaches zero.`,
+          });
+          trial.rotation = 0; // shut off the rotation
+          exp.grip.traverse((o) => (o.visible = false));
+          exp.ray.traverse((o) => (o.visible = false));
+          UI.textPanel.visible = true;
+          UI.buttonPanel.visible = true;
+          if (!exp.cfg.restBreakDuration) {
+            exp.cfg.restBreakDuration = 30;
+          }
+          if (!exp.restClock) {
+            exp.restClock = new Clock();
+          }
+          if (!exp.restClock.running) {
+            exp.restClock.start();
+            (function countdown() {
+              let rem =
+                exp.cfg.restBreakDuration -
+                Math.round(exp.restClock.getElapsedTime());
+              if (rem > 0) {
+                setTimeout(countdown, 1000);
+                UI.nextButton.text.set({
+                  content: `${rem}`,
+                });
+              } else {
+                UI.nextButton.text.set({
+                  content: 'Resume',
+                });
+              }
+            })();
+          }
+        });
+        if (exp.restClock.getElapsedTime() > exp.cfg.restBreakDuration) {
+          exp.restClock.stop();
+          exp.countdownInterval = clearInterval(exp.countdownInterval);
+          state.next(state.RESUME);
+        }
+        break;
+      }
+
+      case state.RESUME: {
+        state.once(function () {
+          UI.instructions.set({
+            content: `You may resume the experiment.`,
+          });
+          UI.nextButton.text.set({
+            content: `Resume`,
+          });
+          exp.grip.traverse((o) => (o.visible = true));
+          exp.ray.traverse((o) => (o.visible = true));
+          UI.nextButton.setState('idle');
+          UI.nextButton.states['selected'].onSet = function () {
+            UI.nextButton.states['selected'].onSet = null;
+            exp.ray.traverse((o) => (o.visible = false));
+            UI.buttonPanel.visible = false;
+            UI.textPanel.visible = false;
+            state.next(state.SETUP);
+          };
+        });
         break;
       }
 
@@ -828,7 +891,6 @@ async function main() {
           break;
         }
         state.once(function () {
-          //visor.text.set({ content: `Finished!\nQuit to submit.` });
           exp.goodbye.show(); // show the goodbye screen w/ code & prolific link
           UI.titleText.set({
             content: `Complete`,
@@ -852,12 +914,13 @@ async function main() {
 
       case state.CONTROLLER: {
         state.once(function () {
-          UI.instructions.set({
-            content: 'Please connect right hand controller.',
-          });
+          if (state.last !== state.REST) {
+            UI.instructions.set({
+              content: 'Please connect right hand controller.',
+            });
+          }
         });
         if (exp.ray && exp.grip) {
-          //UI.instructions.set({ content: '' });
           state.pop();
         }
         break;
@@ -882,7 +945,6 @@ async function main() {
   }
 
   function handleStateChange() {
-    //clickTimer.reset();
     trial.stateChange.push(state.current);
     trial.stateChangeTime.push(performance.now());
     // Head data at state changes only (see handleFrameData)
@@ -907,7 +969,7 @@ async function main() {
 
     tweenUpdate();
     ThreeMeshUI.update();
-    if (UI.buttonPanel.visible) {
+    if (UI.buttonPanel.visible && state.current !== state.REST) {
       updateButtons(exp.ray, UI.buttons);
     }
     renderer.render(scene, camera);
@@ -915,12 +977,14 @@ async function main() {
 
   // Custom event handlers
   function handleFrameData() {
-    trial.t.push(performance.now());
-    trial.state.push(state.current);
-    trial.rhPos.push(exp.grip.position.clone());
-    trial.rhOri.push(exp.grip.rotation.clone());
-    //trial.hdPos.push(camera.position.clone());
-    //trial.hdOri.push(camera.rotation.clone());
+    if (exp.grip) {
+      trial.t.push(performance.now());
+      trial.state.push(state.current);
+      trial.rhPos.push(exp.grip.position.clone());
+      trial.rhOri.push(exp.grip.rotation.clone());
+      //trial.hdPos.push(camera.position.clone());
+      //trial.hdOri.push(camera.rotation.clone());
+    }
   }
 
   function handleResize() {
@@ -1000,8 +1064,6 @@ async function main() {
       console.log('document.body received savesuccessful event, trial saved');
       if (e.detail === 'survey') {
         survey.saveSuccessful = true;
-      } else {
-        trial.saveSuccessful = true;
       }
     });
   }
@@ -1102,10 +1164,13 @@ async function main() {
     renderer.xr.addEventListener('sessionstart', function () {
       exp.xrSession = renderer.xr.getSession();
       exp.xrReferenceSpace = renderer.xr.getReferenceSpace();
+      exp.xrSession.updateTargetFrameRate(
+        exp.xrSession.supportedFrameRates.reduce((a, b) => (a > b ? a : b))
+      );
       exp.xrReferenceSpace.addEventListener('reset', (e) => {
         // EAC [Nov 2022] transform attribute is null on Quest 2 tests
-        trial.resetView.push(e.transform);
-        trial.resetViewTime.push(e.timeStamp);
+        exp.cfg.resetView.push(e.transform);
+        exp.cfg.resetViewTime.push(e.timeStamp);
       });
       // exp.xrSession.addEventListener('inputsourceschange', function (e) {
       //   console.log(e, this.controllers, this.controllerInputSources);
@@ -1301,6 +1366,45 @@ async function main() {
 
       return closestIntersection;
     }, null);
+  }
+
+  function collisionDetect() {
+    // collision detection
+    let cpi = controlPoints[trial.targetId];
+    for (
+      let vertexIndex = 0;
+      vertexIndex < cpi.geometry.attributes.position.count;
+      vertexIndex++
+    ) {
+      collisionDetector.localVertex.fromBufferAttribute(
+        cpi.geometry.attributes.position,
+        vertexIndex
+      ); // get vertex position on object A
+      collisionDetector.localVertex.applyMatrix4(cpi.matrix); // apply local transform
+      collisionDetector.localVertex.sub(cpi.position); // remove position component of local transform -> direction vector
+      // get world space rotation of object A
+      cpi.getWorldQuaternion(collisionDetector.tmpQuat);
+      // rotate direction vector so it is in world space
+      collisionDetector.localVertex.applyQuaternion(collisionDetector.tmpQuat);
+      // set origin and direction of raycaster
+      cpi.getWorldPosition(collisionDetector.ray.origin);
+      collisionDetector.ray.direction = collisionDetector.localVertex
+        .clone()
+        .normalize();
+      // check for intersection
+      let collisionResults = collisionDetector.intersectObject(
+        targets[trial.targetId],
+        false
+      );
+      // collision occurred if there is an intersection that is closer than the vertex
+      if (
+        collisionResults.length > 0 &&
+        collisionResults[0].distance < collisionDetector.localVertex.length()
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 }
 
