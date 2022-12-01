@@ -5,6 +5,10 @@ experiments/*
 !experiments/example_vr
 **/analysis
 
+# Flask Dashboard
+dashboard
+!dashboard/app.py
+
 # Firebase cache
 **/.firebase/
 
@@ -16,7 +20,11 @@ data_*.json
 *.pkl
 
 # Mac OSX
+**/.DS_Store
 .DS_Store
+
+# Jupyter notebook files
+**/.ipynb_checkpoints
 
 # Logs
 logs

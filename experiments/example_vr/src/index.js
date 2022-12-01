@@ -32,7 +32,7 @@ import {
   BlockOptions,
   State,
   DisplayElement,
-  Survey,
+  //Survey,
   MeshFactory,
   XRButton,
 } from 'weblab';
@@ -103,7 +103,7 @@ async function main() {
   const state = new State(exp.cfg.stateNames, handleStateChange);
 
   // Create any customizable elements
-  const survey = new Survey(); // here we use the default demographic survey
+  //const survey = new Survey(); // here we use the default demographic survey
 
   // Add listeners for default weblab events
   addDefaultEventListeners();
@@ -136,7 +136,21 @@ async function main() {
   trial = structuredClone(trialInitialize);
 
   // Conditions
-  exp.cfg.condition = 0;
+  exp.cfg.condition = 1;
+
+  switch (exp.cfg.condition) {
+    case 0:
+      exp.cfg.conditionName = 'gradual';
+      exp.cfg.maxRotation = exp.cfg.numRampCycles * exp.cfg.rampDegreesPerCycle;
+      break;
+
+    case 1:
+      exp.cfg.conditionName = 'abrupt';
+      exp.cfg.numRampCycles = 0;
+      exp.cfg.numPlateauCycles = 45;
+      exp.cfg.maxRotation = 20;
+      break;
+  }
 
   // Object Parameters
 
@@ -392,7 +406,7 @@ async function main() {
       targetId: [...exp.cfg.targetIds],
       // BlockOptions control trial sequencing behavior
       options: new BlockOptions(
-        'gradual',
+        exp.cfg.conditionName,
         true,
         exp.cfg.numBaselineCycles +
           exp.cfg.numRampCycles +
@@ -416,7 +430,7 @@ async function main() {
         exp.cfg.numRampCycles +
         exp.cfg.numPlateauCycles
     ) {
-      t.rotation = exp.cfg.numRampCycles * exp.cfg.rampDegreesPerCycle;
+      t.rotation = exp.cfg.maxRotation;
     } else {
       t.rotation = 0;
     }
@@ -886,7 +900,7 @@ async function main() {
       }
 
       case state.CODE: {
-        if (!survey.saveSuccessful) {
+        if (!exp.firebase.saveSuccessful) {
           // don't do anything until firebase save returns successful
           break;
         }
@@ -1060,11 +1074,8 @@ async function main() {
       exp.surveysubmitted = true;
     });
 
-    document.body.addEventListener('savesuccessful', (e) => {
+    document.body.addEventListener('savesuccessful', () => {
       console.log('document.body received savesuccessful event, trial saved');
-      if (e.detail === 'survey') {
-        survey.saveSuccessful = true;
-      }
     });
   }
 

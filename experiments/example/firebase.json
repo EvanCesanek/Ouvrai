@@ -2,11 +2,7 @@
   "hosting": {
     "site": "cogsci-lab10",
     "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
         "source": "**",
@@ -22,7 +18,7 @@
       "port": 9099
     },
     "database": {
-      "port": 9000
+      "port": 8000
     },
     "ui": {
       "enabled": true,

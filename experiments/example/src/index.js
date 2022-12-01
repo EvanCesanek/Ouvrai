@@ -4,7 +4,6 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js'; // https://lil-
 import { CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 //import { createText } from 'three/examples/jsm/webxr/Text2D.js';
 import {
-  Clock,
   Color,
   DoubleSide,
   Group,
@@ -14,7 +13,6 @@ import {
   PMREMGenerator,
   Scene,
   sRGBEncoding,
-  TextureLoader,
   Vector3,
   WebGLRenderer,
 } from 'three';
@@ -43,11 +41,6 @@ import {
   truncQuadCost,
   rotationHelper,
 } from 'weblab/lib/components/utils';
-import {
-  buildController,
-  onSelectEnd,
-  onSelectStart,
-} from 'weblab/lib/components/utils-xr.js';
 
 /*** static asset URL imports ***/
 import consentURL from './consent.pdf';
@@ -62,6 +55,7 @@ async function main() {
   // create new experiment with configuration options
   const exp = new Experiment({
     name: 'example',
+    demo: true,
     consentPath: consentURL,
     prolificLink: 'https://app.prolific.co/submissions/complete?cc=COOMA7DK', // Get completion link from Prolific study details
     requireDesktop: true,
@@ -396,15 +390,9 @@ async function main() {
   const idleTimer = new Timer();
 
   // Create threejs scene (1 unit = 1 meter, RH coordinate space)
-  let [
-    camera,
-    scene,
-    renderer,
-    cssScene,
-    cssRenderer,
-    controller1,
-    controller2,
-  ] = await initScene(environmentLightingURL);
+  let [camera, scene, renderer, cssScene, cssRenderer] = await initScene(
+    environmentLightingURL
+  );
 
   // Add CSS2D objects to cssScene
   cssScene.add(exp.points.css2d.object);
@@ -617,11 +605,7 @@ async function main() {
     stats.end();
   }
 
-  function calcFunc() {
-    if (exp.vrEnabled) {
-      handleControllers(controller1, controller2);
-    }
-  }
+  function calcFunc() {}
 
   function stateFunc() {
     // Process interrupt flags (FS & PL, add exp.pause?) as needed
@@ -714,7 +698,6 @@ async function main() {
         trial.stretch = 0;
         trial.massNoise = exp.cfg.noisyWeights * (0.3 * Math.random() - 0.15);
         trial.mass = exp.cfg.targetWeights[trial.targetId] + trial.massNoise;
-        console.log(trial.mass);
         trial.correct = (trial.mass * exp.cfg.gravity) / exp.cfg.springConstant; // equilibrium displacement
         trial.correctWithoutNoise =
           (exp.cfg.targetWeights[trial.targetId] * exp.cfg.gravity) /
@@ -729,6 +712,7 @@ async function main() {
         // Pre-trial blocker notification screens
         // Attention checks at ~25, 50 and 75% completion
         if (
+          !exp.cfg.demo &&
           trial.trialNumber > 0 &&
           trial.trialNumber % Math.ceil(exp.numTrials / 4) === 0 &&
           ((exp.cfg.condition !== 3 && exp.history.p > 0.01) ||
@@ -825,38 +809,7 @@ async function main() {
 
       case state.CAROUSEL: {
         if (trial.carouselRotated) {
-          let topback = new Vector3();
-          topback.copy(carousel.position);
-          topback.add(
-            new Vector3(
-              carouselParams.majorRadius - exp.cfg.targetWidth,
-              carouselParams.minorRadius * 2,
-              0
-            )
-          );
-          let bottomfront = new Vector3();
-          bottomfront.copy(carousel.position);
-          bottomfront.add(
-            new Vector3(
-              carouselParams.majorRadius + exp.cfg.targetWidth,
-              carouselParams.minorRadius * 2 -
-                exp.cfg.targetHeights[trial.targetId],
-              0
-            )
-          );
-          topback.project(camera);
-          bottomfront.project(camera);
-          console.log(
-            'topback NDC = ' + topback.x + ',' + topback.y + ',' + topback.z
-          );
-          console.log(
-            'bottomfront NDC = ' +
-              bottomfront.x +
-              ',' +
-              bottomfront.y +
-              ',' +
-              bottomfront.z
-          );
+          //computeScreenHeight();
           document.body.addEventListener('mousemove', recordMouseMoveData);
           document.body.addEventListener('mousemove', updateSpringLength);
           document.body.addEventListener('mouseup', resetSpringLength);
@@ -1055,7 +1008,7 @@ async function main() {
       }
 
       case state.ADVANCE: {
-        if (!trial.saveSuccessful) {
+        if (!exp.firebase.saveSuccessful) {
           // don't do anything until firebase save returns successful
           break;
         }
@@ -1101,7 +1054,7 @@ async function main() {
       }
 
       case state.CODE: {
-        if (!survey.saveSuccessful) {
+        if (!exp.firebase.saveSuccessful) {
           // don't do anything until firebase save returns successful
           break;
         }
@@ -1225,7 +1178,7 @@ async function main() {
       state.current === state.PULL &&
       trial.clamped &&
       trial.stretch !== 0 &&
-      (event.key === 'shift' || event.key === ' ')
+      (event.key === 'Shift' || event.key === ' ')
     ) {
       // Here we set a flag instead of creating a state in the FSM
       // Allows immediate blocking of events that might be processed before the next rAF loop
@@ -1233,48 +1186,42 @@ async function main() {
     }
   }
 
-  function handleControllers(controller1, controller2) {
-    if (
-      controller1.userData.isSelecting &&
-      trial.clamped &&
-      state.current === state.PULL
-    ) {
-      recordControllerData();
-      trial.stretch +=
-        controller1.linearVelocity.y * controller1.userData.clock.getDelta();
-      trial.stretch = clamp(trial.stretch, 0, exp.cfg.maxStretch);
-      MeshFactory.spring(
-        { ...springParams, stretch: trial.stretch },
-        springs[trial.targetId]
-      );
-    }
-    if (
-      state.current === state.PULL &&
-      trial.clamped &&
-      trial.stretch !== 0 &&
-      controller2.userData.isSelecting
-    ) {
-      trial.clamped = false;
-    }
-    if (
-      trial.stretch > 0 &&
-      !controller1.userData.isSelecting &&
-      trial.clamped &&
-      state.current === state.PULL
-    ) {
-      trial.stretch = 0;
-      MeshFactory.spring(
-        { ...springParams, stretch: trial.stretch },
-        springs[trial.targetId]
-      );
-    }
-  }
-
-  function recordControllerData() {
-    trial.t.push(performance.now());
-    trial.posn_RH.push(controller1.position);
-    trial.state.push(state.current);
-  }
+  // function handleControllers(controller1, controller2) {
+  //   if (
+  //     controller1.userData.isSelecting &&
+  //     trial.clamped &&
+  //     state.current === state.PULL
+  //   ) {
+  //     recordControllerData();
+  //     trial.stretch +=
+  //       controller1.linearVelocity.y * controller1.userData.clock.getDelta();
+  //     trial.stretch = clamp(trial.stretch, 0, exp.cfg.maxStretch);
+  //     MeshFactory.spring(
+  //       { ...springParams, stretch: trial.stretch },
+  //       springs[trial.targetId]
+  //     );
+  //   }
+  //   if (
+  //     state.current === state.PULL &&
+  //     trial.clamped &&
+  //     trial.stretch !== 0 &&
+  //     controller2.userData.isSelecting
+  //   ) {
+  //     trial.clamped = false;
+  //   }
+  //   if (
+  //     trial.stretch > 0 &&
+  //     !controller1.userData.isSelecting &&
+  //     trial.clamped &&
+  //     state.current === state.PULL
+  //   ) {
+  //     trial.stretch = 0;
+  //     MeshFactory.spring(
+  //       { ...springParams, stretch: trial.stretch },
+  //       springs[trial.targetId]
+  //     );
+  //   }
+  // }
 
   // function advanceDemoTrialText(event) {
   //   if (
@@ -1520,18 +1467,7 @@ async function main() {
     scene.add(camera);
 
     // 3. Setup VR if enabled
-    let controller1, controller2; // hand1, hand2;
-    if (navigator.xr) {
-      exp.cfg.vrSupported = await navigator.xr.isSessionSupported(
-        'immersive-vr'
-      );
-      if (exp.cfg.vrAllowed && exp.cfg.vrSupported) {
-        //exp.fullscreenStates = exp.pointerlockStates = [];
-        [controller1, controller2] = await initVR(renderer, scene);
-        console.log(controller1);
-        console.log(controller2);
-      }
-    }
+    // TODO: See example_vr for best practices
 
     // 4. Manage DOM
     document.getElementById('screen').appendChild(renderer.domElement);
@@ -1550,106 +1486,39 @@ async function main() {
     // exp.cfg.windowHeight = window.innerHeight;
     window.addEventListener('resize', handleResize);
 
-    return [
-      camera,
-      scene,
-      renderer,
-      cssScene,
-      cssRenderer,
-      controller1,
-      controller2,
-    ];
+    return [camera, scene, renderer, cssScene, cssRenderer];
   }
 
-  async function initVR(renderer, scene) {
-    renderer.xr.enabled = true;
-
-    let module = await import('three/examples/jsm/webxr/VRButton.js');
-    let vrButton = module.VRButton.createButton(renderer);
-    // adjust css so it fits in flexbox at top
-    vrButton.style.position = '';
-    vrButton.style.marginTop = '10px';
-    vrButton.style.order = 2; // center
-    vrButton.addEventListener('click', () => {
-      loadBackground(exp.cfg.sceneBackgroundURL, scene);
-      exp.vrEnabled = true;
-    });
-    document.getElementById('panel-container').appendChild(vrButton);
-
-    // controllers
-    let controller1 = renderer.xr.getController(1);
-    controller1.addEventListener('selectstart', onSelectStart);
-    controller1.addEventListener('selectend', onSelectEnd);
-    controller1.addEventListener('connected', function (event) {
-      this.add(buildController(event.data));
-    });
-    controller1.addEventListener('disconnected', function () {
-      this.remove(this.children[0]);
-    });
-    controller1.name = 'controllerR';
-    controller1.userData.clock = new Clock();
-    scene.add(controller1);
-
-    let controller2 = renderer.xr.getController(0);
-    controller2.addEventListener('selectstart', onSelectStart);
-    controller2.addEventListener('selectend', onSelectEnd);
-    controller2.addEventListener('connected', function (event) {
-      this.add(buildController(event.data));
-    });
-    controller2.addEventListener('disconnected', function () {
-      this.remove(this.children[0]);
-    });
-    controller2.name = 'controllerL';
-    scene.add(controller2);
-
-    // The XRControllerModelFactory will automatically fetch controller models
-    // that match what the user is holding as closely as possible. The models
-    // should be attached to the object returned from getControllerGrip in
-    // order to match the orientation of the held device.
-    module = await import(
-      'three/examples/jsm/webxr/XRControllerModelFactory.js'
-    );
-    const controllerModelFactory = new module.XRControllerModelFactory();
-
-    let controllerGrip1 = renderer.xr.getControllerGrip(0);
-    controllerGrip1.add(
-      controllerModelFactory.createControllerModel(controllerGrip1)
-    );
-    scene.add(controllerGrip1);
-
-    let controllerGrip2 = renderer.xr.getControllerGrip(1);
-    controllerGrip2.add(
-      controllerModelFactory.createControllerModel(controllerGrip2)
-    );
-    scene.add(controllerGrip2);
-
-    return [controller1, controller2];
-
-    // HANDS
-    // module = await import('three/examples/jsm/webxr/OculusHandModel.js');
-    // // hand 1
-    // hand1 = renderer.xr.getHand(0);
-    // hand1.add(new module.OculusHandModel(hand1));
-    // scene.add(hand1);
-    // // hand 2
-    // hand2 = renderer.xr.getHand(1);
-    // hand2.add(new module.OculusHandModel(hand2));
-    // scene.add(hand2);
-  }
-
-  function loadBackground(sceneBackgroundURL, scene) {
-    // Load a custom background
-    if (sceneBackgroundURL && sceneBackgroundURL.endsWith('.jpg')) {
-      const loader = new TextureLoader();
-      loader.load(sceneBackgroundURL, (texture) => {
-        const generator = new PMREMGenerator(renderer);
-        texture = generator.fromEquirectangular(texture).texture;
-        scene.background = texture;
-        texture.dispose();
-        generator.dispose();
-      });
-    }
-  }
+  // function computeScreenHeight() {
+  //   // the upper point (in 3D space)
+  //   let topback = new Vector3();
+  //   topback.copy(carousel.position);
+  //   topback.add(
+  //     new Vector3(
+  //       carouselParams.majorRadius - exp.cfg.targetWidth,
+  //       carouselParams.minorRadius * 2,
+  //       0
+  //     )
+  //   );
+  //   // the lower point (in 3D space)
+  //   let bottomfront = new Vector3();
+  //   bottomfront.copy(carousel.position);
+  //   bottomfront.add(
+  //     new Vector3(
+  //       carouselParams.majorRadius + exp.cfg.targetWidth,
+  //       carouselParams.minorRadius * 2 - exp.cfg.targetHeights[trial.targetId],
+  //       0
+  //     )
+  //   );
+  //   // Project to NDC [-1, 1] on each dimension
+  //   topback.project(camera);
+  //   bottomfront.project(camera);
+  //   // Print
+  //   console.log(`top NDC = ${(topback.x, topback.y, topback.z)}`);
+  //   console.log(
+  //     `bottom NDC = ${(bottomfront.x, bottomfront.y, bottomfront.z)}`
+  //   );
+  // }
 }
 
 window.addEventListener('DOMContentLoaded', main);
