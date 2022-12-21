@@ -3,28 +3,27 @@ import {
   Color,
   LineBasicMaterial,
   LineSegments,
-  MeshStandardMaterial,
   PerspectiveCamera,
   PMREMGenerator,
-  Quaternion,
-  Raycaster,
   Scene,
   sRGBEncoding,
   TextureLoader,
   Vector3,
   WebGLRenderer,
-  ArrowHelper,
+  //ArrowHelper,
   AudioListener,
   PositionalAudio,
   AudioLoader,
-  Matrix4,
   Clock,
+  Group,
+  BoxGeometry,
+  MeshStandardMaterial,
+  SphereGeometry,
 } from 'three';
 import { BoxLineGeometry } from 'three/examples/jsm/geometries/BoxLineGeometry.js';
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
+
 import ThreeMeshUI from 'three-mesh-ui';
-import FontJSON from 'three-mesh-ui/examples/assets/Roboto-msdf.json';
-import FontImage from 'three-mesh-ui/examples/assets/Roboto-msdf.png';
 
 /*** weblab imports ***/
 import {
@@ -34,7 +33,9 @@ import {
   DisplayElement,
   //Survey,
   MeshFactory,
-  XRButton,
+  XRInterface,
+  Collider,
+  XRVisor,
 } from 'weblab';
 
 /*** static asset URL imports ***/
@@ -56,12 +57,12 @@ async function main() {
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
-    handleStartTiltRadians: -Math.PI / 6, // neutral pose of grip space is slightly tilted forwards
-    handleLength: 0.1,
+    handleStartTiltRadians: 0, //-Math.PI / 6, // neutral pose of grip space is slightly tilted forwards
+    handleLength: 0.09,
 
     environmentLighting: environmentLightingURL,
 
-    numBaselineCycles: 5,
+    numBaselineCycles: 10,
     numRampCycles: 40,
     numPlateauCycles: 5,
     numWashoutCycles: 10,
@@ -69,6 +70,11 @@ async function main() {
     restTrials: [30, 70],
 
     startDelay: 0.25,
+
+    restDuration: 30,
+    startNoFeedbackDuration: 10,
+    startNoFeedbackTrial: 12,
+    noFeedbackNear: 0.015,
 
     // reset view events (VR-specific)
     resetView: [],
@@ -82,9 +88,8 @@ async function main() {
     'CONSENT',
     'SIGNIN',
     'WELCOME',
-    'WELCOME2',
-    'SETHOME',
-    'CONFIRMSETHOME',
+    'CALIBRATE',
+    'CONFIRM',
     'SETUP',
     'START',
     'DELAY',
@@ -93,6 +98,7 @@ async function main() {
     'FINISH',
     'ADVANCE',
     'REST',
+    'STARTNOFEEDBACK',
     'RESUME',
     'SURVEY',
     'CODE',
@@ -113,7 +119,278 @@ async function main() {
     exp.consented = true; // skip consent in development
   } else {
     console.log = function () {}; // disable console logs in production
+    console.warn = function () {}; // disable console logs in production
   }
+
+  // Conditions
+  exp.cfg.condition = 0;
+
+  switch (exp.cfg.condition) {
+    case 0:
+      exp.cfg.conditionName = 'gradual';
+      exp.cfg.maxRotation = exp.cfg.numRampCycles * exp.cfg.rampDegreesPerCycle;
+      break;
+
+    case 1:
+      exp.cfg.conditionName = 'abrupt';
+      exp.cfg.numRampCycles = 0;
+      exp.cfg.numPlateauCycles = 45;
+      exp.cfg.maxRotation = 20;
+      break;
+  }
+
+  // Unique per-target
+  exp.cfg.targetIds = [0, 1];
+  exp.cfg.targetColors = ['red', 'blue'];
+  exp.cfg.targetRotationSigns = [-1, 1];
+  exp.homeColors = [];
+
+  // Shared by both targets
+  exp.cfg.targetRadius = 0.02;
+  exp.cfg.targetSeparation = 0.16;
+  exp.cfg.targetDistance = 0.2;
+  exp.cfg.homePosn = new Vector3(0, 0.9, -0.3);
+
+  // Shared by both control points
+  //exp.cfg.controlPointDimensions = new Vector3(0.02, 0.02, 0.04);
+  exp.cfg.controlPointRadius = 0.01;
+
+  /********************** */
+  /** SCENE & CONTROLLERS */
+
+  // Create threejs scene (1 unit = 1 meter, RH coordinate space)
+  // eslint-disable-next-line no-unused-vars
+  let [camera, scene, renderer, ray1, ray2, grip1, grip2, hand1, hand2] =
+    await initScene();
+
+  // Audio listener on the camera
+  exp.audioListener = new AudioListener();
+  camera.add(exp.audioListener);
+
+  // Prepare texture loader
+  //const pbrMapper = new PBRMapper();
+
+  // Put the tool in the RIGHT HAND
+  // Can't be sure whether grip1 or grip2 is the right hand, must check on connection
+  if (grip1) {
+    grip1.addEventListener('connected', handleGripConnected);
+    grip1.addEventListener('disconnected', handleGripDisconnected);
+    grip2.addEventListener('connected', handleGripConnected);
+    grip2.addEventListener('disconnected', handleGripDisconnected);
+  }
+  if (ray1) {
+    ray1.addEventListener('connected', handleRayConnected);
+    ray1.addEventListener('disconnected', handleRayDisconnected);
+    ray2.addEventListener('connected', handleRayConnected);
+    ray2.addEventListener('disconnected', handleRayDisconnected);
+  }
+  // if you wanted to use the hand space you'd do the same here
+
+  /***** */
+  /** UI */
+
+  const UI = new XRInterface();
+  scene.add(UI);
+  UI.nextButton.states['selected'].onSet = function () {
+    exp.proceed = true;
+    exp.ray.userData.isSelecting = false;
+  };
+  UI.backButton.states['selected'].onSet = function () {
+    exp.goBack = true;
+    exp.ray.userData.isSelecting = false;
+  };
+
+  // Gaze-locked visor text
+  const visor = new XRVisor();
+  camera.add(visor);
+
+  /********** */
+  /** OBJECTS */
+
+  // Create tool
+  let toolMaterial = new MeshStandardMaterial({
+    color: 'slategray',
+    roughness: 0.7,
+    metalness: 1,
+  });
+  const toolHandle = MeshFactory.cylinder({
+    radius: 0.02,
+    height: exp.cfg.handleLength,
+    material: toolMaterial,
+    radialSegments: 24,
+  });
+  // cylinders in world space are oriented along +Y
+  // but grip in grip space is oriented along -Z
+  // rotate cylinder -90deg around X so +Y moves along the grip
+  toolHandle.rotateX(-Math.PI / 2);
+  const toolBar = MeshFactory.cylinder({
+    radius: exp.cfg.controlPointRadius * 0.99,
+    height: exp.cfg.targetSeparation, // - 2 * exp.cfg.controlPointRadius,
+    openEnded: true,
+    material: toolMaterial,
+    radialSegments: 24,
+  });
+  // tool bar is child of handle, so +Y already oriented along the grip
+  // translate up the grip by half the handle length
+  toolBar.translateY(exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius);
+  // +Z is currently sticking out of the back of the thumb
+  // rotate 90 degrees to get the T-shape
+  // as a result, local +X is down the grip, local +Y is to the right
+  toolBar.rotateZ(-Math.PI / 2);
+  toolHandle.add(toolBar);
+
+  // Create workspace root
+  const workspace = new Group();
+  scene.add(workspace);
+  workspace.position.set(...exp.cfg.homePosn);
+
+  // Home position
+  const home = new Group();
+  workspace.add(home);
+  home.visible = false;
+
+  const cp = MeshFactory.sphere({
+    radius: exp.cfg.controlPointRadius,
+  });
+  cp.add(new Collider(new SphereGeometry(exp.cfg.controlPointRadius, 8, 4)));
+  // cube of edge length 2r contains the sphere entirely (but looks too big as wireframe)
+  // sphere of radius r circumscribes a cube of edge length 2r/sqrt(3) (~1.15)
+  const homecp = MeshFactory.edges({
+    geometry: new BoxGeometry(
+      exp.cfg.controlPointRadius,
+      exp.cfg.controlPointRadius,
+      exp.cfg.controlPointRadius,
+      1,
+      1
+    ),
+  });
+  homecp.scale.setScalar(1.5); // so pick a sizebetween 1.15 and 2
+  const targ = MeshFactory.torus({
+    majorRadius: exp.cfg.targetRadius,
+    minorRadius: exp.cfg.targetRadius * 0.1,
+    radialSegments: 8,
+    tubularSegments: 24,
+  });
+  const targCenter = MeshFactory.cylinder({
+    radius: exp.cfg.targetRadius - exp.cfg.controlPointRadius,
+    height: exp.cfg.targetRadius * 0.1,
+    openEnded: false,
+  });
+  targCenter.visible = false;
+  targCenter.rotateX(-Math.PI / 2);
+  targ.add(targCenter);
+
+  // Per-target (or per-control point) parameter loop
+  const targets = [];
+  const controlPoints = [];
+  const homePoints = [];
+  for (let oi of exp.cfg.targetIds) {
+    // Create target material
+    let col = new Color(exp.cfg.targetColors[oi]);
+    let tmp = col.getHSL({});
+    tmp.l = 0.3; // enforce equal luminance
+    col.setHSL(tmp.h, tmp.s, tmp.l);
+    let mati = new MeshStandardMaterial({ color: col });
+
+    // Create home material
+    exp.homeColors[oi] = new Color();
+    tmp.l = 0.6; // 0.75; // enforce equal luminance
+    tmp.s = 1.0; // 0.35; // enforce equal saturation
+    exp.homeColors[oi].setHSL(tmp.h, tmp.s, tmp.l);
+
+    // Create target instance
+    let targi = targ.clone();
+    workspace.add(targi);
+    targi.translateX((oi - 0.5) * exp.cfg.targetSeparation);
+    targi.translateZ(-exp.cfg.targetDistance);
+    targi.material = mati;
+    targi.userData.sound = new PositionalAudio(exp.audioListener);
+    targi.add(targi.userData.sound);
+    targi.hitTween = new Tween(targi)
+      .to({ scale: { x: 0, y: 0, z: 0 } }, 220)
+      .easing(Easing.Back.InOut)
+      .onComplete(function (o) {
+        o.visible = false;
+        o.scale.setScalar(1);
+      })
+      .start();
+
+    // Create arrow pointing at target along -z axis
+    // let origin = new Vector3(0, 0, exp.cfg.targetDistance / 2);
+    // let dir = new Vector3(0, 0, -1);
+    // let length = exp.cfg.targetDistance / 2;
+    // let arri = new ArrowHelper(dir, origin, length, null, exp.cfg.noFeedbackNear, 0.012);
+    // arri.setColor(col);
+    // arri.line.material.linewidth = 2;
+    // targi.add(arri);
+
+    // Create control point instance
+    let cpi = cp.clone();
+    toolBar.add(cpi);
+    cpi.translateY((oi - 0.5) * exp.cfg.targetSeparation);
+    cpi.material = mati;
+    // glow effect
+    cpi.material.emissive = new Color('white');
+    cpi.material.emissiveIntensity = 0;
+    cpi.glowTween = new Tween(cpi.material)
+      .to({ emissiveIntensity: 0.15 }, 500)
+      .repeat(Infinity)
+      .yoyo(true)
+      .easing(Easing.Sinusoidal.InOut)
+      .onStop((m) => (m.emissiveIntensity = 0));
+
+    // Create home point instance
+    let homecpi = homecp.clone();
+    home.add(homecpi);
+    homecpi.material = new LineBasicMaterial({ color: exp.homeColors[oi] });
+    homecpi.translateX((oi - 0.5) * exp.cfg.targetSeparation);
+    homecpi.pulseTween = new Tween(homecpi.scale)
+      .to({ x: 1.8, y: 1.8, z: 1.8 }, 350)
+      .repeat(Infinity)
+      .yoyo(true)
+      .easing(Easing.Sinusoidal.InOut)
+      .onStop((scale) => scale.setScalar(1.5));
+
+    // Push to arrays
+    targets.push(targi);
+    controlPoints.push(cpi);
+    homePoints.push(homecpi);
+  }
+
+  const demo = new Group();
+  workspace.add(demo);
+  demo.visible = false;
+  const demoTool = toolHandle.clone(true);
+  demo.add(demoTool);
+  // remember to undo the rotation done to toolHandle
+  demoTool.rotateX(Math.PI / 2 - Math.PI / 6);
+  demoTool.material = new MeshStandardMaterial({
+    color: '#1c2a29',
+    roughness: 1,
+    metalness: 1,
+  });
+  demoTool.children[0].material = demoTool.material;
+  const demoControlPoints = demoTool.children[0].children;
+
+  // No feedback region
+  const region = MeshFactory.noFeedbackZone({
+    near: exp.cfg.noFeedbackNear,
+    far: exp.cfg.targetDistance,
+  });
+  workspace.add(region);
+  region.translateZ(-0.025);
+  region.visible = false;
+
+  /************** */
+  /** LOAD SOUNDS */
+
+  const audioLoader = new AudioLoader();
+  audioLoader.load(bubbleSoundURL, function (buffer) {
+    targets.forEach((o) => o.userData.sound.setBuffer(buffer));
+  });
+
+  /****************** */
+  /** TRIAL STRUCTURE */
 
   // on each trial, this trial object will be deep-copied from exp.trials[exp.trialNumber]
   let trial = {};
@@ -134,269 +411,6 @@ async function main() {
     stateChangeHeadOri: [],
   };
   trial = structuredClone(trialInitialize);
-
-  // Conditions
-  exp.cfg.condition = 1;
-
-  switch (exp.cfg.condition) {
-    case 0:
-      exp.cfg.conditionName = 'gradual';
-      exp.cfg.maxRotation = exp.cfg.numRampCycles * exp.cfg.rampDegreesPerCycle;
-      break;
-
-    case 1:
-      exp.cfg.conditionName = 'abrupt';
-      exp.cfg.numRampCycles = 0;
-      exp.cfg.numPlateauCycles = 45;
-      exp.cfg.maxRotation = 20;
-      break;
-  }
-
-  // Object Parameters
-
-  // Unique per-target
-  exp.cfg.targetIds = [0, 1];
-  exp.cfg.targetColors = ['red', 'blue'];
-  exp.cfg.targetRotationSigns = [-1, 1];
-
-  // Shared by both targets
-  exp.cfg.targetDimensions = new Vector3(0.02, 0.04, 0.02);
-  exp.cfg.targetSeparation = 0.2;
-  exp.cfg.targetDistance = 0.25;
-  exp.cfg.targetPosn = new Vector3(0, 1.2, -0.6);
-
-  // Shared by both control points
-  exp.cfg.controlPointDimensions = new Vector3(0.02, 0.02, 0.04);
-
-  // Create threejs scene (1 unit = 1 meter, RH coordinate space)
-  // eslint-disable-next-line no-unused-vars
-  let [camera, scene, renderer, ray1, ray2, grip1, grip2, hand1, hand2] =
-    await initScene();
-
-  // Audio listener on the camera
-  exp.listener = new AudioListener();
-  camera.add(exp.listener);
-
-  // Prepare texture loader
-  //const pbrMapper = new PBRMapper();
-
-  // UI
-  const UI = {};
-  UI.container = new ThreeMeshUI.Block({
-    fontFamily: FontJSON,
-    fontTexture: FontImage,
-    backgroundOpacity: 0,
-  });
-  UI.container.position.set(0, 1.5, -1.8);
-  UI.container.rotation.x = 0;
-  scene.add(UI.container);
-
-  // HEADER
-  UI.title = new ThreeMeshUI.Block({
-    height: 0.1,
-    width: 0.5,
-    fontSize: 0.07,
-    justifyContent: 'center',
-  });
-  UI.titleText = new ThreeMeshUI.Text({
-    content: 'Instructions',
-  });
-  UI.title.add(UI.titleText);
-  UI.container.add(UI.title);
-
-  // TEXT
-  UI.textPanel = new ThreeMeshUI.Block({
-    padding: 0.05,
-    height: 0.5,
-    width: 1.0,
-    textAlign: 'left',
-    fontSize: 0.05,
-    margin: 0.05,
-  });
-  UI.instructions = new ThreeMeshUI.Text({ content: '' });
-  UI.textPanel.add(UI.instructions);
-  UI.container.add(UI.textPanel);
-
-  // BUTTONS
-  UI.buttonPanel = new ThreeMeshUI.Block({
-    padding: 0.05,
-    width: 0.8,
-    height: 0.2,
-    contentDirection: 'row',
-  });
-  UI.nextButton = new XRButton({ content: 'Next', width: 0.3 });
-  UI.backButton = new XRButton({ content: 'Back', width: 0.3 });
-  UI.buttons = [UI.backButton, UI.nextButton, UI.container];
-  UI.buttonPanel.add(UI.backButton, UI.nextButton);
-  UI.container.add(UI.buttonPanel);
-
-  // Create tool
-  let toolMaterial = new MeshStandardMaterial({
-    color: 'slategray',
-    roughness: 0.7,
-    metalness: 1,
-  });
-  const toolHandle = MeshFactory.cylinder({
-    radius: 0.02,
-    height: exp.cfg.handleLength,
-    material: toolMaterial,
-  });
-  toolHandle.rotateX(-Math.PI / 2);
-  const toolBar = MeshFactory.cylinder({
-    radius: exp.cfg.controlPointDimensions.y * 0.98,
-    height: exp.cfg.targetSeparation,
-    heightSegments: 2,
-    openEnded: true,
-    material: toolMaterial,
-  });
-  toolBar.translateY(exp.cfg.handleLength / 2);
-  toolBar.rotateZ(-Math.PI / 2);
-  toolHandle.add(toolBar);
-
-  // Create template mesh for the targets and control points
-  const cp = MeshFactory.cylinder({
-    radius: exp.cfg.controlPointDimensions.y,
-    height: exp.cfg.controlPointDimensions.x,
-    heightSegments: 2,
-  });
-  const targets = [];
-  const controlPoints = [];
-  for (let oi of exp.cfg.targetIds) {
-    // Create color material
-    let col = new Color(exp.cfg.targetColors[oi]);
-    let tmp = col.getHSL({});
-    tmp.l = 0.3; // enforce equal luminance
-    col.setHSL(tmp.h, tmp.s, tmp.l);
-    let mati = new MeshStandardMaterial({ color: col });
-
-    // Create target
-    let targi = cp.clone(); //targ.clone();
-    targi.position.set(...exp.cfg.targetPosn);
-    targi.position.x += (oi - 0.5) * exp.cfg.targetSeparation;
-    targi.rotateZ(-Math.PI / 2);
-    targi.material = mati;
-    targi.userData.sound = new PositionalAudio(exp.listener);
-    targi.add(targi.userData.sound);
-    scene.add(targi);
-    targi.visible = false;
-
-    // Create arrow pointing at target along -z axis
-    let origin = new Vector3(0, 0, (exp.cfg.targetDistance * 2) / 3);
-    let dir = new Vector3(0, 0, -1);
-    let length = origin.z - 1.5 * exp.cfg.targetDimensions.z;
-    let arri = new ArrowHelper(dir, origin, length, null, 0.03, 0.012);
-    arri.setColor(col);
-    arri.line.material.linewidth = 2;
-    targi.add(arri);
-
-    // Create control point
-    let cpi = cp.clone();
-    cpi.translateY((oi - 0.5) * exp.cfg.targetSeparation);
-    cpi.material = mati;
-    // glow effect
-    cpi.material.emissive = new Color('white');
-    cpi.material.emissiveIntensity = 0;
-    cpi.glowTween = new Tween(cpi.material)
-      .to({ emissiveIntensity: 0.2 }, 400)
-      .repeat(Infinity)
-      .yoyo(true)
-      .easing(Easing.Sinusoidal.InOut)
-      .onStop((m) => (m.emissiveIntensity = 0));
-    toolBar.add(cpi);
-
-    // Push to arrays
-    targets.push(targi);
-    controlPoints.push(cpi);
-  }
-
-  // Sounds
-  const audioLoader = new AudioLoader();
-  audioLoader.load(bubbleSoundURL, function (buffer) {
-    targets.forEach((o) => o.userData.sound.setBuffer(buffer));
-  });
-
-  // Put the tool in the RIGHT HAND
-  // Can't be sure whether grip1 or grip2 is the right hand, must check on connection
-  if (grip1) {
-    grip1.addEventListener('connected', handleGripConnected);
-    grip1.addEventListener('disconnected', handleGripDisconnected);
-    grip2.addEventListener('connected', handleGripConnected);
-    grip2.addEventListener('disconnected', handleGripDisconnected);
-  }
-  if (ray1) {
-    ray1.addEventListener('connected', handleRayConnected);
-    ray1.addEventListener('disconnected', handleRayDisconnected);
-    ray2.addEventListener('connected', handleRayConnected);
-    ray2.addEventListener('disconnected', handleRayDisconnected);
-  }
-  // if you wanted to use the hand space you'd do the same here
-
-  // Home position (transparent version of the tool)
-  let homeMaterial = new MeshStandardMaterial({
-    //wireframe: true,
-    transparent: true,
-    opacity: 0, // initially transparent
-  });
-  let home = toolHandle.clone(false);
-  home.position.set(...exp.cfg.targetPosn);
-  home.position.z += exp.cfg.targetDistance;
-  home.quaternion.setFromAxisAngle(
-    new Vector3(1, 0, 0),
-    exp.cfg.handleStartTiltRadians
-  );
-  home.material = homeMaterial;
-  home.fadeTween = new Tween(home)
-    .to(
-      { material: { opacity: 0 }, scale: { x: 1.18, y: 1.18, z: 1.18 } },
-      exp.cfg.startDelay * 1000
-    )
-    .onStop(function () {
-      home.scale.setScalar(1);
-      home.material.opacity = 0;
-    })
-    .onComplete(function () {
-      home.scale.setScalar(1);
-      home.material.opacity = 0;
-    })
-    .easing(Easing.Back.In);
-  home.glowTween = new Tween(home.material)
-    .to({ opacity: 0.33 }, 400)
-    .repeat(Infinity)
-    .yoyo(true)
-    .easing(Easing.Exponential.InOut)
-    .onStop((m) => (m.opacity = 0.33));
-  let homeBar = toolBar.clone(false);
-  homeBar.position.set(0, exp.cfg.handleLength / 2, 0);
-  homeBar.material = homeMaterial;
-  home.add(homeBar);
-  scene.add(home);
-  home.visible = false;
-
-  const visor = {};
-  visor.container = new ThreeMeshUI.Block({
-    width: 0.01,
-    height: 0.01,
-    backgroundOpacity: 0,
-    fontFamily: FontJSON,
-    fontTexture: FontImage,
-    fontSize: 0.07,
-  });
-  visor.container.position.set(0, 0, 0.45);
-  visor.text = new ThreeMeshUI.Text({
-    content: '',
-  });
-  visor.container.add(visor.text);
-  camera.add(visor.container);
-
-  // Raycasters
-  const collisionDetector = new Raycaster();
-  collisionDetector.localVertex = new Vector3();
-  collisionDetector.tmpQuat = new Quaternion();
-  const xrPointer = {
-    object: MeshFactory.xrPointer({}),
-    dot: MeshFactory.xrPointerDot(),
-    raycaster: new Raycaster(),
-  };
 
   // Create trial structure using an array of block objects (in desired order)
   exp.createTrialSequence([
@@ -446,7 +460,33 @@ async function main() {
     displayFunc();
   }
 
-  function calcFunc() {}
+  function calcFunc() {
+    // Check if control points are at their start positions
+    //if ([state.START, state.DELAY, state.RETURN].includes(state.current)) {
+    home.check = [false, false];
+    // Is the player or the avatar in control?
+    let toolPoints = controlPoints;
+    if (state.current === state.CONFIRM) {
+      toolPoints = demoControlPoints;
+    }
+    for (let oi = 0; oi < 2; oi++) {
+      // check alignment
+      home.check[oi] = checkAlignment({
+        o1: homePoints[oi],
+        o2: toolPoints[oi],
+        angleThreshRads: false,
+      });
+      // set color and tween based on alignment
+      if (home.check[oi]) {
+        homePoints[oi].material.color = new Color('black');
+        homePoints[oi].pulseTween.stop();
+      } else {
+        homePoints[oi].material.color = exp.homeColors[oi];
+        homePoints[oi].pulseTween.start();
+      }
+    }
+    //}
+  }
 
   function stateFunc() {
     // Process interrupt flags as needed
@@ -502,127 +542,109 @@ async function main() {
 
       case state.WELCOME: {
         state.once(function () {
+          UI.title.set({ content: 'Instructions' });
           UI.instructions.set({
-            content:
-              'Welcome!\nIn this study, you will use the T-shaped tool in your right hand to hit red and blue targets. \
-              You can sit or stand.\nOnce you are comfortable, you may want to reset your view.',
+            content: `Welcome! You may sit or stand.\n\
+            You will be reaching out quickly with your right hand, \
+            so please make sure the area in front of you is clear.`,
           });
-          UI.backButton.setState('disabled');
-          UI.nextButton.states['selected'].onSet = function () {
-            exp.proceed = true;
-            UI.nextButton.states['selected'].onSet = null;
-          };
+          UI.setInteractive();
         });
-
         if (exp.proceed) {
-          exp.proceed = false;
-          state.next(state.WELCOME2);
+          state.next(state.CALIBRATE);
         }
         break;
       }
 
-      case state.WELCOME2: {
+      case state.CALIBRATE: {
         state.once(function () {
+          UI.title.set({ content: 'Calibrate' });
           UI.instructions.set({
-            content: `Please find the start position (the flashing outline). \
-            You will reach from this position to hit the colored targets.\n\
-            Next, you will use your right hand to adjust the height of the start position.`,
+            content: `Please calibrate your chest height.\n\
+            Hold the controller against your chest and press the trigger.`,
           });
-          home.visible = true;
-          targets.forEach((o) => (o.visible = true));
-          home.glowTween.start();
-
-          home.position.setY(exp.grip.position.y);
-          // target height = grip + half of handle length * account for forward tilt at start posn
-          let targetY =
-            exp.grip.position.y +
-            (exp.cfg.handleLength / 2) *
-              Math.cos(exp.cfg.handleStartTiltRadians);
-          exp.cfg.targetPosn.y = targetY;
-          targets.forEach((o) => (o.position.y = targetY));
-
-          UI.backButton.setState('idle');
-          UI.nextButton.states['selected'].onSet = function () {
-            exp.proceed = true;
-            UI.nextButton.states['selected'].onSet = null;
-          };
-          UI.backButton.states['selected'].onSet = function () {
-            exp.goBack = true;
-            UI.backButton.states['selected'].onSet = null;
-          };
-        });
-
-        if (exp.proceed) {
-          exp.proceed = false;
-          state.next(state.SETHOME);
-        } else if (exp.goBack) {
-          exp.goBack = false;
-          state.next(state.WELCOME);
-        }
-        break;
-      }
-
-      case state.SETHOME: {
-        state.once(function () {
+          UI.setInteractive(false);
           UI.backButton.setState('disabled');
           UI.nextButton.setState('disabled');
-          UI.instructions.set({
-            content: `Raise or lower your hand to adjust the start position. \
-            Set it near chest height so you can comfortably reach the targets. \
-            Press the trigger to continue.`,
-          });
-          // require new select action
-          exp.ray.userData.isSelecting = false;
         });
-
-        // Adjust the things
-        home.position.setY(exp.grip.position.y);
-        // target height = grip + half of handle length * account for forward tilt at start posn
-        let targetY =
-          exp.grip.position.y +
-          (exp.cfg.handleLength / 2) * Math.cos(exp.cfg.handleStartTiltRadians);
-        exp.cfg.targetPosn.y = targetY;
-        targets.forEach((o) => (o.position.y = targetY));
-
         if (exp.ray.userData.isSelecting) {
-          state.next(state.CONFIRMSETHOME);
+          let adjustHeight = toolBar.getWorldPosition(new Vector3()).y - 0.05;
+          if (exp.cfg.supportHaptic) {
+            exp.grip.gamepad.hapticActuators[0].pulse(0.6, 80);
+          }
+          workspace.position.setY(adjustHeight);
+          exp.cfg.homePosn.y = adjustHeight;
+          state.next(state.CONFIRM);
         }
         break;
       }
 
-      case state.CONFIRMSETHOME: {
+      case state.CONFIRM: {
         state.once(function () {
+          UI.title.set({ content: 'Comfortable?' });
+          UI.instructions.set({
+            content: `Please watch the demonstration.\n\
+            Can you perform these movements?\n\
+            Click Back to change the height.\n\
+            Click Next to continue.`,
+          });
           UI.backButton.setState('idle');
           UI.nextButton.setState('idle');
-          UI.backButton.states['selected'].onSet = function () {
-            exp.goBack = true;
-            UI.backButton.states['selected'].onSet = null;
-            UI.nextButton.states['selected'].onSet = null;
-          };
-          UI.nextButton.states['selected'].onSet = function () {
-            exp.homePositionConfirmed = true;
-            UI.backButton.states['selected'].onSet = null;
-            UI.nextButton.states['selected'].onSet = null;
-          };
-          UI.instructions.set({
-            content: `Make sure you can comfortably reach the targets from the start.\n\
-            If you are ready to begin, click Next.\n\
-            To adjust the start position more, click Back.`,
-          });
+          UI.setInteractive();
+          // Demonstration of the required movement with demo avatar
+          home.visible = true;
+          demo.visible = true;
+          // Align the avatar with the home position,
+          // translating to account for length/orientation
+          demo.position.set(...home.position);
+          demo.translateZ(
+            (exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius) *
+              Math.sin(Math.PI / 6)
+          );
+          demo.translateY(
+            -(exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius) *
+              Math.cos(Math.PI / 6)
+          );
+          if (!demo.demoTween || !demo.demoTween.isPlaying()) {
+            demo.demoTween = generateDemoTween({
+              target: demo,
+              maxAngle: Math.PI / 32,
+              dist: exp.cfg.targetDistance,
+              duration: 750,
+            });
+          }
+          demo.demoTween.start();
         });
 
-        if (exp.goBack) {
-          exp.goBack = false;
-          //exp.homePositionSet = false;
-          state.next(state.SETHOME);
+        // Add logic for showing rings popping one at a time
+        // Who pops them? Avatar or real?
+        if (home.check.every((x) => x) && exp.demoTargetId === undefined) {
+          exp.demoTargetId = Math.round(Math.random());
+          exp.cpCollider = demoControlPoints[exp.demoTargetId].collider;
+          exp.targetCenter = targets[exp.demoTargetId].children[0];
+          targets[exp.demoTargetId].visible = true;
         }
-        if (exp.homePositionConfirmed) {
-          exp.ray.traverse((o) => (o.visible = false));
-          UI.buttonPanel.visible = false;
-          UI.backButton.setState('disabled');
-          //UI.nextButton.setState('disabled');
-          targets.forEach((o) => (o.visible = false));
+
+        if (
+          exp.demoTargetId !== undefined &&
+          exp.cpCollider.test(exp.targetCenter)
+        ) {
+          // Auditory and hapic feedback
+          targets[exp.demoTargetId].userData.sound.play();
+          // Animate target hit
+          targets[exp.demoTargetId].hitTween.start();
+          // Reset
+          exp.demoTargetId = undefined;
+        }
+
+        if (exp.proceed) {
+          demo.demoTween.stop();
+          demo.visible = false;
           state.next(state.SETUP);
+        } else if (exp.goBack) {
+          demo.demoTween.stop();
+          demo.visible = false;
+          state.next(state.CALIBRATE);
         }
         break;
       }
@@ -634,14 +656,19 @@ async function main() {
         trial = structuredClone(exp.trials[exp.trialNumber]);
         trial.trialNumber = exp.trialNumber;
         trial.startTime = performance.now();
+        trial.noFeedback = trial.trialNumber >= exp.cfg.startNoFeedbackTrial;
 
         // Reset data arrays and other weblab defaults
         trial = { ...trial, ...structuredClone(trialInitialize) };
 
         // Set trial parameters
-        trial.demoTrial = exp.trialNumber === 0;
+        trial.demoTrial =
+          exp.trialNumber === 0 || (exp.trialNumber < 6 && exp.repeatDemoTrial);
 
         trial.rotation *= exp.cfg.targetRotationSigns[trial.targetId];
+
+        exp.cpCollider = controlPoints[trial.targetId].collider;
+        exp.targetCenter = targets[trial.targetId].children[0];
 
         state.next(state.START);
         break;
@@ -649,47 +676,48 @@ async function main() {
 
       case state.START: {
         state.once(function () {
-          home.visible = true;
-          UI.titleText.set({
-            content: `Trial ${trial.trialNumber + 1} of ${exp.trials.length}`,
+          UI.title.set({
+            content: `Go to start`,
           });
           if (trial.demoTrial) {
             UI.instructions.set({
-              content: `Hold the tool inside the start position.`,
+              content: `To start a trial, hold the ends of the tool inside the cubes.\n\
+              The cubes turn black and stop pulsing when you are in the right place.`,
             });
+          } else {
+            UI.instructionsPanel.visible = false;
           }
+          UI.buttonPanel.visible = false;
+          UI.setInteractive(false);
+          targets.forEach((o) => (o.visible = false));
         });
 
-        if (checkAlignment(toolHandle, home)) {
-          home.glowTween.stop();
-          home.fadeTween.start();
-          controlPoints[trial.targetId].glowTween.start();
-          // clear the frame data before we start recording
-          trial.t = [];
-          trial.state = [];
-          trial.rhPos = [];
-          trial.rhOri = [];
+        if (home.check.every((x) => x)) {
           state.next(state.DELAY);
         }
         break;
       }
 
       case state.DELAY: {
+        state.once(function () {
+          controlPoints[trial.targetId].glowTween.start();
+          // clear the frame data before we start recording
+          // in case this is not our first visit to DELAY
+          trial.t = [];
+          trial.state = [];
+          trial.rhPos = [];
+          trial.rhOri = [];
+        });
         // push device data to arrays
         handleFrameData();
 
-        if (!checkAlignment(toolHandle, home)) {
+        if (!home.check.every((x) => x)) {
           controlPoints[trial.targetId].glowTween.stop();
-          home.fadeTween.stop();
-          home.glowTween.start();
           state.next(state.START);
         } else if (state.expired(exp.cfg.startDelay)) {
-          home.visible = false;
           targets[trial.targetId].visible = true;
-          // we update the rotation origin on each trial to avoid jitter
+          // Update rotationOrigin then rotationRadians to avoid blips
           trial.rotationOrigin = exp.grip.position.clone();
-          // rotationRadians is used to actually do the rotation
-          // so we don't update it until here otherwise will see a blip
           trial.rotationRadians = (trial.rotation * Math.PI) / 180;
 
           state.next(state.REACH);
@@ -699,35 +727,45 @@ async function main() {
 
       case state.REACH: {
         state.once(function () {
+          UI.title.set({
+            content: `Hit target`,
+          });
           let col = exp.cfg.targetColors[trial.targetId];
           UI.instructions.set({
-            content: `Reach forward to hit the ${col} target with the ${col} part of the tool.
-            Then return to the start position.`,
+            content: `Reach forward so the ${col} end of the tool goes through the ${col} ring.\n\
+            Then return to the start.`,
           });
         });
 
         // push device data to arrays
         handleFrameData();
 
-        if (collisionDetect()) {
-          targets[trial.targetId].userData.sound.play();
+        // hide tool within a certain region
+        if (trial.noFeedback) {
+          feedbackShowHide(toolHandle, home, region);
+        }
 
+        if (exp.cpCollider.test(exp.targetCenter)) {
+          // Make sure they are going Forward through the ring.
+          if (exp.grip.hasLinearVelocity && exp.grip.linearVelocity.z >= 0) {
+            break;
+          }
+          // Auditory and hapic feedback
+          targets[trial.targetId].userData.sound.play();
           if (exp.cfg.supportHaptic) {
             exp.grip.gamepad.hapticActuators[0].pulse(0.6, 80);
           }
-
+          // Stop animating control point
           controlPoints[trial.targetId].glowTween.stop();
 
-          // object scale is set to exp.cfg.targetWidth
-          new Tween(targets[trial.targetId].scale)
-            .to({ x: 0, y: 0, z: 0 }, 100)
-            .onComplete(function () {
-              targets[trial.targetId].visible = false;
-              targets[trial.targetId].scale.setScalar(1);
-            })
-            .start();
+          // Animate target hit
+          targets[trial.targetId].hitTween.start();
 
-          home.visible = true;
+          // Show feedback if hidden
+          if (trial.noFeedback) {
+            toolHandle.visible = true;
+            region.ring.visible = false;
+          }
           state.next(state.RETURN);
         }
         break;
@@ -735,19 +773,18 @@ async function main() {
 
       case state.RETURN: {
         state.once(function () {
-          home.glowTween.start();
+          UI.title.set({
+            content: `Go to start`,
+          });
         });
 
         // push device data to arrays
-        if (exp.grip) {
+        // (for 1-2 seconds to avoid massive data)
+        if (!state.expired(1.5)) {
           handleFrameData();
         }
 
-        if (
-          checkAlignment(toolHandle, home) &&
-          exp.grip.linearVelocity.length() < 0.02
-        ) {
-          // TODO: Handle proceed
+        if (home.check.every((x) => x)) {
           state.next(state.FINISH);
         }
         break;
@@ -757,29 +794,33 @@ async function main() {
         state.once(function () {
           // demo trial requires button press.
           if (trial.demoTrial) {
-            UI.instructions.set({
-              content: `Great! On each trial, aim the tip of the tool \
-              directly at the target (follow the arrow). Avoid rotating the tool. \
-              There are short rest breaks after trials ${exp.cfg.restTrials[0]} and ${exp.cfg.restTrials[1]}. \
-              Please rest your arm during these breaks.`,
+            UI.title.set({
+              content: `Make sense?`,
             });
-            exp.ray.traverse((o) => (o.visible = true));
+            UI.instructions.set({
+              content: `Please try to avoid curving or rotating your hand. \
+              There are two rest breaks.\n\
+              To repeat the instructions, click Back.\n\
+              If you are ready to start, click Next.`,
+            });
+            UI.setInteractive();
             UI.buttonPanel.visible = true;
+            UI.backButton.text.set({ content: 'Back' });
+            UI.nextButton.text.set({ content: 'Next' });
+            UI.backButton.setState('idle');
             UI.nextButton.setState('idle');
-            UI.nextButton.states['selected'].onSet = function () {
-              UI.nextButton.states['selected'].onSet = null;
-              exp.demoTrialComplete = true;
-              exp.ray.traverse((o) => (o.visible = false));
-              UI.buttonPanel.visible = false;
-              //UI.nextButton.setState('disabled');
-              UI.textPanel.visible = false;
-            };
           }
         });
 
-        // Wait for trigger press on demo trial
-        if (trial.demoTrial && !exp.demoTrialComplete) {
-          break;
+        // Wait for a button click on demo trial
+        if (trial.demoTrial) {
+          if (exp.proceed) {
+            exp.repeatDemoTrial = false;
+          } else if (exp.goBack) {
+            exp.repeatDemoTrial = true;
+          } else {
+            break;
+          }
         }
 
         // make sure all the data we need is in the trial object
@@ -795,6 +836,8 @@ async function main() {
         }
 
         exp.nextTrial();
+        UI.progressInner.width =
+          (UI.progress.width * exp.trialNumber) / exp.numTrials;
 
         if (exp.trialNumber < exp.numTrials) {
           if (
@@ -802,6 +845,10 @@ async function main() {
             exp.cfg.restTrials.includes(exp.trialNumber)
           ) {
             state.next(state.REST);
+          } else if (exp.trialNumber == exp.cfg.startNoFeedbackTrial) {
+            state.next(state.STARTNOFEEDBACK);
+          } else if (exp.repeatDemoTrial) {
+            state.next(state.WELCOME);
           } else {
             state.next(state.SETUP);
           }
@@ -818,83 +865,92 @@ async function main() {
 
       case state.REST: {
         state.once(function () {
+          UI.title.set({ content: 'Rest break' });
           UI.instructions.set({
-            content: `Good work! Please take a short rest break. \
-            Do not leave the game or remove your headset. \
-            Relax your arm until the timer reaches zero.`,
+            content: `Good work! \
+            Take a short break to relax your arm. \
+            Do not exit or remove your headset.`,
           });
           trial.rotation = 0; // shut off the rotation
-          exp.grip.traverse((o) => (o.visible = false));
-          exp.ray.traverse((o) => (o.visible = false));
-          UI.textPanel.visible = true;
+          UI.instructionsPanel.visible = true;
           UI.buttonPanel.visible = true;
-          if (!exp.cfg.restBreakDuration) {
-            exp.cfg.restBreakDuration = 30;
-          }
-          if (!exp.restClock) {
-            exp.restClock = new Clock();
-          }
-          if (!exp.restClock.running) {
-            exp.restClock.start();
-            (function countdown() {
-              let rem =
-                exp.cfg.restBreakDuration -
-                Math.round(exp.restClock.getElapsedTime());
-              if (rem > 0) {
-                setTimeout(countdown, 1000);
-                UI.nextButton.text.set({
-                  content: `${rem}`,
-                });
-              } else {
-                UI.nextButton.text.set({
-                  content: 'Resume',
-                });
-              }
-            })();
+          UI.backButton.setState('disabled');
+          UI.nextButton.setState('idle');
+          initCountdown(exp.cfg.restDuration, UI.nextButton.text, () => {
+            exp.proceed = false;
+            toolHandle.visible = true;
+            UI.setInteractive();
+          });
+          if (!exp.countdownFinished) {
+            toolHandle.visible = false;
+            UI.setInteractive(false);
           }
         });
-        if (exp.restClock.getElapsedTime() > exp.cfg.restBreakDuration) {
-          exp.restClock.stop();
-          exp.countdownInterval = clearInterval(exp.countdownInterval);
-          state.next(state.RESUME);
+
+        // hide tool within a certain region
+        if (trial.noFeedback && UI.interactive) {
+          feedbackShowHide(toolHandle, home, region);
+        }
+
+        if (exp.countdownFinished && exp.proceed) {
+          exp.restClock.stop(); // otherwise it won't work next time!
+          UI.setInteractive(false);
+          UI.buttonPanel.visible = false;
+          UI.instructionsPanel.visible = false;
+          state.next(state.SETUP);
         }
         break;
       }
 
-      case state.RESUME: {
+      case state.STARTNOFEEDBACK: {
         state.once(function () {
+          UI.title.set({ content: 'Challenge' });
           UI.instructions.set({
-            content: `You may resume the experiment.`,
+            content: `Can you hit the targets without visual feedback?\n\
+              In the gray area, the tool disappears. A black ring shows your distance.\n\
+              Try it out!`,
           });
-          UI.nextButton.text.set({
-            content: `Resume`,
-          });
-          exp.grip.traverse((o) => (o.visible = true));
-          exp.ray.traverse((o) => (o.visible = true));
+          region.visible = true;
+          UI.instructionsPanel.visible = true;
+          UI.buttonPanel.visible = true;
+          UI.backButton.setState('disabled');
           UI.nextButton.setState('idle');
-          UI.nextButton.states['selected'].onSet = function () {
-            UI.nextButton.states['selected'].onSet = null;
-            exp.ray.traverse((o) => (o.visible = false));
-            UI.buttonPanel.visible = false;
-            UI.textPanel.visible = false;
-            state.next(state.SETUP);
-          };
+          initCountdown(
+            exp.cfg.startNoFeedbackDuration,
+            UI.nextButton.text,
+            () => {
+              exp.proceed = false;
+              UI.setInteractive();
+            }
+          );
+          if (!exp.countdownFinished) {
+            UI.setInteractive(false);
+          }
         });
+
+        // hide tool within a certain region
+        feedbackShowHide(toolHandle, home, region);
+
+        if (exp.countdownFinished && exp.proceed) {
+          feedbackShowHide(toolHandle, home, region, true); // force visible (if button clicked from zone)
+          exp.restClock.stop(); // otherwise it won't work next time!
+          UI.setInteractive(false);
+          UI.buttonPanel.visible = false;
+          UI.instructionsPanel.visible = false;
+          state.next(state.SETUP);
+        }
         break;
       }
 
       case state.SURVEY: {
-        exp.cfg.trialNumber = 'info';
-        exp.firebase.saveTrial(exp.cfg, 'survey');
-        state.next(state.CODE);
         // if (survey.hidden) {
         //   survey.show();
         // }
         // if (exp.surveysubmitted) {
-        //   // we save the config object
-        //   exp.firebase.saveTrial(exp.cfg, 'info');
-        //   survey.hide();
-        //   state.next(state.CODE);
+        exp.cfg.trialNumber = 'info';
+        exp.firebase.saveTrial(exp.cfg, 'survey');
+        //survey.hide();
+        state.next(state.CODE);
         // }
         break;
       }
@@ -906,29 +962,29 @@ async function main() {
         }
         state.once(function () {
           exp.goodbye.show(); // show the goodbye screen w/ code & prolific link
-          UI.titleText.set({
+          UI.title.set({
             content: `Complete`,
           });
           UI.instructions.set({
             content: `Thank you. Exit VR to find the submission link on the study web page.`,
           });
-          exp.ray.traverse((o) => (o.visible = true));
-          UI.textPanel.visible = true;
+          UI.setInteractive();
+          UI.instructionsPanel.visible = true;
           UI.buttonPanel.visible = true;
-          UI.nextButton.setState('idle');
+          UI.backButton.setState('disabled');
           UI.nextButton.text.set({ content: 'Exit' });
-          UI.nextButton.states['selected'].onSet = function () {
-            UI.nextButton.states['selected'].onSet = null;
-            exp.xrSession.end();
-            UI.nextButton.setState('disabled');
-          };
+          UI.nextButton.setState('idle');
         });
+        if (exp.proceed) {
+          exp.xrSession.end();
+        }
         break;
       }
 
       case state.CONTROLLER: {
         state.once(function () {
           if (state.last !== state.REST) {
+            UI.title.set({ content: 'Controller' });
             UI.instructions.set({
               content: 'Please connect right hand controller.',
             });
@@ -964,6 +1020,9 @@ async function main() {
     // Head data at state changes only (see handleFrameData)
     trial.stateChangeHeadPos.push(camera.position.clone());
     trial.stateChangeHeadOri.push(camera.rotation.clone());
+    // Reset flags related to UI buttons
+    exp.proceed = false;
+    exp.goBack = false;
   }
 
   function displayFunc() {
@@ -983,9 +1042,7 @@ async function main() {
 
     tweenUpdate();
     ThreeMeshUI.update();
-    if (UI.buttonPanel.visible && state.current !== state.REST) {
-      updateButtons(exp.ray, UI.buttons);
-    }
+    UI.updateButtons();
     renderer.render(scene, camera);
   }
 
@@ -1011,7 +1068,7 @@ async function main() {
   function handleGripDisconnected(event) {
     if (exp.grip && !event.data.hand && event.data.handedness === 'right') {
       console.log('RH grip disconnect');
-      exp.grip.children.forEach((o) => exp.grip.remove(o));
+      exp.grip.clear();
       scene.remove(exp.grip);
       exp.grip = undefined;
     }
@@ -1020,7 +1077,7 @@ async function main() {
   function handleRayDisconnected(event) {
     if (exp.ray && !event.data.hand && event.data.handedness === 'right') {
       console.log('RH ray disconnect');
-      exp.ray.children.forEach((o) => exp.ray.remove(o));
+      exp.ray.clear();
       scene.remove(exp.ray);
       exp.ray = undefined;
     }
@@ -1044,8 +1101,9 @@ async function main() {
     if (!event.data.hand && event.data.handedness === 'right') {
       console.log('RH ray connect');
       exp.ray = this;
-      exp.ray.add(xrPointer.object);
-      exp.ray.add(xrPointer.dot);
+      if (UI.xrPointer.isObject3D) {
+        exp.ray.add(UI.xrPointer);
+      }
       scene.add(exp.ray);
     }
   }
@@ -1095,7 +1153,7 @@ async function main() {
     // Create a wireframe backdrop
     let room = new LineSegments(
       new BoxLineGeometry(6, 6, 6, 10, 10, 10).translate(0, 3, 0),
-      new LineBasicMaterial({ color: 0x808080 })
+      new LineBasicMaterial({ color: 'black' })
     );
     scene.add(room);
 
@@ -1199,8 +1257,8 @@ async function main() {
     vrButton.style.order = 2; // center
     vrButton.addEventListener('click', () => {
       loadBackground(exp.cfg.sceneBackgroundURL, scene);
-      if (exp.listener) {
-        exp.listener.context.resume();
+      if (exp.audioListener) {
+        exp.audioListener.context.resume();
       }
     });
     document.getElementById('panel-container').appendChild(vrButton);
@@ -1276,12 +1334,13 @@ async function main() {
     }
   }
 
-  function checkAlignment(
+  function checkAlignment({
     o1,
     o2,
-    distanceThresh = 0.025,
-    angleThreshRads = 0.15
-  ) {
+    distanceThresh = 0.01, // 1 cm
+    angleThreshRads = 0.0873, // ~5 deg
+    axis = 'z',
+  }) {
     let aOkay = !angleThreshRads;
     let dOkay = !distanceThresh;
 
@@ -1289,133 +1348,119 @@ async function main() {
       let o1p = o1.getWorldPosition(new Vector3());
       let o2p = o2.getWorldPosition(new Vector3());
       let d = o1p.distanceTo(o2p); // distance
+      //console.log(`distance = ${d}`);
       dOkay = d < distanceThresh;
     }
-    if (angleThreshRads) {
-      let o1a = o1.getWorldDirection(new Vector3());
-      let o2a = o2.getWorldDirection(new Vector3());
-      let a = Math.abs(Math.acos(o1a.dot(o2a))); // angle
+    if (!aOkay) {
+      o1.updateWorldMatrix(true, false);
+      o2.updateWorldMatrix(true, false);
+      // Scene object does not have matrixWorld, only matrix
+      let o1a = o1.isScene ? o1.matrix.elements : o1.matrixWorld.elements;
+      let o2a = o2.isScene ? o2.matrix.elements : o2.matrixWorld.elements;
+      // start of slice (first 3 columns of matrix world are +X, +Y, +Z)
+      let ss = axis === 'x' ? 0 : axis === 'y' ? 4 : 8;
+      // slice, normalize, and compute angle between (arccos of dot product)
+      o1a = new Vector3(...o1a.slice(ss, ss + 3)).normalize();
+      o2a = new Vector3(...o2a.slice(ss, ss + 3)).normalize();
+      let a = Math.abs(Math.acos(o1a.dot(o2a)));
+      //console.log(`angle = ${(a * 180) / Math.PI}`);
       aOkay = a < angleThreshRads;
     }
     return dOkay && aOkay;
   }
 
-  function updateTargetRay(raycaster, controller) {
-    if (raycaster.dummyMatrix === undefined) {
-      raycaster.dummyMatrix = new Matrix4();
+  function feedbackShowHide(tool, home, zone, forcevisible = false) {
+    home.pxz = home.pxz || home.getWorldPosition(new Vector3()).setY(0);
+    let pxz = tool.getWorldPosition(new Vector3()).setY(0);
+    let d = pxz.distanceTo(home.pxz);
+    tool.visible =
+      forcevisible || d < zone.near || d > zone.far || pxz.z > home.pxz.z;
+    if (zone.ring) {
+      zone.ring.visible = !tool.visible;
+      zone.ring.scale.setScalar(d);
     }
-    raycaster.dummyMatrix.identity().extractRotation(controller.matrixWorld);
-    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(raycaster.dummyMatrix);
   }
 
-  function updatePointerDot(dot, targetRay, location) {
-    const localVec = targetRay.worldToLocal(location);
-    dot.position.copy(localVec);
-    dot.visible = true;
-  }
+  function generateDemoTween({
+    target,
+    maxAngle,
+    dist,
+    duration,
+    easing = Easing.Quadratic.InOut,
+    yoyo = true,
+    reps = 1,
+    recursive = true,
+  }) {
+    let dir = (Math.random() - 0.5) * maxAngle;
+    let dz = -Math.cos(dir) * dist * 1.2;
+    let dx = Math.sin(dir) * dist * 1.2;
+    let dy = (Math.random() - 0.5) * 0.03;
+    let end = target.position.clone().add(new Vector3(dx, dy, dz));
+    let tween = new Tween(target.position)
+      .to(
+        {
+          x: end.x,
+          y: end.y,
+          z: end.z,
+        },
+        duration
+      )
+      .delay(800)
+      .repeat(reps)
+      .repeatDelay(duration / 8)
+      .yoyo(yoyo)
+      .easing(easing)
+      .onStart((o) => {
+        // Align the avatar with the home position
+        o.set(...home.position);
+        o.z +=
+          (exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius) *
+          Math.sin(Math.PI / 6);
+        o.y +=
+          -(exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius) *
+          Math.cos(Math.PI / 6);
+      });
 
-  function updateButtons(targetRay, buttons) {
-    if (!targetRay || !buttons || buttons.length === 0) return;
-
-    // Find closest intersecting object
-    let intersect;
-    if (renderer.xr.isPresenting) {
-      updateTargetRay(xrPointer.raycaster, targetRay);
-      intersect = getClosestIntersection(buttons, xrPointer.raycaster);
-      //intersect = xrPointer.raycaster.intersectObjects(buttons, false)[0];
-      // Position the little white dot at the end of the controller pointing ray
-      if (intersect) {
-        updatePointerDot(xrPointer.dot, targetRay, intersect.point);
-      } else {
-        xrPointer.dot.visible = false;
-      }
-    }
-
-    // Update targeted button state (if any)
-    if (
-      intersect &&
-      intersect.object.isUI &&
-      intersect.object.currentState !== 'disabled'
-    ) {
-      if (targetRay.userData.isSelecting) {
-        // Component.setState internally call component.set with the options you defined in component.setupState
-        intersect.object.setState('selected');
-      } else {
-        // Component.setState internally call component.set with the options you defined in component.setupState
-        intersect.object.setState('hovered');
-      }
-    }
-
-    // Update non-targeted buttons state
-    buttons.forEach((obj) => {
-      if (
-        (!intersect || obj !== intersect.object) &&
-        obj.isUI &&
-        obj.currentState !== 'disabled'
-      ) {
-        // Component.setState internally call component.set with the options you defined in component.setupState
-        obj.setState('idle');
-      }
-    });
-  }
-
-  function getClosestIntersection(objsToTest, raycaster) {
-    return objsToTest.reduce((closestIntersection, obj) => {
-      const intersection = raycaster.intersectObject(obj, true);
-
-      if (!intersection[0]) return closestIntersection;
-
-      if (
-        !closestIntersection ||
-        intersection[0].distance < closestIntersection.distance
-      ) {
-        intersection[0].object = obj;
-
-        return intersection[0];
-      }
-
-      return closestIntersection;
-    }, null);
-  }
-
-  function collisionDetect() {
-    // collision detection
-    let cpi = controlPoints[trial.targetId];
-    for (
-      let vertexIndex = 0;
-      vertexIndex < cpi.geometry.attributes.position.count;
-      vertexIndex++
-    ) {
-      collisionDetector.localVertex.fromBufferAttribute(
-        cpi.geometry.attributes.position,
-        vertexIndex
-      ); // get vertex position on object A
-      collisionDetector.localVertex.applyMatrix4(cpi.matrix); // apply local transform
-      collisionDetector.localVertex.sub(cpi.position); // remove position component of local transform -> direction vector
-      // get world space rotation of object A
-      cpi.getWorldQuaternion(collisionDetector.tmpQuat);
-      // rotate direction vector so it is in world space
-      collisionDetector.localVertex.applyQuaternion(collisionDetector.tmpQuat);
-      // set origin and direction of raycaster
-      cpi.getWorldPosition(collisionDetector.ray.origin);
-      collisionDetector.ray.direction = collisionDetector.localVertex
-        .clone()
-        .normalize();
-      // check for intersection
-      let collisionResults = collisionDetector.intersectObject(
-        targets[trial.targetId],
-        false
+    if (recursive) {
+      tween.onComplete(
+        () =>
+          (target.demoTween = generateDemoTween({
+            target: target,
+            maxAngle: maxAngle,
+            dist: dist,
+            duration: duration,
+            easing: easing,
+            yoyo: yoyo,
+            reps: reps,
+          }).start())
       );
-      // collision occurred if there is an intersection that is closer than the vertex
-      if (
-        collisionResults.length > 0 &&
-        collisionResults[0].distance < collisionDetector.localVertex.length()
-      ) {
-        return true;
-      }
     }
-    return false;
+    return tween;
+  }
+
+  function initCountdown(
+    duration = 30,
+    UItext = UI.nextButton.text,
+    onCountdownComplete = () => {}
+  ) {
+    if (!exp.restClock) {
+      exp.restClock = new Clock();
+    }
+    if (!exp.restClock.running) {
+      exp.restClock.start();
+      exp.countdownFinished = false;
+      (function countdown() {
+        let rem = duration - Math.round(exp.restClock.getElapsedTime());
+        if (rem > 0) {
+          setTimeout(countdown, 1000);
+          UItext.set({ content: `${rem}` });
+        } else {
+          UItext.set({ content: 'Next' });
+          exp.countdownFinished = true;
+          onCountdownComplete();
+        }
+      })();
+    }
   }
 }
 
