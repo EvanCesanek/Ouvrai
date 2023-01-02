@@ -52,15 +52,14 @@ async function main() {
     requireDesktop: false,
     requireChrome: false,
     vrAllowed: true,
+    debug: location.hostname === 'localhost',
 
     cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
+    environmentLighting: environmentLightingURL,
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
-    handleStartTiltRadians: 0, //-Math.PI / 6, // neutral pose of grip space is slightly tilted forwards
     handleLength: 0.09,
-
-    environmentLighting: environmentLightingURL,
 
     numBaselineCycles: 10,
     numRampCycles: 40,
@@ -72,13 +71,9 @@ async function main() {
     startDelay: 0.25,
 
     restDuration: 30,
-    startNoFeedbackDuration: 10,
-    startNoFeedbackTrial: 12,
+    startNoFeedbackDuration: 20,
+    startNoFeedbackTrial: 10,
     noFeedbackNear: 0.015,
-
-    // reset view events (VR-specific)
-    resetView: [],
-    resetViewTime: [],
   });
   exp.progress.hide();
 
@@ -115,7 +110,7 @@ async function main() {
   addDefaultEventListeners();
 
   // set debug options
-  if (location.hostname === 'localhost') {
+  if (exp.cfg.debug) {
     exp.consented = true; // skip consent in development
   } else {
     console.log = function () {}; // disable console logs in production
@@ -681,8 +676,8 @@ async function main() {
           });
           if (trial.demoTrial) {
             UI.instructions.set({
-              content: `To start a trial, hold the ends of the tool inside the cubes.\n\
-              The cubes turn black and stop pulsing when you are in the right place.`,
+              content: `To start a trial, hold the ends of the tool inside the cubes. \
+              The cubes will turn black when you are in the right place.`,
             });
           } else {
             UI.instructionsPanel.visible = false;
@@ -691,6 +686,10 @@ async function main() {
           UI.setInteractive(false);
           targets.forEach((o) => (o.visible = false));
         });
+
+        if (trial.noFeedback) {
+          feedbackShowHide(toolHandle, home, region);
+        }
 
         if (home.check.every((x) => x)) {
           state.next(state.DELAY);
@@ -710,6 +709,10 @@ async function main() {
         });
         // push device data to arrays
         handleFrameData();
+
+        if (trial.noFeedback) {
+          feedbackShowHide(toolHandle, home, region);
+        }
 
         if (!home.check.every((x) => x)) {
           controlPoints[trial.targetId].glowTween.stop();
@@ -798,8 +801,9 @@ async function main() {
               content: `Make sense?`,
             });
             UI.instructions.set({
-              content: `Please try to avoid curving or rotating your hand. \
-              There are two rest breaks.\n\
+              content: `Please avoid curved movements and \
+              avoid twisting or rotating the tool.\n\
+              There will be two rest breaks.\n\
               To repeat the instructions, click Back.\n\
               If you are ready to start, click Next.`,
             });
@@ -855,7 +859,7 @@ async function main() {
         } else {
           home.visible = false;
           exp.firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(exp.firebase.uid);
+          exp.goodbye.updateGoodbye('CKSP0NI1');
 
           DisplayElement.hide(renderer.domElement);
           state.next(state.SURVEY);
@@ -976,6 +980,7 @@ async function main() {
           UI.nextButton.setState('idle');
         });
         if (exp.proceed) {
+          exp.proceed = false;
           exp.xrSession.end();
         }
         break;
@@ -1086,10 +1091,14 @@ async function main() {
   function handleGripConnected(event) {
     if (!event.data.hand && event.data.handedness === 'right') {
       console.log('RH grip connect');
+      exp.cfg.xrInputProfiles = event.data.profiles;
       exp.grip = this;
       exp.grip.gamepad = event.data.gamepad;
       exp.cfg.supportHaptic =
-        'hapticActuators' in event.data.gamepad &&
+        Object.prototype.hasOwnProperty.call(
+          event.data.gamepad,
+          'hapticActuators'
+        ) &&
         event.data.gamepad.hapticActuators !== null &&
         event.data.gamepad.hapticActuators.length > 0;
       exp.grip.add(toolHandle);
@@ -1109,7 +1118,7 @@ async function main() {
   }
 
   function addDefaultEventListeners() {
-    if (location.hostname === 'localhost') {
+    if (exp.cfg.debug) {
       document.body.addEventListener('keydown', (event) => {
         if (event.key === 'S') {
           exp.firebase.localSave();
@@ -1230,12 +1239,16 @@ async function main() {
 
   async function initVR(renderer, scene) {
     renderer.xr.enabled = true;
+    exp.cfg.resetView = [];
+    exp.cfg.resetViewTime = [];
     renderer.xr.addEventListener('sessionstart', function () {
       exp.xrSession = renderer.xr.getSession();
+      let rates = exp.xrSession.supportedFrameRates;
+      if (rates) {
+        let rate = rates.reduce((a, b) => (a > b ? a : b));
+        exp.xrSession.updateTargetFrameRate(rate);
+      }
       exp.xrReferenceSpace = renderer.xr.getReferenceSpace();
-      exp.xrSession.updateTargetFrameRate(
-        exp.xrSession.supportedFrameRates.reduce((a, b) => (a > b ? a : b))
-      );
       exp.xrReferenceSpace.addEventListener('reset', (e) => {
         // EAC [Nov 2022] transform attribute is null on Quest 2 tests
         exp.cfg.resetView.push(e.transform);

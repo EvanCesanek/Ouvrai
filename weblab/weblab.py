@@ -2,6 +2,7 @@ import os, json, re, warnings
 import numpy as np
 import pandas as pd
 import statsmodels as sm
+from scipy.optimize import curve_fit
 from statsmodels.tools import add_constant
 from IPython.display import display
 
@@ -168,7 +169,7 @@ def compute_kinematics(df, dfx, pos_prefix="rhPos"):
     dfx["velocity"] = dfx["dpos"] / (dfx["dt"] / 1000)
 
     # eliminate any frames where there was no movement recorded
-    dfx = dfx[dfx["velocity"] != 0].copy()  # add copy to avoid chained indexing warning
+    # dfx = dfx[dfx["velocity"] != 0].copy()  # add copy to avoid chained indexing warning
 
     # REPEAT (after frozen-frame elimination)
     dfx[["dt", "dx", "dy", "dz"]] = dfx.groupby(["subject", "trialNumber"])[
