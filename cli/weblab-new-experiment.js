@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { join } from 'path';
 import { URL } from 'url';
 import { copySync } from 'fs-extra/esm';
-//import { spawn } from 'child_process'; // Node.js built-in to access OS-level functions
+import { spawn } from 'child_process'; // Node.js built-in to access OS-level functions
 
 const __dirname = new URL('.', import.meta.url).pathname;
 
@@ -34,3 +34,9 @@ try {
   console.error(err);
   process.exit(1);
 }
+
+spawn('npm i', {
+  shell: true,
+  stdio: 'inherit', // inherit parent process IO streams
+  cwd: projectPath, // change working directory
+});

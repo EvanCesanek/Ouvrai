@@ -3,12 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"firebase emulators:start\"",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "vite": "^3.0.7",
     "weblab": "../.."
   }
 }
