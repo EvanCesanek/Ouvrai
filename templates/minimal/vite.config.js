@@ -1,7 +1,7 @@
 /** @type {import('vite').UserConfig} */
 export default {
   root: 'src',
-  //base: '/<REPO>/', // for deploying to GitHub Pages
+  //base: '/REPO_NAME/', // for deploying to GitHub Pages
   publicDir: 'static',
   build: {
     outDir: '../dist',

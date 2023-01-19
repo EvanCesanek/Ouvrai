@@ -55,6 +55,10 @@ program
   .command(
     'p-send-bonus <experiment-name> <study-id>',
     'send bonuses for Prolific study'
+  )
+  .command(
+    'new-experiment <experiment-name> [template-name]',
+    'create a new experiment'
   );
 
 program.command('install-completion').action(async () => {

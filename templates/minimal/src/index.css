@@ -14,10 +14,6 @@ body {
   width: 100%;
 }
 
-a {
-  color: skyblue;
-}
-
 body::backdrop {
   background: rgba(0, 0, 0, 0);
 }
@@ -42,14 +38,11 @@ body::backdrop {
 .panel {
   padding: 1%;
   background-color: rgba(0, 0, 0, 0.67);
+  display: flex;
   color: whitesmoke;
   font-size: 18px;
   text-align: left;
   display: block;
-}
-
-.lil-gui {
-  margin-top: 10px;
 }
 
 #instructions-panel {
@@ -125,15 +118,10 @@ iframe {
   height: 450px;
 }
 
-#consent-iframe-vr {
-  border: 2px solid black;
-  background: lightgray;
-}
-
 .consent-link {
   font-size: 10pt;
   margin: 0px;
-  color: lightgray;
+  color: cornflowerblue;
 }
 
 input[type='number']::-webkit-inner-spin-button,
@@ -142,8 +130,7 @@ input[type='number']::-webkit-outer-spin-button {
   /* makes up/down arrows always visible */
 }
 
-button,
-input::file-selector-button {
+button {
   padding: 4px 9px;
   font-size: 14px;
   transition-duration: 0.25s;
@@ -190,7 +177,7 @@ input::file-selector-button {
 
 #loadingbar {
   background-color: skyblue;
-  width: 102%;
+  width: 100%;
   height: 5px;
   display: block;
   margin-top: 0.2em;

@@ -10,7 +10,6 @@ import {
   TextureLoader,
   Vector3,
   WebGLRenderer,
-  //ArrowHelper,
   AudioListener,
   PositionalAudio,
   AudioLoader,
@@ -19,8 +18,10 @@ import {
   BoxGeometry,
   MeshStandardMaterial,
   SphereGeometry,
+  Object3D,
 } from 'three';
 import { BoxLineGeometry } from 'three/examples/jsm/geometries/BoxLineGeometry.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
 
 import ThreeMeshUI from 'three-mesh-ui';
@@ -31,11 +32,11 @@ import {
   BlockOptions,
   State,
   DisplayElement,
-  //Survey,
   MeshFactory,
   XRInterface,
   Collider,
   XRVisor,
+  Replay,
 } from 'weblab';
 
 /*** static asset URL imports ***/
@@ -52,13 +53,16 @@ async function main() {
     requireDesktop: false,
     requireChrome: false,
     vrAllowed: true,
+    orbitControls: true,
     debug: location.hostname === 'localhost',
+    sceneManager: false,
 
     cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
     environmentLighting: environmentLightingURL,
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
+    gimbal: false,
     handleLength: 0.09,
 
     numBaselineCycles: 10,
@@ -104,7 +108,7 @@ async function main() {
   const state = new State(exp.cfg.stateNames, handleStateChange);
 
   // Create any customizable elements
-  //const survey = new Survey(); // here we use the default demographic survey
+  //const survey = new Survey(); // no survey in VR (Prolific provides important info anyway - except handedness)
 
   // Add listeners for default weblab events
   addDefaultEventListeners();
@@ -112,6 +116,9 @@ async function main() {
   // set debug options
   if (exp.cfg.debug) {
     exp.consented = true; // skip consent in development
+    exp.replay = new Replay({});
+    document.body.addEventListener('replayinfo', handleReplayInfo);
+    document.body.addEventListener('replaytrial', handleReplayTrial);
   } else {
     console.log = function () {}; // disable console logs in production
     console.warn = function () {}; // disable console logs in production
@@ -352,6 +359,7 @@ async function main() {
     homePoints.push(homecpi);
   }
 
+  // Tool avatar for demonstration
   const demo = new Group();
   workspace.add(demo);
   demo.visible = false;
@@ -367,6 +375,22 @@ async function main() {
   demoTool.children[0].material = demoTool.material;
   const demoControlPoints = demoTool.children[0].children;
 
+  // Keep toolBar locked along x-axis (as if attached to handle with gimbal)
+  // Requires dummy Object3D as placeholder
+  const toolBarDummy = new Object3D();
+  if (exp.cfg.gimbal) {
+    toolBarDummy.translateY(
+      exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius
+    );
+    toolHandle.add(toolBarDummy);
+    // Remove the real mesh and undo the translation (keep the rotation)
+    toolBar.translateY(
+      -(exp.cfg.handleLength / 2 - exp.cfg.controlPointRadius)
+    );
+    toolHandle.remove(toolBar);
+    scene.add(toolBar);
+  }
+
   // No feedback region
   const region = MeshFactory.noFeedbackZone({
     near: exp.cfg.noFeedbackNear,
@@ -375,6 +399,12 @@ async function main() {
   workspace.add(region);
   region.translateZ(-0.025);
   region.visible = false;
+
+  if (exp.cfg.debug) {
+    exp.replay.setAvatar(new Object3D());
+    scene.add(exp.replay.avatar);
+    exp.replay.avatar.add(toolHandle);
+  }
 
   /************** */
   /** LOAD SOUNDS */
@@ -615,14 +645,14 @@ async function main() {
         // Who pops them? Avatar or real?
         if (home.check.every((x) => x) && exp.demoTargetId === undefined) {
           exp.demoTargetId = Math.round(Math.random());
-          exp.cpCollider = demoControlPoints[exp.demoTargetId].collider;
-          exp.targetCenter = targets[exp.demoTargetId].children[0];
           targets[exp.demoTargetId].visible = true;
         }
 
         if (
           exp.demoTargetId !== undefined &&
-          exp.cpCollider.test(exp.targetCenter)
+          demoControlPoints[exp.demoTargetId].collider.test(
+            targets[exp.demoTargetId].children[0]
+          )
         ) {
           // Auditory and hapic feedback
           targets[exp.demoTargetId].userData.sound.play();
@@ -661,9 +691,6 @@ async function main() {
           exp.trialNumber === 0 || (exp.trialNumber < 6 && exp.repeatDemoTrial);
 
         trial.rotation *= exp.cfg.targetRotationSigns[trial.targetId];
-
-        exp.cpCollider = controlPoints[trial.targetId].collider;
-        exp.targetCenter = targets[trial.targetId].children[0];
 
         state.next(state.START);
         break;
@@ -718,9 +745,12 @@ async function main() {
           controlPoints[trial.targetId].glowTween.stop();
           state.next(state.START);
         } else if (state.expired(exp.cfg.startDelay)) {
+          targets.map((x) => (x.visible = false));
           targets[trial.targetId].visible = true;
           // Update rotationOrigin then rotationRadians to avoid blips
-          trial.rotationOrigin = exp.grip.position.clone();
+          trial.rotationOrigin = exp.grip
+            ? exp.grip.position.clone()
+            : trial.rotationOrigin;
           trial.rotationRadians = (trial.rotation * Math.PI) / 180;
 
           state.next(state.REACH);
@@ -748,11 +778,15 @@ async function main() {
           feedbackShowHide(toolHandle, home, region);
         }
 
-        if (exp.cpCollider.test(exp.targetCenter)) {
+        if (
+          controlPoints[trial.targetId].collider.test(
+            targets[trial.targetId].children[0]
+          )
+        ) {
           // Make sure they are going Forward through the ring.
-          if (exp.grip.hasLinearVelocity && exp.grip.linearVelocity.z >= 0) {
-            break;
-          }
+          // if (exp.grip.hasLinearVelocity && exp.grip.linearVelocity.z >= 0) {
+          //   break;
+          // }
           // Auditory and hapic feedback
           targets[trial.targetId].userData.sound.play();
           if (exp.cfg.supportHaptic) {
@@ -1045,6 +1079,13 @@ async function main() {
       toolHandle.position.copy(exp.grip.worldToLocal(gripRotatedWorld));
     }
 
+    exp.replay?.update();
+    if (exp.cfg.gimbal) {
+      // Gimbal on the tool
+      toolBar.visible = toolHandle.visible; // toolBar is not a child, must set visibility manually
+      toolBarDummy.getWorldPosition(toolBar.position);
+    }
+    exp.orbitControls?.update();
     tweenUpdate();
     ThreeMeshUI.update();
     UI.updateButtons();
@@ -1115,6 +1156,23 @@ async function main() {
       }
       scene.add(exp.ray);
     }
+  }
+
+  function handleReplayInfo(e) {
+    let cfg = e.detail;
+    // Do any subject-specific scene configuration (see stateFunc)
+    workspace.position.setY(cfg.homePosn.y);
+    home.visible = true;
+    toolHandle.visible = true;
+    exp.grip = exp.replay.avatar;
+  }
+
+  function handleReplayTrial(e) {
+    // Do any trial-specific configuration (should just be setting the trial object)
+    console.log('handleReplayTrial', e);
+    trial = e.detail;
+    trial.isReplay = true;
+    state.next(e.detail['state'][0]); // set initial state
   }
 
   function addDefaultEventListeners() {
@@ -1212,6 +1270,22 @@ async function main() {
     );
     camera.position.set(0, 1.6, 3);
     scene.add(camera);
+
+    if (exp.cfg.orbitControls === true) {
+      exp.orbitControls = new OrbitControls(camera, renderer.domElement);
+      let targ = exp.cfg.homePosn ?? new Vector3();
+      exp.orbitControls.target.set(...targ);
+      exp.orbitControls.update();
+      exp.orbitControls.listenToKeyEvents(window); // enable arrow keys
+      //exp.orbitControls.screenSpacePanning = false;
+      exp.orbitControls.enableDamping = true;
+      exp.orbitControls.keys = {
+        LEFT: 'KeyA', //'ArrowLeft', //left arrow
+        UP: 'KeyW', //'ArrowUp', // up arrow
+        RIGHT: 'KeyD', //'ArrowRight', // right arrow
+        BOTTOM: 'KeyS', //'ArrowDown' // down arrow
+      };
+    }
 
     // 3. Setup VR if enabled
     let ray1, ray2, grip1, grip2, hand1, hand2;
@@ -1383,6 +1457,7 @@ async function main() {
   }
 
   function feedbackShowHide(tool, home, zone, forcevisible = false) {
+    zone.visible = true;
     home.pxz = home.pxz || home.getWorldPosition(new Vector3()).setY(0);
     let pxz = tool.getWorldPosition(new Vector3()).setY(0);
     let d = pxz.distanceTo(home.pxz);

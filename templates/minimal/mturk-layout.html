@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>HIT</title>
+
+    <style>
+      body {
+        font-family: Helvetica;
+        line-height: 1.4em;
+      }
+
+      #instructions {
+        width: 800px;
+        margin: 20px 30px;
+        display: none;
+      }
+      #startExperimentLink {
+        color: rgb(0, 0, 200);
+      }
+      #startExperimentLink:hover {
+        color: rgb(0, 0, 255);
+      }
+      #completionListenerFailButton {
+        margin: 8px 0;
+      }
+
+      #completionCodeDiv {
+        display: none;
+      }
+      #confirmationCode {
+        width: 300px;
+      }
+      #codeButton {
+        display: auto;
+      }
+      #codeFailText {
+        display: none;
+        color: rgb(150, 0, 0);
+      }
+
+      #pleaseReturnHITDiv {
+        display: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="instructions">
+      <p>
+        Play an interactive web game using your mouse or trackpad.<br />
+        If your system is not supported, please exit and return the HIT.<br />
+        Do not attempt this HIT more than once. Only 1 submission is allowed.<br />
+        If you encounter a bug, send us a message describing the problem.
+      </p>
+
+      <b>Requirements</b>
+      <ul>
+        <li>Standard mouse or trackpad</li>
+        <li>Recently updated web browser</li>
+        <li>Fullscreen mode with pointer lock</li>
+      </ul>
+
+      <p>
+        Click here to start:
+        <a href="" id="startExperimentLink" target="_blank"
+          ><b>Start study</b></a
+        >
+      </p>
+      <p>
+        When you finish, copy your completion code and return here.<br />
+        <button id="completionListenerFailButton" type="button">
+          I have my completion code, but can't see where to enter it!
+        </button>
+      </p>
+
+      <div id="completionCodeDiv">
+        <p>
+          You have completed this HIT. Thank you!<br />
+          At the end of the task, you received a completion code.<br />
+          To submit, paste this code into the box below and click Confirm.<br />
+        </p>
+
+        <p>
+          Paste code here:
+          <input
+            type="text"
+            name="inputConfirmationCode"
+            value=""
+            id="inputConfirmationCode" />
+          <button id="codeButton" type="button">Confirm</button>
+        </p>
+
+        <div id="codeFailText">
+          <p>
+            The code you entered is not valid! Please try again.<br />
+            If you believe there has been an error, contact the Requester.<br />
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div id="pleaseReturnHITDiv">
+      <p>
+        Sorry, it seems like you've already submitted this HIT. <br />
+        Please return and ignore it. <br />
+        It will disappear from your available HITs shortly. <br />
+      </p>
+    </div>
+
+    <script type="module">
+      import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.9.2/firebase-app.js';
+      import {
+        getDatabase,
+        ref,
+        set,
+        onValue,
+      } from 'https://www.gstatic.com/firebasejs/9.9.2/firebase-database.js';
+
+      function main() {
+        const urlParams = new URLSearchParams(window.location.search);
+        // const previewing =
+        //   urlParams.get('assignmentId') === 'ASSIGNMENT_ID_NOT_AVAILABLE';
+        // if (previewing) {
+        //   return;
+        // }
+
+        // ***************** Do not modify ****************
+        const expName = 'example'; // Mon Aug 22 2022 16:08:54 GMT-0400 (Eastern Daylight Time)
+        const taskURL = 'https://cogsci-lab22.web.app'; // Mon Aug 22 2022 16:08:54 GMT-0400 (Eastern Daylight Time)
+        const databaseURL = 'https://cognitivescience.firebaseio.com'; // Mon Aug 22 2022 16:08:54 GMT-0400 (Eastern Daylight Time)
+        // ************************* END do not modify *************************
+
+        // Initialize globals
+        var confirmationCode;
+        var codeMatches;
+        var submitting = false;
+        const workerId = urlParams.get('workerId');
+
+        // Initialize Firebase Realtime Database
+        // Here we are simply reading and writing unrestricted database nodes
+        // So we only need databaseURL in the app config (and we don't need auth)
+        initializeApp({ databaseURL: databaseURL });
+        const db = getDatabase();
+
+        document
+          .getElementById('codeButton')
+          .addEventListener('click', confirmCode);
+        document
+          .getElementById('completionListenerFailButton')
+          .addEventListener('click', function () {
+            document.getElementById('completionCodeDiv').style.display =
+              'block';
+          });
+        document
+          .getElementById('inputConfirmationCode')
+          .addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              document.getElementById('codeButton').click();
+            }
+          });
+
+        // Set up a completion listener that displays the experiment link
+        // and/or, when the worker has finished, prompts them to input the code.
+        onValue(
+          ref(db, `workers/${workerId}/${expName}`),
+          function (dataSnapshot) {
+            if (dataSnapshot.exists()) {
+              // If they appear in workers/submitted, hide everything and warn them!
+              if (dataSnapshot.val().submitted && !submitting) {
+                //document.getElementById('instructions').style.display = 'none';
+                document.getElementById('pleaseReturnHITDiv').style.display =
+                  'block';
+              } else {
+                // If they appear in workers but not submitted, ask for the code.
+                codeMatches = Object.keys(dataSnapshot.val());
+                document.getElementById('completionCodeDiv').style.display =
+                  'block';
+                document
+                  .getElementById('completionCodeDiv')
+                  .scrollIntoView(false);
+              }
+            } else {
+              // If they do not appear in workers, show them the instructions & experiment link
+              document
+                .getElementById('startExperimentLink')
+                .setAttribute('href', `${taskURL}/?workerId=${workerId}`);
+              document.getElementById('instructions').style.display = 'block';
+            }
+          }
+        );
+        // done
+
+        ///// HELPER FUNCTIONS ////
+        async function confirmCode() {
+          confirmationCode = document.getElementById(
+            'inputConfirmationCode'
+          ).value;
+          // This is very weak validation, but better to be lenient
+          // But if Firebase anonymous UIDs change, this may break!
+          const urlParams = new URLSearchParams(window.location.search);
+          var validCode;
+          if (urlParams.get('turkSubmitTo').includes('sandbox')) {
+            validCode = codeMatches.includes(confirmationCode); //confirmationCode.length > 2;
+          } else {
+            validCode = codeMatches.includes(confirmationCode);
+          }
+          if (validCode) {
+            submitting = true;
+            const submittedNodeRef = `workers/${workerId}/${expName}/submitted`;
+            try {
+              await set(ref(db, submittedNodeRef), 'y');
+            } catch (error) {
+              // if this write fails for some reason, return so the worker can try again
+              console.error(error.message);
+              submitting = false;
+              return;
+            }
+            document.getElementById('codeFailText').style.display = 'none';
+            handleSubmit();
+          } else {
+            document.getElementById('codeFailText').style.display = 'block';
+          }
+
+          // Helper function to handle the final submission
+          function handleSubmit() {
+            const urlParams = new URLSearchParams(window.location.search);
+
+            // create the form element and point it to the correct endpoint
+            const form = document.createElement('form');
+            form.action = new URL(
+              'mturk/externalSubmit',
+              urlParams.get('turkSubmitTo')
+            ).href;
+            form.method = 'post';
+
+            // attach the assignmentId
+            const inputAssignmentId = document.createElement('input');
+            inputAssignmentId.name = 'assignmentId';
+            inputAssignmentId.value = urlParams.get('assignmentId');
+            inputAssignmentId.hidden = true;
+            form.appendChild(inputAssignmentId);
+
+            // attach other data
+            const inputWorkerId = document.createElement('input');
+            inputWorkerId.name = 'workerId';
+            inputWorkerId.value = workerId;
+            inputWorkerId.hidden = true;
+            form.appendChild(inputWorkerId);
+
+            // attach other data
+            const inputConfirmationCode = document.createElement('input');
+            inputConfirmationCode.name = 'confirmationCode';
+            inputConfirmationCode.value = confirmationCode;
+            inputConfirmationCode.hidden = true;
+            form.appendChild(inputConfirmationCode);
+
+            // attach the form to the HTML document and trigger submission
+            document.body.appendChild(form);
+            form.submit();
+          }
+        }
+      }
+
+      // Wait until page is fully loaded, then run
+      document.addEventListener('DOMContentLoaded', main, false);
+    </script>
+  </body>
+</html>

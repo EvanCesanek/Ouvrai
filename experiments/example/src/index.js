@@ -61,6 +61,7 @@ async function main() {
     requireDesktop: true,
     requireChrome: true,
     vrAllowed: false,
+    sceneManager: false,
 
     cssBackground: 'dimgray', // color name string: http://davidbau.com/colors/
 
