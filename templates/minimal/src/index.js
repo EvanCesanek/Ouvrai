@@ -21,8 +21,8 @@ async function main() {
     name: 'template_minimal',
 
     // If we are running on the local server, consider it debug mode
-    debug: location.hostname === 'localhost',
-    replay: false, // enable replay machine
+    debug: false, //location.hostname === 'localhost',
+    replay: true, // enable replay machine
 
     // Completion code. Replace with your own!
     prolificLink: 'https://app.prolific.co/submissions/complete?cc=WEBLAB',
@@ -129,8 +129,8 @@ async function main() {
 
   // Debug options
   if (exp.cfg.debug) {
-    exp.consented = true;
-    if (exp.replay) {
+    exp.consented = false;
+    if (exp.cfg.replay) {
       exp.replay = new Replay({
         avatar: cursor,
         positionDataName: 'posn',
@@ -383,7 +383,7 @@ async function main() {
     trial = e.detail;
     trial.isReplay = true;
     exp.state.next(e.detail['state'][0]); // set initial state
-    // Do any trial-specific configuration (should just be setting the trial object)
+    // Do any trial-specific configuration
     target.position.setY(exp.cfg.targetDistance * trial.targetDirection);
   }
 }
