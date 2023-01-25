@@ -18,10 +18,10 @@ async function main() {
   // Instantiate a new Experiment with some configuration options.
   const exp = new Experiment({
     // Enter the name of your experiment (same as weblab new-experiment <name>)
-    name: 'template_minimal',
+    name: 'minimal',
 
     // If we are running on the local server, consider it debug mode
-    debug: false, //location.hostname === 'localhost',
+    debug: location.hostname === 'localhost',
     replay: true, // enable replay machine
 
     // Completion code. Replace with your own!
@@ -88,7 +88,7 @@ async function main() {
   // Add listeners for default weblab events
   exp.addDefaultEventListeners();
 
-  // An instructions panel (HTML, so use <br> for newlines)
+  // An instructions panel (HTML so use <br> for newlines)
   exp.instructions = new InstructionsPanel({
     content: `Use the mouse/trackpad to hit the targets.<br />
     Try to hit as many targets as possible!`,
@@ -382,7 +382,7 @@ async function main() {
   function handleReplayTrial(e) {
     trial = e.detail;
     trial.isReplay = true;
-    exp.state.next(e.detail['state'][0]); // set initial state
+    exp.state.next(e.detail['state'][0]);
     // Do any trial-specific configuration
     target.position.setY(exp.cfg.targetDistance * trial.targetDirection);
   }
