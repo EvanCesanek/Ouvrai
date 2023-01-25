@@ -11,7 +11,6 @@ import {
 } from '@aws-sdk/client-mturk';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { URL } from 'url';
 import readline from 'readline';
 import parser from 'xml2json';
 import { initializeApp, deleteApp } from 'firebase-admin/app';
@@ -19,7 +18,10 @@ import { getDatabase } from 'firebase-admin/database';
 import { ask } from './cli-utils';
 import { firebaseConfig } from '../firebase-config';
 
-const __dirname = new URL('.', import.meta.url).pathname;
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const program = new Command();
 program
   .option('-s --sandbox', 'use MTurk sandbox')

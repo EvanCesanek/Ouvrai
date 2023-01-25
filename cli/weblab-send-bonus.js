@@ -8,10 +8,11 @@ import {
 } from '@aws-sdk/client-mturk';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { URL } from 'url';
 import { dateStringMMDDYY } from './cli-utils';
 
-const __dirname = new URL('.', import.meta.url).pathname;
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const program = new Command();
 

@@ -12,7 +12,10 @@ program
   .argument('<study-id>', 'Prolific study ID');
 program.parse(process.argv);
 
-const __dirname = new URL('.', import.meta.url).pathname;
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const expName = program.args[0];
 const configPath = join(
   __dirname,

@@ -3,13 +3,15 @@
 import { Command } from 'commander';
 import { join } from 'path';
 import { existsSync, writeFileSync } from 'fs';
-import { URL } from 'url';
 import { initializeApp, deleteApp } from 'firebase-admin/app';
 import { getDatabase } from 'firebase-admin/database';
 import { dateStringYMDHMS } from './cli-utils.js';
 import { firebaseConfig } from '../firebase-config.js';
 
-const __dirname = new URL('.', import.meta.url).pathname;
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const program = new Command();
 program
   .name('weblab download-workers')

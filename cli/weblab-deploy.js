@@ -3,10 +3,11 @@
 import { Command } from 'commander';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { URL } from 'url';
 import { spawn } from 'child_process'; // Node.js built-in to access OS-level functions
 
-const __dirname = new URL('.', import.meta.url).pathname;
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const program = new Command();
 program

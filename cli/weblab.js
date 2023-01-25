@@ -4,7 +4,8 @@ import { Command } from 'commander';
 import tabtab from 'tabtab';
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { URL } from 'url';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { homedir } from 'os';
 const program = new Command();
 
@@ -83,7 +84,7 @@ program.command('completion').action(() => {
   const env = tabtab.parseEnv(process.env);
   if (!env.complete) return;
 
-  const __dirname = new URL('.', import.meta.url).pathname;
+  const __dirname = dirname(fileURLToPath(import.meta.url));
 
   if (env.prev === 'weblab') {
     const libFolder = join(__dirname, '../cli');
