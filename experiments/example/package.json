@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k \"vite\" \"firebase emulators:start\"",
     "build": "vite build",
     "preview": "vite preview"
   },

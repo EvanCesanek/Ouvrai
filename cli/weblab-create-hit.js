@@ -15,8 +15,12 @@ import { existsSync, readFileSync } from 'fs';
 
 import replace from 'replace-in-file';
 import readline from 'readline';
-import { dateStringYMDHMS, DaysHoursMinutesToSeconds, ask } from './cli-utils';
-import { firebaseConfig } from '../firebase-config';
+import {
+  dateStringYMDHMS,
+  DaysHoursMinutesToSeconds,
+  ask,
+} from './cli-utils.js';
+import { firebaseConfig } from '../firebase-config.js';
 
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';

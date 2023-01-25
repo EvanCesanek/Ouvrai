@@ -3,14 +3,13 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k \"vite\" \"firebase emulators:start\"",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "colormap": "^2.3.2",
     "jstat-esm": "^2.0.2",
-    "vite": "^3.0.7",
     "weblab": "../.."
   }
 }

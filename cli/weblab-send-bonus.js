@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-mturk';
 import { join } from 'path';
 import { existsSync } from 'fs';
-import { dateStringMMDDYY } from './cli-utils';
+import { dateStringMMDDYY } from './cli-utils.js';
 
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';

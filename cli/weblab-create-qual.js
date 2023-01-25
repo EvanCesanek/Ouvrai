@@ -8,7 +8,7 @@ import {
 import { join } from 'path';
 import { existsSync } from 'fs';
 import readline from 'readline';
-import { ask } from './cli-utils';
+import { ask } from './cli-utils.js';
 
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';

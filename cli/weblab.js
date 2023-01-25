@@ -90,6 +90,7 @@ program.command('completion').action(() => {
     const libFolder = join(__dirname, '../cli');
     var commands = [];
     readdirSync(libFolder).forEach((file) => {
+      if (!/^weblab-/.test(file)) return;
       commands.push(file.replace(/weblab-|\.js/g, ''));
     });
     commands.push('help');
