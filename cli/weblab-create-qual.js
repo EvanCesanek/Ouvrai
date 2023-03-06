@@ -1,97 +1,90 @@
-#!/usr/bin/env node
-
-import { Command } from 'commander';
 import {
-  MTurkClient,
   CreateQualificationTypeCommand,
+  MTurkClient,
 } from '@aws-sdk/client-mturk';
-import { join } from 'path';
-import { existsSync } from 'fs';
-import readline from 'readline';
-import { ask } from './cli-utils.js';
+import { Command } from 'commander';
+import inquirer from 'inquirer';
+import ora from 'ora';
+import mturkConfig from '../config/mturk-config.js';
 
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const program = new Command();
-
-program
+const program = new Command()
   .name('weblab create-qual')
-  .option('-s --sandbox', 'use MTurk sandbox')
-  .argument('<experiment-name>', 'name of experiment directory')
-  .showHelpAfterError();
-
-program.parse(process.argv);
+  .option('-s --sandbox', 'use mturk sandbox')
+  .argument('<name>', 'name of qualification')
+  .argument('[keywords...]', 'search keywords for qualification')
+  .showHelpAfterError()
+  .parse();
 const options = program.opts();
-
-// Find the config file for this experiment
-const expName = program.args[0];
-var configPath = join(__dirname, '../experiments', expName, 'mturk-config.mjs');
-if (!existsSync(configPath)) {
-  console.error('ERROR: config file not found');
-  process.exit(1);
-}
-// Note: Need async import() for variable import paths in ECScript
-var config;
-try {
-  config = await import(configPath);
-} catch (error) {
-  console.error('ERROR: failed to import config file');
-  console.error(error.message);
-  process.exit(1);
-}
-config = config.parameters;
-
-// If sandbox set by flag, and not already in config file, update config parameters
-if (options.sandbox && !config.sandbox) {
-  console.log('\n[create-qual] You are using the Requester Sandbox');
-  config.endpoint = config.sandboxEndpoint;
-  config.previewURL = config.sandboxPreviewURL;
-}
 
 // Set up MTurk connection
 const client = new MTurkClient({
   region: 'us-east-1',
-  endpoint: config.endpoint,
+  endpoint: options.sandbox
+    ? mturkConfig.sandboxEndpoint
+    : mturkConfig.endpoint,
 });
 
-// Set up CL input interface
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
-rl.pause();
-
-var query = '\nPlease enter your initials: ';
-var user_initials = await ask(rl, query);
-
-var qual_params = {
-  Name: expName + '_' + user_initials,
-  Description: config.newQualDescription,
-  Keywords: config.newQualKeywords + ', ' + user_initials,
+let qualParams = {
+  Name: program.args[0],
   QualificationTypeStatus: 'Active',
 };
 
-query = `\nYou are trying to create the following qualification:\
-  \n${JSON.stringify(qual_params, null, 2)}\
-  \nIf you would like to continue, type "yes": `;
-var answer = await ask(rl, query);
-if (answer === 'yes') {
-  const createQualificationTypeCommand = new CreateQualificationTypeCommand(
-    qual_params
-  );
-  var createQualificationTypeCommandOutput;
+try {
+  let answer = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'description',
+      message: 'Enter a short description of the qualification:',
+      default: 'No description',
+      validate: (input) =>
+        input.length < 2000
+          ? true
+          : 'Description must be less than 2000 characters.',
+    },
+  ]);
+  qualParams.Description = answer.description;
+} catch (err) {
+  console.log(err.message);
+  process.exit(1);
+}
+
+if (program.args[1] === undefined) {
   try {
-    createQualificationTypeCommandOutput = await client.send(
-      createQualificationTypeCommand
-    );
-  } catch (error) {
-    console.log(error.message);
+    let answer = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'keywords',
+        message:
+          'Enter comma-separated keywords or phrases to help search for this qualification (optional):',
+        validate: (input) =>
+          input.length < 1000
+            ? true
+            : 'Keyword string must be less than 1000 characters',
+      },
+    ]);
+    qualParams.Keywords = answer.keywords;
+  } catch (err) {
+    console.log(err.message);
     process.exit(1);
   }
-  console.log('- Qualification created.');
-  console.log(createQualificationTypeCommandOutput.QualificationType); // successful response
 } else {
-  console.log('- Qualification not created.\n');
+  qualParams.Keywords = program.args
+    .slice(1)
+    .map((str) => str.replace(',', ''))
+    .join(',');
+}
+
+const createQualificationTypeCommand = new CreateQualificationTypeCommand(
+  qualParams
+);
+let spinner = ora('Creating qualification type...').start();
+try {
+  let createQualificationTypeCommandOutput = await client.send(
+    createQualificationTypeCommand
+  );
+  spinner.succeed();
+  console.log(createQualificationTypeCommandOutput.QualificationType); // successful response
+} catch (error) {
+  spinner.fail(error.message);
+  process.exit(1);
 }

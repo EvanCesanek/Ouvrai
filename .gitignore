@@ -5,10 +5,6 @@ experiments/*
 !experiments/example_vr
 **/analysis
 
-# Flask Dashboard
-dashboard
-!dashboard/app.py
-
 # Firebase cache
 **/.firebase/
 

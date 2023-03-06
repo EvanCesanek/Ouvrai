@@ -2,40 +2,15 @@
 
 import axios from 'axios';
 import { Command } from 'commander';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { getStudyConfig } from './cli-utils';
 
-const program = new Command();
-program
+const program = new Command()
   .name('weblab p-approve')
   .argument('<experiment-name>', 'name of experiment directory')
-  .argument('<study-id>', 'Prolific study ID');
-program.parse(process.argv);
+  .argument('<study-id>', 'Prolific study ID')
+  .parse();
 
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const expName = program.args[0];
-const configPath = join(
-  __dirname,
-  '../experiments',
-  expName,
-  'mturk-config.mjs'
-);
-if (!existsSync(configPath)) {
-  console.error(`ERROR: config file ${configPath} not found`);
-  process.exit(1);
-}
-let config;
-try {
-  config = await import(configPath); // async import() for variable import paths in ES6+
-} catch (error) {
-  console.error('ERROR: failed to import config file');
-  console.error(error.message);
-  process.exit(1);
-}
-config = config.parameters;
+let config = await getStudyConfig(program.args[0]);
 
 let url = `https://api.prolific.co/api/v1/submissions/bulk-approve/`;
 const res = await axios.post(

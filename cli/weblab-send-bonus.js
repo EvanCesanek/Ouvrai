@@ -32,7 +32,7 @@ if (!existsSync(configPath)) {
   console.error('ERROR: config file not found');
   process.exit(1);
 }
-// Note: Need async import() for variable import paths in ECScript
+// Note: Need async import() for variable import paths in ES
 var config;
 try {
   config = await import(configPath);
@@ -50,7 +50,10 @@ if (options.sandbox && !config.sandbox) {
   config.previewURL = config.sandboxPreviewURL;
 }
 
-if (!Array.isArray(config.workersToBonus) || !config.workersToBonus.length) {
+if (
+  !Array.isArray(config.workersToBonus) ||
+  config.workersToBonus.length === 0
+) {
   console.log(
     `ERROR: workersToBonus incorrectly configured in ${expName} config file.`
   );
@@ -58,7 +61,7 @@ if (!Array.isArray(config.workersToBonus) || !config.workersToBonus.length) {
 }
 if (
   !Array.isArray(config.bonusAmounts) ||
-  !config.bonusAmounts.length ||
+  config.bonusAmounts.length === 0 ||
   config.bonusAmounts.length !== config.workersToBonus.length
 ) {
   console.log(

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Compensation HIT</title>
+    <style>
+      body {
+        font-family: Helvetica;
+        font-size: 13pt;
+        padding: 0px 20px;
+        max-width: 600px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="details">
+      <div id="title" style="text-align: center">
+        <h2 id="title-text">Compensation HIT</h2>
+      </div>
+
+      <div id="instructions">
+        <h3>Instructions</h3>
+        <p>
+          This is a Compensation HIT for previous work that you were unable to
+          submit. Please provide your demographic information and then click
+          Submit. Thank you!
+        </p>
+      </div>
+
+      <div id="completion" style="font-size: 12pt; display: none">
+        <form id="code-form">
+          <fieldset id="code-form-fieldset" style="display: contents">
+            <p>
+              Demographic data must be reported for most grant-funded research
+              (e.g., see
+              <a
+                href="https://grants.nih.gov/faqs#/inclusion-basic-on-sex-gender-and-race-ethnicity.htm"
+                >NIH FAQs)</a
+              >. It helps researchers and policy-makers ensure that scientific
+              studies are informative and inclusive. Your responses are
+              de-identified and cannot be linked back to you. If you prefer not
+              to respond to any question, select "Prefer not to respond" or
+              leave the response field blank.
+            </p>
+            <label for="completion-gender">Gender identity: </label>
+            <select
+              id="completion-gender"
+              style="font-size: 12pt; margin-bottom: 20px; width: 40%"
+              required>
+              <option value="" disabled selected>Select one</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="TransMale">Trans Male</option>
+              <option value="TransFemale">Trans Female</option>
+              <option value="Genderqueer">Genderqueer or non-binary</option>
+              <option value="Unknown">Prefer not to respond</option>
+            </select>
+            <br />
+            <label for="completion-sex">Sex assigned at birth: </label>
+            <select
+              id="completion-sex"
+              style="font-size: 12pt; margin-bottom: 20px; width: 40%"
+              required>
+              <option value="" disabled selected>Select one</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="TransMale">Intersex</option>
+              <option value="Unknown">Prefer not to respond</option>
+            </select>
+            <br />
+            <label for="completion-age">Age:</label>
+            <input
+              type="number"
+              placeholder="Enter years"
+              id="completion-age"
+              style="font-size: 12pt; margin-bottom: 20px; width: 20%"
+              min="18"
+              max="90" />
+            <br />
+            <label for="completion-ethnicity">Ethnicity: </label>
+            <select
+              id="completion-ethnicity"
+              style="font-size: 12pt; margin-bottom: 20px; width: 50%"
+              required>
+              <option value="" disabled selected>Select one</option>
+              <option value="Hispanic or Latino">Hispanic or Latino</option>
+              <option value="Not Hispanic or Latino">
+                Not Hispanic or Latino
+              </option>
+              <option value="Unknown">Prefer not to respond</option>
+            </select>
+            <br />
+            <span
+              >Race (select all that apply, or none if you prefer not to
+              respond):</span
+            ><br />
+            <div style="margin: 5px 0 20px 5px">
+              <input
+                type="checkbox"
+                id="AIAN"
+                value="American Indian or Alaska Native"
+                class="raceCheckbox" />
+              <label for="AIAN"> American Indian or Alaska Native</label><br />
+              <input
+                type="checkbox"
+                id="Asian"
+                value="Asian"
+                class="raceCheckbox" />
+              <label for="Asian"> Asian</label><br />
+              <input
+                type="checkbox"
+                id="Black"
+                value="Black or African American"
+                class="raceCheckbox" />
+              <label for="Black"> Black or African American</label><br />
+              <input
+                type="checkbox"
+                id="NHPI"
+                value="Native Hawaiian or Other Pacific Islander"
+                class="raceCheckbox" />
+              <label for="NHPI">
+                Native Hawaiian or Other Pacific Islander</label
+              ><br />
+              <input
+                type="checkbox"
+                id="White"
+                value="White"
+                class="raceCheckbox" />
+              <label for="White"> White</label><br />
+            </div>
+          </fieldset>
+        </form>
+        <button
+          form="code-form"
+          type="submit"
+          id="submit-button"
+          style="font-size: 10pt; margin: 0 40px 0 20px">
+          Submit
+        </button>
+      </div>
+    </div>
+
+    <div id="malfunction" style="display: none">
+      <h3>Oops! Something is wrong with this HIT...</h3>
+      <p>
+        You might try refreshing the page. If the problem persists, please
+        return this HIT. Contact the Requester if you would like more
+        information.
+      </p>
+    </div>
+
+    <script>
+      function main() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const previewing =
+          urlParams.get('assignmentId') === 'ASSIGNMENT_ID_NOT_AVAILABLE';
+        if (previewing) {
+          return;
+        }
+
+        // Initialize globals
+        let gender, sex, age, ethnicity, race;
+
+        const mainDiv = document.getElementById('details');
+        const codeFormDiv = document.getElementById('completion');
+        const codeForm = document.getElementById('code-form');
+        const malfunctionDiv = document.getElementById('malfunction');
+
+        const workerId = urlParams.get('workerId');
+        const asmtId = urlParams.get('assignmentId');
+        const hitId = urlParams.get('hitId');
+        if (!workerId) {
+          mainDiv.style.display = 'none';
+          malfunctionDiv.style.display = 'block';
+          let x = malfunctionDiv.appendChild(document.createElement('p'));
+          x.textContent =
+            'Error: Could not retrieve workerId from URL parameters.';
+          return;
+        }
+
+        codeFormDiv.style.display = 'block';
+        codeForm.addEventListener('submit', handleSubmit);
+      }
+
+      function handleSubmit() {
+        e.preventDefault();
+
+        // extract the form responses
+        gender = document.getElementById('completion-gender').value;
+        sex = document.getElementById('completion-sex').value;
+        age = document.getElementById('completion-age').value;
+        ethnicity = document.getElementById('completion-ethnicity').value;
+        // For Race (multi-select checkbox response), create an array
+        race = [];
+        let raceCheckboxes = document.getElementsByClassName('raceCheckbox');
+        for (let checkbox of raceCheckboxes) {
+          if (checkbox.checked) {
+            race.push(checkbox.value);
+          }
+        }
+
+        // create the form element and point it to the correct endpoint
+        const form = document.createElement('form');
+        form.action = new URL(
+          'mturk/externalSubmit',
+          urlParams.get('turkSubmitTo')
+        ).href;
+        form.method = 'post';
+
+        // attach assignment ID
+        const asmtId = document.createElement('input');
+        asmtId.name = 'assignmentId';
+        asmtId.value = urlParams.get('assignmentId');
+        asmtId.hidden = true;
+        form.appendChild(asmtId);
+
+        // attach worker ID
+        const wkrId = document.createElement('input');
+        wkrId.name = 'workerId';
+        wkrId.value = urlParams.get('workerId');
+        wkrId.hidden = true;
+        form.appendChild(wkrId);
+
+        // attach gender
+        const g = document.createElement('input');
+        g.name = 'Gender';
+        g.value = gender;
+        g.hidden = true;
+        form.appendChild(g);
+
+        // attach birth sex
+        const s = document.createElement('input');
+        s.name = 'Sex';
+        s.value = sex;
+        s.hidden = true;
+        form.appendChild(s);
+
+        // attach age
+        const a = document.createElement('input');
+        a.name = 'Age';
+        a.value = age;
+        a.hidden = true;
+        form.appendChild(a);
+
+        // attach ethnicity
+        const e = document.createElement('input');
+        e.name = 'Ethnicity';
+        e.value = ethnicity;
+        e.hidden = true;
+        form.appendChild(e);
+
+        // attach race
+        const r = document.createElement('input');
+        r.name = 'Race';
+        r.value = race;
+        r.hidden = true;
+        form.appendChild(r);
+
+        // attach the form to the HTML document and trigger submission
+        document.body.appendChild(form);
+        form.submit();
+      }
+      // Wait until page is fully loaded, then run
+      document.addEventListener('DOMContentLoaded', main, false);
+    </script>
+  </body>
+</html>

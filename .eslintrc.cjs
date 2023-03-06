@@ -1,5 +1,5 @@
 module.exports = {
-  plugins: ['html'],
+  plugins: ['html', 'jsx'],
   env: {
     node: true,
     browser: true,

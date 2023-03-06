@@ -5,33 +5,33 @@ import {
   MTurkClient,
   DeleteQualificationTypeCommand,
 } from '@aws-sdk/client-mturk';
+import mturkConfig from '../config/mturk-config.js';
 
-const program = new Command();
-program
+const program = new Command()
   .name('weblab delete-qual')
   .option('-s --sandbox', 'use MTurk sandbox', false)
-  .argument('<qual-id...>', 'MTurk qualification id(s)');
-program.parse(process.argv);
+  .argument('<qual-id...>', 'MTurk qualification id(s)')
+  .showHelpAfterError()
+  .parse();
 const options = program.opts();
 
-var endpoint;
-if (options.sandbox) {
-  console.log('\n[Note: You are using the Requester Sandbox]');
-  endpoint = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com';
-} else {
-  endpoint = 'https://mturk-requester.us-east-1.amazonaws.com';
-}
-const client = new MTurkClient({ region: 'us-east-1', endpoint: endpoint });
+// Set up MTurk connection
+const client = new MTurkClient({
+  region: 'us-east-1',
+  endpoint: options.sandbox
+    ? mturkConfig.sandboxEndpoint
+    : mturkConfig.endpoint,
+});
 
 for (let qid of program.args) {
   const deleteQualificationTypeCommand = new DeleteQualificationTypeCommand({
     QualificationTypeId: qid,
   });
+  let spinner = ora(`Deleting qualification ${qid}`).start();
   try {
     await client.send(deleteQualificationTypeCommand);
+    spinner.succeed('');
   } catch (error) {
-    console.error(error.message);
-    console.error(`ERROR: Failed to delete qual ${qid}. Continuing...`);
+    spinner.fail(`Failed to delete qualification ${qid}: ${error.message}`);
   }
-  console.log(`- Qualification ${qid} deleted.`);
 }

@@ -1,76 +1,61 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import {
-  MTurkClient,
-  ListQualificationTypesCommand,
-} from '@aws-sdk/client-mturk';
+import { MTurkClient } from '@aws-sdk/client-mturk';
+import mturkConfig from '../config/mturk-config.js';
+import ora from 'ora';
+import { mturkListQualifications } from './cli-utils.js';
 
-const program = new Command();
-program
+const program = new Command()
   .name('weblab list-quals')
-  .option('-s --sandbox', 'use MTurk sandbox', false)
-  .option('-v --verbose', 'display more info for each qual', false)
-  .option('-q --qid-only', 'display only a list of QIDs', false)
-  .argument('[query...]', 'search query');
-program.parse(process.argv);
+  .option('-s --sandbox', 'use MTurk sandbox')
+  .option('-v --verbose [number]', 'display more info for each qual')
+  .option('-l --list-only', 'display only a list of QIDs')
+  .argument('[query...]', 'search query')
+  .showHelpAfterError()
+  .parse();
 const options = program.opts();
 
-var endpoint;
-if (options.sandbox) {
-  console.log('\n[Note: You are using the Requester Sandbox]');
-  endpoint = 'https://mturk-requester-sandbox.us-east-1.amazonaws.com';
-} else {
-  endpoint = 'https://mturk-requester.us-east-1.amazonaws.com';
-}
-const client = new MTurkClient({ region: 'us-east-1', endpoint: endpoint });
+// MTURK
+// Set up MTurk connection
+const client = new MTurkClient({
+  region: 'us-east-1',
+  endpoint: options.sandbox
+    ? mturkConfig.sandboxEndpoint
+    : mturkConfig.endpoint,
+});
 
-var listQualificationTypesCommandInput = {
-  MustBeRequestable: false, // required
-  MustBeOwnedByCaller: true, // we only want to see our own qualifications
-  Query: program.args.length > 0 ? program.args.join(' ') : null,
-  //MaxResults: 100, // show up to 100 qualifications
-  //NextToken: 'STRING_VALUE',
-};
+let query = program.args.length > 0 ? program.args.join(' ') : undefined;
 
-const listQualificationTypesCommand = new ListQualificationTypesCommand(
-  listQualificationTypesCommandInput
-);
-var listQualificationTypesCommandOutput;
+let res;
+let spinner = ora('Retrieving qualifications...');
 try {
-  listQualificationTypesCommandOutput = await client.send(
-    listQualificationTypesCommand
+  res = await mturkListQualifications(client, query);
+  spinner.succeed(
+    `Found ${res.NumResults} qualifications` +
+      (query ? ` matching search query "${query}": ` : '')
   );
 } catch (error) {
-  console.log(error.message);
+  spinner.fail(error.message);
   process.exit(1);
 }
 
-console.log(`\n- Found ${listQualificationTypesCommandOutput.NumResults} qualifications \
-matching search query "${listQualificationTypesCommandInput.Query}": `);
-var qidList = [];
-for (let qual of listQualificationTypesCommandOutput.QualificationTypes) {
-  var fieldsToPrint;
-  if (options.qidOnly) {
-    qidList.push(qual.QualificationTypeId);
-    continue;
-  } else if (options.verbose) {
-    fieldsToPrint = {
-      QualificationTypeId: qual.QualificationTypeId,
-      Name: qual.Name,
-      Keywords: qual.Keywords,
-      Description: qual.Description,
-      CreationTime: qual.CreationTime,
-    };
-  } else {
-    fieldsToPrint = {
-      QualificationTypeId: qual.QualificationTypeId,
-      Name: qual.Name,
-      Keywords: qual.Keywords,
-    };
-  }
-  console.log(fieldsToPrint);
-}
-if (options.qidOnly) {
+if (options.listOnly) {
+  let qidList = res.QualificationTypes.map((x) => x.QualificationTypeId);
   console.log(qidList.join(' '));
+} else {
+  for (let qual of res.QualificationTypes) {
+    let fieldsToPrint = {
+      QualificationTypeId: qual.QualificationTypeId,
+      Name: qual.Name,
+      Keywords: qual.Keywords,
+    };
+    if (options.verbose == 1) {
+      fieldsToPrint.Description = qual.Description;
+      fieldsToPrint.CreationTime = qual.CreationTime;
+    } else if (options.verbose == 2) {
+      fieldsToPrint = qual;
+    }
+    console.log(fieldsToPrint);
+  }
 }

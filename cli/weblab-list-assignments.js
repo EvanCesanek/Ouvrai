@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { parseStringPromise } from 'xml2js';
 import {
   MTurkClient,
   ListAssignmentsForHITCommand,
@@ -51,7 +52,7 @@ const HITID = program.args[0];
 var ids = [];
 const listAssignmentsForHITCommand = new ListAssignmentsForHITCommand({
   HITId: HITID,
-  AssignmentStatuses: statuses,
+  //AssignmentStatuses: statuses,
 });
 var listAssignmentsForHITCommandOutput;
 try {
@@ -62,11 +63,23 @@ try {
   console.log(error.message);
   process.exit(1);
 }
+//3BEFOD78WBAJ5R1ZJSQW5KY1VH1M4B
 
 // Loop over assignments
 for (let assignment of listAssignmentsForHITCommandOutput.Assignments) {
   ids.push(assignment.WorkerId);
-  delete assignment.Answer; // Don't need this field here (instead, use weblab review-hit)
+  // Parse XML string
+  let parsedData = await parseStringPromise(assignment.Answer);
+  let recorded_data = parsedData.QuestionFormAnswers.Answer; // mturk-form data is 2 layers down
+  if (!Array.isArray(recorded_data)) {
+    recorded_data = [recorded_data]; // can be a single object -> make sure it's iterable
+  }
+  for (let qobj of recorded_data) {
+    assignment[qobj.QuestionIdentifier] = Array.isArray(qobj.FreeText)
+      ? qobj.FreeText.join()
+      : qobj.FreeText;
+  }
+  delete assignment.Answer; // Don't need this any more
   if (!options.listWorkers) {
     console.log(assignment);
   }

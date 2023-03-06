@@ -57,7 +57,9 @@ def load(data_folder="../", file_regex="^data_", from_pkl=False, pickle=False):
             with open(data_folder + filename) as open_file:  # prefix with data_folder
                 d = json.load(open_file)  # read into a small dictionary d
                 if not all([len(l) == 28 for l in d.keys()]):
-                    warnings.warn("Keys do not look like Firebase UIDs! Check your files.")
+                    warnings.warn(
+                        "Keys do not look like Firebase UIDs! Check your files."
+                    )
                 D = {**D, **d}  # concatenate dictionaries
 
         # Arrange it in a data frame
@@ -276,17 +278,17 @@ def find_first_velocity_peak(
 
         above_vel_lwr = x["distance"] >= vel_lwr
         if not any(above_vel_lwr):
-            warnings.warn(
-                f"\n\t{x.name}: distance never exceeded lower threshold {vel_lwr:.3f}...\n\tThat's a problem! Examine this trial."
-            )
+            # warnings.warn(
+            #     f"\n\t{x.name}: distance never exceeded lower threshold {vel_lwr:.3f}...\n\tThat's a problem! Examine this trial."
+            # )
             g = sns.lineplot(data=x, x="rhPos_x", y="rhPos_z", sort=False)
             g.set_aspect("equal")
 
         above_vel_upr = x["distance"] >= vel_upr
         if not any(above_vel_upr):
-            warnings.warn(
-                f"\n\t{x.name}: distance never exceeded upper threshold {vel_upr:.3f}.\n\tFalling back to 90% of maximum distance = {0.9 * x['distance'].max():.3f}"
-            )
+            # warnings.warn(
+            #     f"\n\t{x.name}: distance never exceeded upper threshold {vel_upr:.3f}.\n\tFalling back to 90% of maximum distance = {0.9 * x['distance'].max():.3f}"
+            # )
             vel_upr = 0.9 * x["distance"].max()  # dist_range[1] * x["distance"].max()
             above_vel_upr = x["distance"] >= vel_upr
 

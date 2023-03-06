@@ -1,136 +1,122 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { join } from 'path';
-import { existsSync, writeFileSync } from 'fs';
-import { initializeApp, deleteApp } from 'firebase-admin/app';
-import { getDatabase } from 'firebase-admin/database';
-import { dateStringYMDHMS } from './cli-utils.js';
-import { firebaseConfig } from '../firebase-config.js';
+import {
+  dateStringYMDHMS,
+  firebaseClient,
+  getStudyConfig,
+  firebaseChooseProject,
+  isAlphanumeric,
+  firebaseGetData,
+} from './cli-utils.js';
+import firebaseConfig from '../config/firebase-config.js';
+import { writeFile } from 'fs/promises';
+import ora from 'ora';
 
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-const program = new Command();
-program
+const program = new Command()
   .name('weblab download-workers')
   .argument('<experiment-name>', 'name of experiment directory')
-  .showHelpAfterError();
-program.parse(process.argv);
-//const options = program.opts();
+  .option('-p --project [project]', 'choose or specify project')
+  .showHelpAfterError()
+  .parse();
+const options = program.opts();
 
 const expName = program.args[0];
 
 // Load the relevant config file
-var projectPath = join(__dirname, '../experiments', expName);
-var configPath = join(__dirname, '../experiments', expName, 'mturk-config.mjs');
-if (!existsSync(configPath)) {
-  console.error(`ERROR: config file ${configPath} not found`);
-  process.exit(1);
-}
-var config;
-try {
-  config = await import(configPath); // async import() for variable import paths in ES6+
-} catch (error) {
-  console.error('ERROR: failed to import config file');
-  console.error(error.message);
-  process.exit(1);
-}
-config = config.parameters;
+let config = await getStudyConfig(expName);
 
 // Initialize connection to firebase via admin sdk
-// Requires process.env.GOOGLE_APPLICATION_CREDENTIALS = '/path/to/serviceAccountFile.json'
-const app = initializeApp({ databaseURL: firebaseConfig.databaseURL });
-const db = getDatabase();
+const client = firebaseClient();
+
+// User can choose project from list (boolean option), supply name of project (value option), or use default (no option)
+let projectId = options.project || firebaseConfig.projectId;
+if (projectId === true) {
+  projectId = await firebaseChooseProject(client);
+}
 
 if (
   !Array.isArray(config.workersToDownload) ||
   !config.workersToDownload.length
 ) {
   console.log(
-    `ERROR: workersToDownload incorrectly configured in ${expName} config file.`
+    `Error: workersToDownload incorrectly configured in ${expName} config file.`
   );
   process.exit(1);
 }
-var allData = {}; // accumulate subject data here
-var undownloadedWorkers = [];
+const allData = {}; // accumulate subject data here
+let missedWorkers = [];
+let retrievedWorkers = [];
 
-for (let subjectString of config.workersToDownload) {
-  // First we must find the UID from the workers branch
-  var refString = 'workers/' + subjectString + '/' + expName;
-  console.log(`- Checking if ${refString} node exists in our database...`);
-  var workerInfoRef = db.ref(refString);
-  var dataSnapshot;
-  try {
-    dataSnapshot = await workerInfoRef.once('value');
-  } catch (error) {
-    console.error(error.message);
+for (let workerId of config.workersToDownload) {
+  console.log('--------------------------');
+  if (!isAlphanumeric(workerId)) {
+    ora().fail(`Invalid worker ID ${workerId}. Must be alphanumeric.`);
+    continue;
   }
-  var uid;
-  if (dataSnapshot.exists()) {
-    let workerInfoNode = dataSnapshot.val();
-    let keys = Object.keys(workerInfoNode); // keys should only be the $uid and 'submitted'
-    let idx = keys.findIndex((x) => x == 'submitted');
-    if (idx !== -1) {
-      keys.splice(idx, 1); // remove 'submitted' (if it exists)
-    }
+  // Check workers branch
+  let refString = `/workers/${workerId}/${expName}`;
+  let spinner = ora(`Checking completion record at ${refString}...`).start();
+  let workerInfo = await firebaseGetData(refString, projectId, true);
+
+  let keys;
+  if (workerInfo) {
+    keys = Object.keys(workerInfo); // keys should only be the $uid and 'submitted'
+    keys = keys.filter((x) => x !== 'submitted');
     if (keys.length > 1) {
-      // if there is more than one key after removing 'submitted', that's not good!
-      console.log(
-        `--- WARNING: ${subjectString} completed the experiment multiple times!`
+      // not good if there is more than one key after removing 'submitted'...
+      spinner.warn(
+        `Found multiple completion records for ${workerId}: ${keys.join(', ')}`
       );
+    } else {
+      spinner.succeed(`Found completion record for ${workerId}: ${keys[0]}`);
     }
-    keys.forEach((s) => (s == 'submitted' ? null : (uid = s))); // loop over, grabbing the uid
   } else {
-    undownloadedWorkers.push(subjectString);
-    console.log(
-      `--- ERROR: Failed to find ${subjectString} in workers branch. Continuing with next worker...\n`
-    );
+    missedWorkers.push(workerId);
+    spinner.warn(`Failed to find entry at ${refString}.`);
     continue;
   }
 
   // With the UID, we can access the data from the experiments branch
-  refString = 'experiments/' + expName + '/' + uid;
-  console.log(
-    '--- Worker ID found and UID retrieved. Checking if ' +
-      refString +
-      ' node exists...'
+  for (let uid of keys) {
+    refString = `/experiments/${expName}/${uid}`;
+    let spinner = ora(`Downloading data from ${refString}...`).start();
+    let subjData = await firebaseGetData(refString, projectId, true);
+    if (subjData) {
+      allData[uid] = subjData; // append to allData
+      retrievedWorkers.push(workerId);
+      spinner.succeed(`Retrieved data for participant ${uid}`);
+    } else {
+      missedWorkers.push(workerId);
+      spinner.fail(`Failed to find data at ${refString}`);
+      continue;
+    }
+  }
+}
+console.log('--------------------------');
+// Remove any retrieved workers from missed workers list
+// This could happen if they had one not-found key and one found key
+missedWorkers = missedWorkers.filter((x) => !retrievedWorkers.includes(x));
+// Remove any duplicates (if they had multiple bad or good keys)
+retrievedWorkers = [...new Set(retrievedWorkers)];
+missedWorkers = [...new Set(missedWorkers)];
+
+if (missedWorkers.length > 0) {
+  ora().warn(`Failed to download data for: ${missedWorkers.join(', ')}`);
+}
+
+if (retrievedWorkers.length > 0) {
+  let savePath = new URL(
+    `../experiments/${expName}/analysis/data_${dateStringYMDHMS()}.json`,
+    import.meta.url
   );
-  var subjDataRef = db.ref(refString);
+  let spinner = ora(`Saving data...`);
   try {
-    dataSnapshot = await subjDataRef.once('value');
-  } catch (error) {
-    console.error(error.message);
-  }
-  var subjDataNode;
-  if (dataSnapshot.exists()) {
-    subjDataNode = dataSnapshot.val(); // we pull the subject data
-  } else {
-    undownloadedWorkers.push(subjectString);
-    console.log(
-      `\n----- ERROR: Failed to find ${uid} in the database. Continuing with next worker...\n`
+    await writeFile(savePath, JSON.stringify(allData, null, 2), 'utf8');
+    spinner.succeed(
+      `Data (N = ${retrievedWorkers.length}) saved to ${savePath.pathname}.`
     );
-    continue;
+  } catch (err) {
+    spinner.fail(`Failed to save data! Error: ${err.message}`);
   }
-  allData[uid] = subjDataNode; // append to allData; square bracket notation because uid is a string
-  console.log('----- Worker data appended to output.\n');
-}
-
-const numRetrieved =
-  config.workersToDownload.length - undownloadedWorkers.length;
-console.log(`- Done! Retrieved data from ${numRetrieved} subjects.`);
-if (undownloadedWorkers.length > 0) {
-  console.log(`- Failed to download data for:`);
-  console.log(undownloadedWorkers);
-}
-var savePath = join(projectPath, `data_${dateStringYMDHMS()}.json`);
-writeFileSync(savePath, JSON.stringify(allData, null, 2), 'utf8');
-console.log(`--- Saved data to ${savePath}`);
-
-// Must close firebase to exit cleanly
-try {
-  await deleteApp(app);
-} catch (error) {
-  console.error(error.message);
 }

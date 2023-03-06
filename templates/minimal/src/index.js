@@ -1,7 +1,7 @@
-/*** third-party imports ***/
+// Third-party imports
 import { Color, Vector2, Vector3 } from 'three';
 
-/*** weblab imports ***/
+// Package imports
 import {
   Experiment,
   BlockOptions,
@@ -13,43 +13,49 @@ import {
   Replay,
 } from 'weblab';
 
+/**
+ * Main function contains all experiment code
+ */
 async function main() {
-  // The Experiment class handles many things behind the scenes.
-  // Instantiate a new Experiment with some configuration options.
+  /**
+   * The Experiment class handles most things behind the scenes.
+   * Instantiate a new Experiment with some configuration options.
+   */
   const exp = new Experiment({
-    // Enter the name of your experiment (same as weblab new-experiment <name>)
-    name: 'minimal',
+    // Debug mode switch, specify debug behavior below
+    debug:
+      false &&
+      (location.hostname === 'localhost' || location.hostname === '127.0.0.1'),
+    replay: true, // enable replay machine, requires debug mode
 
-    // If we are running on the local server, consider it debug mode
-    debug: location.hostname === 'localhost',
-    replay: true, // enable replay machine
+    //Platform settings
+    requireDesktop: true,
+    requireChrome: false,
 
-    // Completion code. Replace with your own!
-    prolificLink: 'https://app.prolific.co/submissions/complete?cc=WEBLAB',
-    code: 'WEBLAB',
+    // Three.js settings
+    orthographic: true, // for simple 2D scenes
+    cssScene: true, // create an additional renderer for a cssScene
 
-    // Set values
-    homeRadius: 0.05,
-
+    // Scene quantities
+    // Assume meters and seconds for three.js, but note tween.js uses milliseconds
     cursorRadius: 0.02,
     cursorMinXYZ: new Vector3(-1, -1, -5),
     cursorMaxXYZ: new Vector3(1, 1, 5),
-
     targetRadius: 0.04,
     targetDistance: 0.25,
+    homeRadius: 0.05,
 
+    // Procedure
     delayDuration: 0.5,
-
-    // Scene options
-    orthographic: true,
-    cssScene: true, // create an additional renderer for a cssScene
-
-    requireDesktop: true,
   });
 
-  // Create finite state machine (experiment flow manager)
+  /**
+   * Finite State Machine
+   * Manages the flow of your experiment
+   * Define states here, define behavior & transitions in stateFunc()
+   */
   exp.cfg.stateNames = [
-    'BROWSER',
+    'BROWSER', // First = Entry point
     'CONSENT',
     'SIGNIN',
     'SETUP',
@@ -82,12 +88,14 @@ async function main() {
     'ADVANCE',
   ].map((s) => exp.state[s]);
 
-  // A survey object for demographic data
-  const survey = new Survey();
+  // A survey form for asking questions, displayed at end
+  exp.survey = new Survey();
 
-  // Add listeners for default weblab events
+  // Add default event handlers
   exp.addDefaultEventListeners();
 
+  // Add custom event handlers and other setup
+  document.body.addEventListener('mousemove', handleMouseMove);
   // An instructions panel (HTML so use <br> for newlines)
   exp.instructions = new InstructionsPanel({
     content: `Use the mouse/trackpad to hit the targets.<br />
@@ -106,7 +114,9 @@ async function main() {
   };
   let trial = structuredClone(trialInitialize);
 
-  // Create objects and add to scene
+  /**
+   * Objects
+   */
   const home = MeshFactory.sphere({ radius: exp.cfg.homeRadius });
   home.position.set(0, 0, 0);
   const cursor = MeshFactory.sphere({ radius: exp.cfg.cursorRadius });
@@ -116,39 +126,48 @@ async function main() {
   target.visible = false;
   exp.sceneManager.scene.add(home, cursor, target);
 
-  // Create trial sequence from array of block objects
+  /**
+   * Trial procedure
+   * Create trial sequence (exp.trials) from array of block objects
+   */
   exp.createTrialSequence([
+    // The keys of a block object are the variables, the values must be equal-length arrays
+    // The combination of elements at index i are the variable values for one trial
+    // options is required: create a new BlockOptions object to control sequencing
     {
       targetDirection: [-1, 1],
-      options: new BlockOptions('train', true, 10),
+      options: new BlockOptions({ name: 'train', reps: 10, shuffle: true }),
     },
   ]);
 
-  // Add custom event handlers
-  document.body.addEventListener('mousemove', handleMouseMove);
-
   // Debug options
   if (exp.cfg.debug) {
-    exp.consented = false;
+    exp.consented = true; // skip consent in debug
     if (exp.cfg.replay) {
       exp.replay = new Replay({
         avatar: cursor,
         positionDataName: 'posn',
         rotationDataName: false,
       });
-      exp.fullscreenStates = [];
-      exp.pointerlockStates = [];
+      // Disable fullscreen & pointer lock
+      exp.fullscreenStates = exp.pointerlockStates = [];
       document.body.removeEventListener('mousemove', handleMouseMove);
       document.body.addEventListener('replayinfo', handleReplayInfo);
       document.body.addEventListener('replaytrial', handleReplayTrial);
     }
   } else {
     console.log = function () {}; // disable in production
+    console.warn = function () {}; // disable console logs in production
   }
 
-  // Start the render loop
+  // Start the main loop
   mainLoopFunc();
 
+  /**
+   * Main Loop
+   * Three sequential functions (calc > state > display)
+   * Runs at device refresh rate
+   */
   function mainLoopFunc() {
     exp.sceneManager.renderer.setAnimationLoop(mainLoopFunc);
     calcFunc();
@@ -156,7 +175,12 @@ async function main() {
     displayFunc();
   }
 
+  /**
+   * Use calcFunc for any calculations that you will need to
+   * reference in _multiple_ states of stateFunc
+   */
   function calcFunc() {
+    // Objects are in 3D, but we want to ignore the 3rd dimension
     let cursPosXY = new Vector2(...cursor.position);
     let homePosXY = new Vector2(...home.position);
     let targPosXY = new Vector2(...target.position);
@@ -169,12 +193,11 @@ async function main() {
   }
 
   function stateFunc() {
-    // Process interrupt flags for database, fullscreen, and pointerlock
+    // Process interrupt flags (database, fullscreen, pointerlock)
     exp.processInterrupts();
 
     switch (exp.state.current) {
       case exp.state.BLOCKED:
-        // dead-end state
         break;
 
       case exp.state.BROWSER:
@@ -182,26 +205,11 @@ async function main() {
         break;
 
       case exp.state.CONSENT:
-        exp.state.once(function () {
-          exp.consent.show();
-        });
-        if (exp.consented || exp.cfg.demo) {
-          exp.cfg.date = new Date().toISOString();
-          exp.cfg.timeOrigin = performance.timeOrigin;
-          exp.firebase.signInAnonymously();
-          exp.state.next(exp.state.SIGNIN);
-        }
+        exp.processConsent();
         break;
 
       case exp.state.SIGNIN:
-        if (exp.firebase.uid) {
-          exp.consent.hide();
-          // regular dom elements don't have show() and hide()
-          DisplayElement.show(exp.sceneManager.renderer.domElement);
-          DisplayElement.show(exp.sceneManager.cssRenderer.domElement);
-          DisplayElement.show(document.getElementById('panel-container'));
-          exp.state.next(exp.state.SETUP);
-        }
+        exp.processSignIn();
         break;
 
       case exp.state.SETUP:
@@ -209,13 +217,13 @@ async function main() {
         trial = structuredClone(exp.trials[exp.trialNumber]);
         trial.trialNumber = exp.trialNumber;
         trial.startTime = performance.now();
-        // Reset data arrays and other weblab defaults
+
+        // Reset data arrays and other defaults
         trial = { ...trial, ...structuredClone(trialInitialize) };
-        // Set other parameters
+
+        // Set trial parameters
         trial.demoTrial =
           exp.trialNumber === 0 || (exp.trialNumber < 6 && exp.repeatDemoTrial);
-
-        // Target position
         target.position.setY(exp.cfg.targetDistance * trial.targetDirection);
 
         exp.state.next(exp.state.START);
@@ -243,16 +251,15 @@ async function main() {
         });
         handleFrameData();
         if (!cursor.atHome) {
-          exp.state.next(exp.state.MOVING); // advance
+          exp.state.next(exp.state.MOVING);
         }
         break;
 
       case exp.state.MOVING:
         handleFrameData();
         if (cursor.atTarget) {
-          // Animate target hit
           target.visible = false;
-          exp.state.next(exp.state.RETURN); // advance
+          exp.state.next(exp.state.RETURN);
         }
         break;
 
@@ -270,7 +277,7 @@ async function main() {
 
       case exp.state.ADVANCE:
         if (!exp.firebase.saveSuccessful) {
-          // don't do anything until firebase save returns successful
+          // wait until firebase save returns successful
           break;
         }
 
@@ -279,8 +286,7 @@ async function main() {
           exp.state.next(exp.state.SETUP);
         } else {
           exp.firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(exp.cfg.code);
-          // remember: threejs canvas doesn't have show() and hide()
+          exp.goodbye.updateGoodbye(exp.firebase.uid);
           DisplayElement.hide(exp.sceneManager.renderer.domElement);
           DisplayElement.hide(exp.sceneManager.cssRenderer.domElement);
           exp.fullscreen.exitFullscreen();
@@ -289,14 +295,12 @@ async function main() {
         break;
 
       case exp.state.SURVEY:
-        exp.state.once(function () {
-          survey.show();
-        });
-        if (exp.surveysubmitted) {
-          // we save the config object
+        exp.state.once(() => exp.survey?.hidden && exp.survey.show());
+
+        if (!exp.survey || exp.surveysubmitted) {
+          exp.survey?.hide();
           exp.cfg.trialNumber = 'info';
           exp.firebase.saveTrial(exp.cfg);
-          survey.hide();
           exp.state.next(exp.state.CODE);
         }
         break;
@@ -363,27 +367,27 @@ async function main() {
   function handleFrameData() {
     trial.t.push(performance.now());
     trial.state.push(exp.state.current);
+    // remember to clone kinematic data to get snapshots
     trial.posn.push(cursor.position.clone());
   }
 
   // Recording data on each state transition
   function handleStateChange() {
-    if (trial.stateChange) {
-      trial.stateChange.push(exp.state.current);
-      trial.stateChangeTime.push(performance.now());
-    }
+    trial.stateChange?.push(exp.state.current);
+    trial.stateChangeTime?.push(performance.now());
   }
 
-  function handleReplayInfo() {
+  function handleReplayInfo(e) {
     // Do any subject-specific scene configuration (see stateFunc)
-    // arg1.detail is the subject's 'info' trial (exp.cfg)
+    // e.detail is the subject's 'info' (exp.cfg)
   }
 
   function handleReplayTrial(e) {
     trial = e.detail;
     trial.isReplay = true;
     exp.state.next(e.detail['state'][0]);
-    // Do any trial-specific configuration
+    console.log('handleReplayTrial', e);
+    // Do any trial-specific scene configuration
     target.position.setY(exp.cfg.targetDistance * trial.targetDirection);
   }
 }

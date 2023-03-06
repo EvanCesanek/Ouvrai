@@ -1,14 +1,18 @@
 {
   "hosting": {
-    "site": "cogsci-lab10",
     "public": "dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
     "rewrites": [
       {
         "source": "**",
         "destination": "/index.html"
       }
-    ]
+    ],
+    "site": "cognitivescience"
   },
   "emulators": {
     "hosting": {

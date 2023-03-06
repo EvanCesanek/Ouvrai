@@ -53,7 +53,7 @@ async function main() {
     requireDesktop: false,
     requireChrome: false,
     vrAllowed: true,
-    orbitControls: true,
+    orbitControls: false,
     debug: location.hostname === 'localhost',
     sceneManager: false,
 
@@ -62,7 +62,7 @@ async function main() {
 
     // Experiment-specific quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
-    gimbal: false,
+    gimbal: true,
     handleLength: 0.09,
 
     numBaselineCycles: 10,
