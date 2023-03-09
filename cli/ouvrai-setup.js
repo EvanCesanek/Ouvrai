@@ -10,7 +10,7 @@ import { readJSON } from 'fs-extra/esm';
 import { unlink, writeFile } from 'fs/promises';
 
 const program = new Command();
-program.name('weblab setup').showHelpAfterError();
+program.showHelpAfterError();
 
 let client = firebaseClient();
 

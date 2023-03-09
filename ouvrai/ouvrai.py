@@ -10,7 +10,7 @@ from IPython.display import display
 
 
 def test():
-    print("Hello from weblab!")
+    print("Hello from Ouvrai!")
 
 
 def load(data_folder="../", file_regex="^data_", from_pkl=False, pickle=False):

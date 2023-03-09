@@ -6,13 +6,12 @@ import {
   prolificCreateDraftStudy,
   prolificCreateStudyObject,
 } from './cli-utils.js';
-import mturkConfig from '../config/mturk-config.js';
+import { mturkConfig } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import { MTurkClient } from '@aws-sdk/client-mturk';
 
 const program = new Command();
 program
-  .name('weblab draft-study')
   .option('-p --prolific', 'use Prolific')
   .option('-m --mturk', 'use MTurk')
   .argument('<experiment-name>', 'name of experiment directory')

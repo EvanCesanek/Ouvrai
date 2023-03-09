@@ -7,14 +7,14 @@ import {
   mturkPostStudy,
   prolificListStudies,
   prolificPostStudy,
+  mturkConfig,
 } from './cli-utils.js';
-import mturkConfig from '../config/mturk-config.js';
+import { mturkConfig } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import ora from 'ora';
 
 const program = new Command();
 program
-  .name('weblab post-study')
   .option('-p --prolific', 'use Prolific')
   .option('-m --mturk', 'use MTurk')
   .argument('<experiment-name>', 'name of experiment directory')

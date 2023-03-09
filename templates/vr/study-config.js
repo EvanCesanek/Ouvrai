@@ -1,7 +1,7 @@
 export default {
   // Generic
   title: 'VR Study of Movement Control',
-  requirements: [
+  requirementsList: [
     'Virtual reality headset',
     'Right-hand controller that tracks position and orientation',
     'VR web browser application (pre-installed on most headsets)',
@@ -9,11 +9,11 @@ export default {
   requirementsPara: [
     'The study runs in the web browser application on your VR headset, so you should not need to install anything. This study was developed for the Meta Quest 2, but comparable VR headsets should work. If using the Meta Quest 2, please enable the 120 Hz refresh rate under Settings > Experimental. Please also check that the floor level is properly set.',
   ],
-  summary: [
+  summaryPara: [
     'You will make 120 short reaching movements with your right hand, using a handheld tool to hit targets. Please try to make quick, straight movements and avoid rotating the tool.',
     'The actual study takes only 8 - 12 minutes. The estimated completion time (25 minutes) includes additional time to get set up in VR and to log in to Prolific using the VR web browser.',
   ],
-  instructions: [
+  instructionsList: [
     'You may reserve a spot in the study using any device.',
     'Put on your VR headset, open the web browser app, and log in to Prolific.',
     'On the study web page, click "Open study in new window". You must open the study this way so we can automatically record your Prolific ID and provide the submission link at the end.',
@@ -27,6 +27,9 @@ export default {
   ],
 
   totalAvailablePlaces: 1,
+
+  studyAllowlist: [],
+  studyBlocklist: [],
 
   prolific: {
     reward: 500, // Prolific format: cents, using the currency of your account.
@@ -43,15 +46,12 @@ export default {
     allottedTime: { days: 0, hours: 5, minutes: 0 },
     expiration: { days: 7, hours: 0, minutes: 0 },
     autoApprove: { days: 4, hours: 0, minutes: 0 },
-    assignQIDs: [],
-    excludeQIDs: [],
-    restrictToQIDs: [],
+    customQualificationsToAssign: [],
+    qualificationAllowlist: [],
+    qualificationBlocklist: [],
     restrictLocation: 'US',
     restrictApprovalRate: 97,
-    keywords:
-      'learning, movement, psychology, experiment, research, study, game',
-    newQualDescription: 'Simple reaching to targets',
-    newQualKeywords: 'cursor, target, reaching, 2D',
+    keywords: 'VR, reaching, visuomotor rotation, spontaneous recovery',
   },
 
   // Bonuses

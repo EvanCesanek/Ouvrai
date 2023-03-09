@@ -1,9 +1,7 @@
 import express, { json, Router } from 'express';
-//import cors from 'cors';
 import { readdir } from 'fs/promises';
 import { URL } from 'url';
 import { readJSON } from 'fs-extra/esm';
-import mturkConfig from '../config/mturk-config.js';
 import {
   GetAccountBalanceCommand,
   DeleteHITCommand,
@@ -12,7 +10,7 @@ import {
   UpdateExpirationForHITCommand,
   MTurkClient,
 } from '@aws-sdk/client-mturk';
-import { firebaseClient } from '../cli/cli-utils.js';
+import { firebaseClient, mturkConfig } from '../cli/cli-utils.js';
 
 const port = 5002;
 const app = express();

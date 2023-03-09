@@ -1,12 +1,9 @@
 {
-  "name": "ouvrai-minimal",
+  "name": "ouvrai-template-minimal",
   "version": "1.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "concurrently -k \"vite --config ../../config/vite.config.js\" \"firebase emulators:start --only auth,database\"",
-    "build": "vite build --config ../../config/vite.config.js"
-  },
+  "scripts": {},
   "dependencies": {
-    "weblab": "../.."
+    "ouvrai": "../.."
   }
 }

@@ -38,11 +38,14 @@ body::backdrop {
 .panel {
   padding: 1%;
   background-color: rgba(0, 0, 0, 0.67);
-  display: flex;
   color: whitesmoke;
   font-size: 18px;
   text-align: left;
   display: block;
+}
+
+.lil-gui {
+  margin-top: 10px;
 }
 
 #instructions-panel {
@@ -101,7 +104,7 @@ footer {
   height: 40px;
 }
 
-.weblab-component-div {
+.component-div {
   color: rgb(255, 255, 255);
   text-align: center;
   align-items: center;
@@ -118,10 +121,15 @@ iframe {
   height: 450px;
 }
 
+#consent-iframe-vr {
+  border: 2px solid black;
+  background: lightgray;
+}
+
 .consent-link {
   font-size: 10pt;
   margin: 0px;
-  color: cornflowerblue;
+  color: lightgray;
 }
 
 input[type='number']::-webkit-inner-spin-button,
@@ -130,7 +138,8 @@ input[type='number']::-webkit-outer-spin-button {
   /* makes up/down arrows always visible */
 }
 
-button {
+button,
+input::file-selector-button {
   padding: 4px 9px;
   font-size: 14px;
   transition-duration: 0.25s;

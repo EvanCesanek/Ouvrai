@@ -5,7 +5,7 @@ import { spawn } from 'child_process'; // Node.js built-in to access OS-level fu
 import { URL } from 'url';
 
 const program = new Command();
-program.name('weblab launch-dashboard').showHelpAfterError();
+program.showHelpAfterError();
 
 spawn('npm', ['run', 'dev'], {
   stdio: 'inherit', // inherit parent process IO streams

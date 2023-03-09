@@ -1,8 +1,8 @@
 {
   "rules": {
     "workers": {
-      "$workerId": {
-        "$expName": {
+      "$worker": {
+        "$experiment": {
           ".read": true,
           "$uid": {
             ".write": "$uid === auth.uid"
@@ -15,10 +15,10 @@
     },
 
     "experiments": {
-      "$expName": {
+      "$experiment": {
         "$uid": {
           ".read": "$uid === auth.uid",
-          "$trialN": {
+          "$trial": {
             ".write": "$uid === auth.uid && !data.exists()"
           }
         }

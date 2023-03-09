@@ -15,6 +15,7 @@ export default {
     'When the target disappears, return to the home position.',
   ],
   instructionsPara: [],
+
   totalAvailablePlaces: 5,
 
   studyAllowlist: [],
@@ -40,7 +41,7 @@ export default {
     qualificationBlocklist: [],
     restrictLocation: 'US',
     restrictApprovalRate: 97,
-    keywords: 'cursor, target, reaching, 2D',
+    keywords: 'cursor, reaching, 2D',
   },
 
   // Bonuses

@@ -1,11 +1,7 @@
 {
   "hosting": {
     "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       {
         "source": "**",
@@ -15,9 +11,6 @@
     "site": "cognitivescience"
   },
   "emulators": {
-    "hosting": {
-      "port": 4000
-    },
     "auth": {
       "port": 9099
     },

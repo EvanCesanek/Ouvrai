@@ -11,6 +11,5 @@ export default defineConfig({
       '/*': '/',
     },
   },
-  publicDir: 'static',
   root: './src',
 });

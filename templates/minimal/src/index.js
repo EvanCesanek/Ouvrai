@@ -11,7 +11,7 @@ import {
   MeshFactory,
   InstructionsPanel,
   Replay,
-} from 'weblab';
+} from 'ouvrai';
 
 /**
  * Main function contains all experiment code
@@ -23,9 +23,7 @@ async function main() {
    */
   const exp = new Experiment({
     // Debug mode switch, specify debug behavior below
-    debug:
-      false &&
-      (location.hostname === 'localhost' || location.hostname === '127.0.0.1'),
+    debug: true && import.meta.env.DEV,
     replay: true, // enable replay machine, requires debug mode
 
     //Platform settings

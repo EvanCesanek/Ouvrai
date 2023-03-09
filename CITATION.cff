@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: weblab
+title: Ouvrai
 message: >-
   If you use this software, please cite it using the
   metadata from this file.
@@ -10,4 +10,4 @@ authors:
     email: evan.cesanek@gmail.com
     affiliation: Columbia University
     orcid: 'https://orcid.org/0000-0002-5335-6604'
-repository-code: 'https://github.com/EvanCesanek/weblab'
+repository-code: 'https://github.com/EvanCesanek/Ouvrai'

@@ -1,7 +1,7 @@
 {
-  "name": "weblab",
+  "name": "ouvrai",
   "version": "1.0.0",
-  "description": "A command-line interface for managing web-based human behavioral experiments",
+  "description": "Create and run interactive behavioral experiments on the web, including VR studies, for free!",
   "main": "./lib/index.js",
   "type": "module",
   "scripts": {
@@ -9,16 +9,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/EvanCesanek/weblab.git"
+    "url": "git+https://github.com/EvanCesanek/Ouvrai.git"
   },
   "author": "Evan Cesanek",
   "license": "GPL-3.0-or-later",
   "bugs": {
-    "url": "https://github.com/EvanCesanek/weblab/issues"
+    "url": "https://github.com/EvanCesanek/Ouvrai/issues"
   },
-  "homepage": "https://github.com/EvanCesanek/weblab#readme",
+  "homepage": "https://github.com/EvanCesanek/Ouvrai#readme",
   "bin": {
-    "weblab": "./cli/weblab.js"
+    "ouvrai": "./cli/ouvrai.js"
   },
   "dependencies": {
     "@aws-sdk/client-mturk": "^3.142.0",
@@ -33,6 +33,7 @@
     "fs-extra": "^11.1.0",
     "html-minifier-terser": "^7.1.0",
     "inquirer": "^9.1.4",
+    "inquirer-file-tree-selection-prompt": "^2.0.5",
     "jsdom": "^21.1.0",
     "ora": "^6.1.2",
     "readline": "^1.3.0",

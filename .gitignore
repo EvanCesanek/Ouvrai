@@ -1,15 +1,11 @@
-# Experiments (except examples and compensation_hit)
+# Experiments
 experiments/*
-!experiments/compensation
-!experiments/example
-!experiments/example_vr
-**/analysis
+
+# Real consent forms
+config/consent/consent2023*
 
 # Firebase cache
 **/.firebase/
-
-# extras folder
-extras
 
 # data
 data_*.json

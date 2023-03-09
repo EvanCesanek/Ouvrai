@@ -17,7 +17,6 @@ import { writeFile } from 'fs/promises';
 
 const program = new Command();
 program
-  .name('weblab deploy')
   .argument('<experiment>', 'name of experiment directory')
   .option('-p, --project [project]', 'choose or specify Firebase project')
   .option('-l, --local', 'host production build locally with Emulator Suite')

@@ -8,7 +8,6 @@ import { exists } from './cli-utils.js';
 
 const program = new Command();
 program
-  .name('weblab new-template')
   .option('-o, --overwrite', 'overwrite existing template')
   .argument('<experiment-name>', 'name of experiment')
   .argument('<template-name>', 'name of template')

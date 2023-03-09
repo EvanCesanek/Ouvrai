@@ -10,6 +10,6 @@ export default {
     allottedTime: { hours: 1 },
     expiration: { days: 7 },
     autoApprove: { days: 14 },
-    customQualificationsToAssign: [],
+    customQualificationsToAssign: [], // QID of the experiment they are being compensated for
   },
 };

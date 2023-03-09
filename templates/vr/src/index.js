@@ -5,7 +5,6 @@ import {
   Vector3,
   PositionalAudio,
   AudioLoader,
-  Clock,
   Group,
   BoxGeometry,
   MeshStandardMaterial,
@@ -26,11 +25,12 @@ import {
   XRVisor,
   InstructionsPanel,
   Replay,
-} from 'weblab';
-import { checkAlignment, feedbackShowHide } from 'weblab/lib/components/utils';
+  feedbackShowHide,
+  checkAlignment,
+} from 'ouvrai';
 
 // Static asset imports (https://vitejs.dev/guide/assets.html)
-import environmentLightingURL from 'weblab/lib/environments/IndoorHDRI003_1K-HDR.exr?url';
+import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url';
 import bubbleSoundURL from './bubblePopping.mp3?url';
 
 /**
@@ -43,9 +43,7 @@ async function main() {
    */
   const exp = new Experiment({
     // Debug mode switch, specify debug behavior below
-    debug:
-      true &&
-      (location.hostname === 'localhost' || location.hostname === '127.0.0.1'),
+    debug: true && import.meta.env.DEV,
     replay: true, // enable replay machine, requires debug mode
 
     // Platform settings
