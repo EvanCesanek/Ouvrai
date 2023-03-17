@@ -21,34 +21,31 @@
     "ouvrai": "./cli/ouvrai.js"
   },
   "dependencies": {
-    "@aws-sdk/client-mturk": "^3.142.0",
+    "@aws-sdk/client-mturk": "^3.287.0",
     "@tweenjs/tween.js": "^18.6.4",
-    "axios": "^0.27.2",
-    "commander": "^9.4.0",
+    "axios": "^1.3.4",
+    "commander": "^10.0.0",
     "concurrently": "^7.6.0",
-    "d3-array": "^3.2.0",
+    "d3-array": "^3.2.2",
     "dotenv": "^16.0.3",
-    "firebase": "^9.12.1",
-    "firebase-admin": "^11.0.1",
+    "firebase": "^9.17.2",
     "fs-extra": "^11.1.0",
     "html-minifier-terser": "^7.1.0",
     "inquirer": "^9.1.4",
     "inquirer-file-tree-selection-prompt": "^2.0.5",
     "jsdom": "^21.1.0",
     "ora": "^6.1.2",
-    "readline": "^1.3.0",
     "replace-in-file": "^6.3.5",
     "tabtab": "^3.0.2",
-    "three": "^0.145.0",
-    "three-mesh-ui": "^6.5.2",
-    "vite": "^4.0.4",
+    "three": "^0.150.1",
+    "three-mesh-ui": "^6.5.3",
+    "vite": "^4.1.4",
     "xml2js": "^0.4.23"
   },
   "devDependencies": {
-    "eslint": "^8.21.0",
+    "eslint": "^8.35.0",
     "eslint-plugin-html": "^7.1.0",
     "htmlhint": "^1.1.4",
-    "prettier": "2.7.1",
-    "wtfnode": "^0.9.1"
+    "prettier": "2.8.4"
   }
 }

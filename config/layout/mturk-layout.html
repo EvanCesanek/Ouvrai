@@ -236,9 +236,9 @@
         const badCodeButton = document.getElementById('bad-code-button');
 
         // ***************** Do not modify ****************
-        const expName = 'test'; // Thu Mar 02 2023 14:22:00 GMT-0500 (Eastern Standard Time)
-        const taskURL = 'https://cogsci-lab32.web.app'; // Thu Mar 02 2023 14:22:00 GMT-0500 (Eastern Standard Time)
-        const databaseURL = 'https://cognitivescience.firebaseio.com'; // Thu Mar 02 2023 14:22:00 GMT-0500 (Eastern Standard Time)
+        const expName = 'cursor'; // Mon Mar 13 2023 13:51:39 GMT-0400 (Eastern Daylight Time)
+        const taskURL = 'https://cogsci-lab31.web.app'; // Mon Mar 13 2023 13:51:39 GMT-0400 (Eastern Daylight Time)
+        const databaseURL = 'https://cognitivescience.firebaseio.com'; // Mon Mar 13 2023 13:51:39 GMT-0400 (Eastern Daylight Time)
         // ************************* END do not modify *************************
 
         // Initialize globals
@@ -273,16 +273,14 @@
 
         // Set up a workers branch listener
         onValue(
-          ref(db, `/workers/${workerId}/${expName}`),
+          ref(db, `/workers/${workerId}/${expName}/submitted`),
           function (dataSnapshot) {
-            if (dataSnapshot.exists()) {
-              // If they appear in workers/submitted, hide everything and warn them!
-              if (dataSnapshot.val().submitted && !submitting) {
-                mainDiv.style.display = 'none';
-                blockerDiv.style.display = 'block';
-              }
+            // If submitted flag exists and they're not currently submitting, hide everything and warn them
+            if (dataSnapshot.exists() && !submitting) {
+              mainDiv.style.display = 'none';
+              blockerDiv.style.display = 'block';
             } else {
-              // If they do not appear in workers, enable the open study in new window button
+              // Otherwise enable the open study button
               codeFormDiv.style.display = 'block';
               document.getElementById('open-study-button').disabled = false;
               document.getElementById('open-study-worker-id').value = workerId;
@@ -318,29 +316,26 @@
           }
           code = document.getElementById('completion-code').value;
           try {
-            await get(ref(db, `/workers/${workerId}/${expName}/${code}`)).then(
-              function (dataSnapshot) {
-                if (!dataSnapshot.exists()) {
-                  console.log('Code not found...');
-                  badCodeWarning.style.display = 'block';
-                  badCodeWarning.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'end',
-                    inline: 'nearest',
-                  });
-                } else {
-                  console.log('Code found!');
-                  codeFormFieldset.style.disabled = true;
-                  badCodeWarning.style.display = 'none';
-                  handleSubmit();
-                }
+            await get(
+              ref(db, `/workers/${workerId}/${expName}/${code}/completed`)
+            ).then(function (dataSnapshot) {
+              if (!dataSnapshot.exists()) {
+                badCodeWarning.style.display = 'block';
+                badCodeWarning.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'end',
+                  inline: 'nearest',
+                });
+              } else {
+                codeFormFieldset.style.disabled = true;
+                badCodeWarning.style.display = 'none';
+                handleSubmit();
               }
-            );
+            });
           } catch (error) {
-            // if this read fails for some reason, return so the worker can try again
-            console.error(error.message);
+            // if this read fails for some reason, alert and return so the worker can try again
             window.alert(
-              'There was a problem submitting, please try again. Error: ' +
+              'There was a problem submitting. Please try again or contact Requester. Error: ' +
                 error.message
             );
             return;

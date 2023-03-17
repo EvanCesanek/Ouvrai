@@ -9,6 +9,8 @@ import {
   ListAssignmentsForHITCommand,
   UpdateExpirationForHITCommand,
   MTurkClient,
+  RejectAssignmentCommand,
+  ApproveAssignmentCommand,
 } from '@aws-sdk/client-mturk';
 import { firebaseClient, mturkConfig } from '../cli/cli-utils.js';
 
@@ -63,6 +65,44 @@ recordRoutes.route('/api/mturk/balance').get(async function (req, res) {
   let result = await client.send(new GetAccountBalanceCommand());
   res.json(result);
 });
+
+recordRoutes
+  .route('/api/mturk/assignments/:assignmentId/reject')
+  .post(async function (req, res) {
+    let client = req.query.sandbox ? mturkSandbox : mturk;
+    try {
+      let result = await client.send(
+        new RejectAssignmentCommand({
+          AssignmentId: req.params.assignmentId,
+          RequesterFeedback:
+            'Sorry, your submission was not accepted. Contact the Requester for more information or to request a reversal.',
+        })
+      );
+      res.json(result);
+    } catch (err) {
+      console.log(err.name, err.TurkErrorCode, err.message);
+      res.send(err);
+    }
+  });
+
+recordRoutes
+  .route('/api/mturk/assignments/:assignmentId/approve')
+  .post(async function (req, res) {
+    let client = req.query.sandbox ? mturkSandbox : mturk;
+    try {
+      let result = await client.send(
+        new ApproveAssignmentCommand({
+          AssignmentId: req.params.assignmentId,
+          RequesterFeedback: 'Thank you!',
+          OverrideRejection: true,
+        })
+      );
+      res.json(result);
+    } catch (err) {
+      console.log(err.name, err.TurkErrorCode, err.message);
+      res.send(err);
+    }
+  });
 
 recordRoutes.route('/api/mturk/hits').get(async function (req, res) {
   let client = req.query.sandbox ? mturkSandbox : mturk;

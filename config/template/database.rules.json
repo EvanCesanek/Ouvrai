@@ -3,12 +3,18 @@
     "workers": {
       "$worker": {
         "$experiment": {
-          ".read": true,
-          "$uid": {
-            ".write": "$uid === auth.uid"
-          },
           "submitted": {
+            ".read": true,
             ".write": "newData.isString() && newData.val().length === 1"
+          },
+          "$uid": {
+            "completed": {
+              ".read": true,
+              ".write": "$uid === auth.uid"
+            },
+            "consented": {
+              ".write": "$uid === auth.uid"
+            }
           }
         }
       }

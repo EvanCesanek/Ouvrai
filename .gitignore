@@ -7,11 +7,11 @@ config/consent/consent2023*
 # Firebase cache
 **/.firebase/
 
-# data
+# Subject data
 data_*.json
 *.pkl
 
-# Mac OSX
+# MacOS
 **/.DS_Store
 .DS_Store
 

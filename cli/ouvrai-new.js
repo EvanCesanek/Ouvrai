@@ -5,12 +5,13 @@ import { spawn } from 'child_process'; // Node.js built-in to access OS-level fu
 import { copy } from 'fs-extra/esm';
 import ora from 'ora';
 import { exists } from './cli-utils.js';
+import { readdir } from 'fs/promises';
 
 const program = new Command();
 program
   .option('-o, --overwrite', 'overwrite existing experiment')
   .argument('<experiment-name>', 'name of experiment')
-  .argument('[template-name]', 'name of template', 'minimal')
+  .argument('<template-name>', 'name of template')
   .showHelpAfterError();
 program.parse();
 
@@ -24,7 +25,23 @@ const templatePath = new URL(`../templates/${templateName}`, import.meta.url)
   .pathname;
 const settingsPath = new URL('../config/template', import.meta.url).pathname;
 
-let spinner = ora(`Checking if ${projectPath} already exists`).start();
+let spinner = ora(`Checking that ${templatePath} exists`).start();
+let templateExists = await exists(templatePath);
+if (!templateExists) {
+  let templateNames = await readdir(new URL(`../templates`, import.meta.url));
+  // Filter out .DS_Store and other hidden files
+  templateNames = templateNames.filter((item) => !/(^|\/)\.[^/.]/g.test(item));
+  spinner.fail(
+    `Invalid template name. Valid templates names are: ${templateNames.join(
+      ', '
+    )}`
+  );
+  process.exit(1);
+} else {
+  spinner.succeed();
+}
+
+spinner = ora(`Checking if ${projectPath} already exists`).start();
 if (await exists(projectPath)) {
   if (!options.overwrite) {
     spinner.fail(
@@ -67,9 +84,9 @@ try {
   process.exit(1);
 }
 
-spinner = ora('Installing npm dependencies').start();
+spinner = ora('Installing npm dependencies').info();
 let subprocess = spawn('npm', ['i'], {
-  //stdio: 'inherit',
+  stdio: 'inherit',
   cwd: projectPath,
 });
 subprocess.on('error', (err) => {

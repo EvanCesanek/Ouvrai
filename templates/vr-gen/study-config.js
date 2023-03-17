@@ -10,8 +10,8 @@ export default {
     'The study runs in the web browser application on your VR headset, so you should not need to install anything. This study was developed for the Meta Quest 2, but comparable VR headsets should work. If using the Meta Quest 2, please enable the 120 Hz refresh rate under Settings > Experimental. Please also check that the floor level is properly set.',
   ],
   summary: [
-    'You will make 120 short reaching movements with your right hand, using a handheld tool to hit targets. Please try to make quick, straight movements and avoid rotating the tool.',
-    'The actual study takes only 8 - 12 minutes. The estimated completion time (25 minutes) includes additional time to get set up in VR and to log in to Prolific using the VR web browser.',
+    'You will make 180 reaching movements with your right hand, using a virtual tool to touch different targets. Please try to make straight-line movements and avoid rotating the tool.',
+    'The actual study takes 15-20 minutes. The estimated completion time (30 minutes) includes additional time to get set up in VR and to log in to Prolific using the VR web browser.',
   ],
   instructions: [
     'You may reserve a spot in the study using any device.',
@@ -23,14 +23,14 @@ export default {
     'When the study is over, you will be prompted to exit the experience. Back in the web browser, you will find the link to return to Prolific and record your completion.',
   ],
   instructionsPara: [
-    'If you have any questions or comments, please message the Researcher and we will respond as soon as possible.',
+    'If you have any questions or comments, please message the Researcher. We will respond as soon as possible.',
   ],
 
   totalAvailablePlaces: 1,
 
   prolific: {
-    reward: 500, // Prolific format: cents, using the currency of your account.
-    estimatedCompletionTime: 25, // minutes
+    reward: 600, // Prolific format: cents, using the currency of your account.
+    estimatedCompletionTime: 30, // minutes
     maximumAllowedTime: undefined, // default = 2 + 2*estimated + 2*sqrt(estimated)
     compatibleDevices: ['desktop', 'mobile', 'tablet'], // ['desktop', 'mobile', 'tablet']
     peripheralRequirements: [], // ['audio', 'camera', 'download', 'microphone'],

@@ -96,7 +96,9 @@ function HIT(props) {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
-  const deletable = ['Reviewing', 'Reviewable'].includes(props.hit.HITStatus);
+  const deletable =
+    ['Reviewing', 'Reviewable'].includes(props.hit.HITStatus) &&
+    props.hit.Assignments.every((a) => a.AssignmentStatus !== 'Submitted');
   const expired = Date.parse(props.hit.Expiration) - new Date() <= 0;
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -216,10 +218,46 @@ function Assignment(props) {
   const handleClose = () => {
     setAnchorEl(null);
   };
-  const handleDelete = () => {};
-  const handleExpire = () => {};
-  let expired = true;
-  let deletable = false;
+  const handleReject = async () => {
+    let res = await fetch(
+      `/api/mturk/assignments/${props.assignment.AssignmentId}/reject?${
+        props.sandbox ? 'sandbox=1' : ''
+      }`,
+      {
+        method: 'POST',
+      }
+    );
+    res = await res.json();
+    console.log('reject HIT response', res);
+    if (res.TurkErrorCode) {
+      window.alert('Error: ' + res.message);
+      return;
+    }
+    handleClose();
+    navigate(0);
+  };
+  const handleApprove = async () => {
+    let res = await fetch(
+      `/api/mturk/assignments/${props.assignment.AssignmentId}/approve?${
+        props.sandbox ? 'sandbox=1' : ''
+      }`,
+      {
+        method: 'POST',
+      }
+    );
+    res = await res.json();
+    console.log('approve HIT response', res);
+    if (res.TurkErrorCode) {
+      window.alert('Error: ' + res.message);
+      return;
+    }
+    handleClose();
+    navigate(0);
+  };
+  let approvable = ['Submitted', 'Rejected'].includes(
+    props.assignment.AssignmentStatus
+  );
+  let rejectable = props.assignment.AssignmentStatus == 'Submitted';
   let answer = parseAnswer(props.assignment.Answer);
   const acceptDate = new Date(Date.parse(props.assignment.AcceptTime))
     .toString()
@@ -238,11 +276,17 @@ function Assignment(props) {
           <MoreVert />
         </IconButton>
         <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
-          <MenuItem onClick={handleExpire} disabled={expired}>
-            Action
+          <MenuItem
+            onClick={handleApprove}
+            disabled={!approvable}
+            sx={{ color: 'green' }}>
+            Approve
           </MenuItem>
-          <MenuItem onClick={handleDelete} disabled={!deletable}>
-            Action
+          <MenuItem
+            onClick={handleReject}
+            disabled={!rejectable}
+            sx={{ color: 'red' }}>
+            Reject
           </MenuItem>
         </Menu>
       </TableCell>

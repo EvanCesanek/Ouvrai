@@ -32,6 +32,10 @@ if (
 
 // Get study configuration file
 const expName = program.args[0];
+if (expName === 'compensation' && !options.mturk) {
+  console.log('Error: Compensation studies are for MTurk only.');
+  process.exit(1);
+}
 let config = await getStudyConfig(expName);
 console.log(config);
 

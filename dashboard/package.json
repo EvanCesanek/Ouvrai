@@ -1,10 +1,10 @@
 {
-  "name": "dashboard",
+  "name": "ouvrai-dashboard",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"nodemon server.js\"",
+    "dev": "concurrently -k \"vite --open\" \"nodemon server.js\"",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -15,7 +15,6 @@
     "@mui/material": "^5.11.9",
     "bootstrap": "^5.2.3",
     "concurrently": "^7.6.0",
-    "cors": "^2.8.5",
     "express": "^4.18.2",
     "fs-extra": "^11.1.0",
     "nodemon": "^2.0.20",
@@ -25,7 +24,6 @@
     "react-router-dom": "^6.8.1"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.13",
     "@types/react": "^18.0.27",
     "@types/react-dom": "^18.0.10",
     "@vitejs/plugin-react": "^3.1.0",

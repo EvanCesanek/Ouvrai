@@ -23,6 +23,10 @@ program
 program.parse(process.argv);
 const options = program.opts();
 const expName = program.args[0];
+if (expName === 'compensation' && !options.mturk) {
+  console.log('Error: Compensation studies are for MTurk only.');
+  process.exit(1);
+}
 
 if (options.prolific) {
   // Get unpublished studies

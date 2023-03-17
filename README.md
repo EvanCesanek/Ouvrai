@@ -17,11 +17,11 @@
 ```
 git clone https://www.github.com/evancesanek/ouvrai
 cd ouvrai
-npm i -g firebase-tools # Install firebase globally
-firebase login # Log in to your firebase account
-npm i -g # Install Ouvrai globally
-npm i # Install Ouvrai and dependencies locally
-ouvrai setup # One-time setup (follow the prompts)
+npm i -g firebase-tools # Install Firebase CLI globally
+firebase login # Log in to Firebase
+npm i -g # Install Ouvrai CLI globally
+npm i # Install Ouvrai
+ouvrai setup # One-time setup, follow the prompts
 ```
 
 ## Development
@@ -31,10 +31,11 @@ ouvrai new studyname templatename # Create new experiment from template
 ouvrai dev studyname # Start development server
 ```
 
-- This should automatically open [localhost:5173](localhost:5173) in your web browser, where you can test your experiment.
-- To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to [localhost:4001](localhost:4001).
+- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up.
+- To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to [localhost:4001](http://localhost:4001).
 - Design your experiment! Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
-  - Saved changes are immediately reflected at [localhost:5173](localhost:5173).
+  - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
+- See the [develop for VR](#develop-for-vr) section for information on how to develop VR experiments.
 
 ### Create production build
 
@@ -61,13 +62,13 @@ ouvrai post studyname -m # Post study publicly on MTurk
 
 ## Monitor and manage studies
 
-You can monitor and manage your studies using the Ouvrai dashboard: `ouvrai launch`. This should open [localhost:5174](localhost:5174) in your web browser. However, for the best experience with Prolific, we recommend using the Prolific web interface.
+You can monitor and manage your studies using the Ouvrai dashboard: `ouvrai launch`. This should open [localhost:5174](localhost:5174) in your web browser. This is the best way to manage MTurk studies. For Prolific users, we recommend relying primarily on the Prolific web interface.
 
 # Troubleshooting
 
 ## git
 
-- You can check that you have git installed by running `git --version`. If not, get it from https://git-scm.com.
+- You can check that you have git installed by running `git -v`. If not, get it from https://git-scm.com.
 
 ## Node.js
 
@@ -91,14 +92,14 @@ Sign up and create a new project [here](https://console.firebase.google.com/). T
 
 Create a new Prolific researcher account [here](https://app.prolific.co/register/researcher).
 
-**Ouvrai** uses the Prolific API to communicate with Prolific, so you will need to store your API Token locally to use these features.
+Ouvrai uses the Prolific API to communicate with Prolific, so you will need to store your API Token locally to use these features.
 
 - Workspaces → Settings → Go to API token page → Create API token
 - Copy the generated token (long string of characters) into a plain text file at:
   - Linux/Mac: _`~/.prolific/credentials.txt`_
   - Windows: _`C:\Users\%USERNAME%\.prolific\credentials.txt`_
 
-**Note**: The Prolific web interface must still be used for some operations that are unavailable in the API.
+**Note**: The Prolific web interface must be used for some operations that are unavailable in Ouvrai, such as choosing specific screeners and adding funds to your account.
 
 ## AWS & MTurk
 
@@ -131,6 +132,16 @@ During development, you probably do not want to write data to your actual databa
 - When testing experiments during development, you can open `localhost:4001/database` in your browser and inspect the data that is written to the emulated database during a test run.
 - When you're finished, shut down the development server and the Emulator Suite with control+c (Mac), or by closing the terminal.
 
+## Develop for VR
+
+Developing experiments on Meta Quest (or other Android-based VR headset) with Ouvrai is easy. On Meta Quest, make sure you have enabled USB connections in Settings > System > Developer.
+
+- Connect the headset to the development computer via USB-C. You may need to accept the connection in the headset.
+- **Tethered development**: Enable port forwarding in Google Chrome at [chrome://inspect](chrome://inspect). Add the development ports (5173, 8000, and 9099 by default) with `localhost:XXXX` as the host for each. If you do not see your device listed, toggle off and on the _Discover USB devices_ checkbox.
+- **Untethered development**: With [Meta Quest Developer Hub](https://developer.oculus.com/meta-quest-developer-hub/), you can unplug your headset and continue developing by enabling "ADB over Wi-fi" and running the following ADB command for reverse port forwarding: `adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:5173 tcp:5173 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:8000 tcp:8000 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:9099 tcp:9099`
+- In the VR headset, open the browser and navigate to [localhost:5173](localhost:5173).
+- With either method, From [chrome://inspect](chrome://inspect) on the development computer, you can open the Chrome DevTools console for debugging (click [inspect](chrome://inspect) under `localhost:5173`).
+
 # Tutorials
 
 Click to expand:
@@ -155,11 +166,11 @@ Click to expand:
 
 # Experiments
 
-Each experiment is a stand-alone JavaScript web app located in its own subdirectory under _`ouvrai/experiments/`_, and with its own _`package.json`_ separate from the main **Ouvrai** package. Running `ouvrai new-experiment studyname` will initialize a new study in this location, with all of the necessary config files.
+Each experiment is a stand-alone JavaScript web app located in its own subdirectory under _`ouvrai/experiments/`_, and with its own _`package.json`_ separate from the main Ouvrai package. Running `ouvrai new-experiment studyname` will initialize a new study in this location, with all of the necessary config files.
 
-**Ouvrai** was developed for research on human sensorimotor control, so the template experiments are designed to support interactivity with the mouse/trackpad or VR devices.
+Ouvrai was developed for research on human sensorimotor control, so the template experiments are designed to support interactivity with the mouse/trackpad or VR devices.
 
-- **Ouvrai** depends on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
+- Ouvrai depends on [three.js](www.threejs.org) for hardware-accelerated graphics and VR support. The three.js [docs](https://threejs.org/docs/), [examples](https://threejs.org/examples/#webgl_animation_keyframes), and [manual](https://threejs.org/manual/#en/fundamentals) are great resources if you want to learn more about how to use three.js to build great experiments.
 
 ## Consent
 
@@ -169,7 +180,7 @@ Each experiment is a stand-alone JavaScript web app located in its own subdirect
 
 ## Structure
 
-- _`ouvrai/lib/components/`_ contains the **Ouvrai** component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. The `Experiment` component is the most important. You must create an instance of the Experiment component with `const exp = new Experiment({...})` as the first step in all experiments. The constructor takes a single argument, an object where a wide variety of configuration options and experiment settings should be specified. See the template experiments for examples.
+- _`ouvrai/lib/components/`_ contains the Ouvrai component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. The `Experiment` component is the most important. You must create an instance of the Experiment component with `const exp = new Experiment({...})` as the first step in all experiments. The constructor takes a single argument, which is an object with a wide variety of configuration options. You should also specify any experiment settings that you would like to save with your data (e.g., stimulus visual features, durations, condition codes, etc.). See the template experiments for examples.
 - The _`src/`_ folder contains all the source code and other assets needed for an experiment.
   - `src/index.js` is the main experiment code that you would edit for a new experiment.
   - `src/public/` is a static assets folder. Any files in here are available for reference by filename in your experiment code.

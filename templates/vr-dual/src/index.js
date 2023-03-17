@@ -10,6 +10,8 @@ import {
   Mesh,
   TorusGeometry,
   CylinderGeometry,
+  LineBasicMaterial,
+  Object3D,
 } from 'three';
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
 
@@ -58,22 +60,23 @@ async function main() {
 
     // Scene quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
-    rotation: 15, // degrees
+    maxRotation: 15, // degrees
     handleLength: 0.09,
     controlPointRadius: 0.01,
     targetRadius: 0.02,
     targetDistance: 0.2,
+    targetSeparation: 0.16,
     homePosn: new Vector3(0, 0.9, -0.3),
 
     // Procedure
     numBaselineCycles: 5, //20, // 1 cycle = 1 trial (because 1 target)
-    numPositiveCycles: 0, //80,
-    numNegativeCycles: 0, //10,
-    numClampCycles: 0,
+    numRampCycles: 5, //80,
+    numPlateauCycles: 2, //10,
+    numWashoutCycles: 5,
     restDuration: 5, // minimum duration of rest state
     restTrials: [], //[30,70] // rest before which trials?
     startNoFeedbackDuration: 5, // minimum duration of notification state
-    startNoFeedbackTrial: 10, // remove feedback before which trial?
+    startNoFeedbackTrial: 4, // remove feedback before which trial?
     noFeedbackNear: 0.015, // radius beyond which feedback is off
     startDelay: 0.25, // time to remain in start position
   });
@@ -145,7 +148,12 @@ async function main() {
   workspace.position.set(...exp.cfg.homePosn);
 
   // Home position
-  const home = MeshFactory.edges({
+  const home = new Group();
+  workspace.add(home);
+  home.visible = false;
+
+  // Generic home point
+  const homecp = MeshFactory.edges({
     geometry: new BoxGeometry(
       exp.cfg.controlPointRadius,
       exp.cfg.controlPointRadius,
@@ -153,21 +161,17 @@ async function main() {
       1,
       1
     ),
-    color: 'orangered',
   });
   // cube of edge length 2r "contains" the sphere but looks too big as wireframe
   // cube of edge length 2r/sqrt(3) ~= 1.15 is contained by the sphere
-  home.scale.setScalar(1.5); // so we pick a size between 1.15 and 2
-  home.pulseTween = new Tween(home.scale)
-    .to({ x: 1.8, y: 1.8, z: 1.8 }, 350)
-    .repeat(Infinity)
-    .yoyo(true)
-    .easing(Easing.Sinusoidal.InOut)
-    .onStop((scale) => scale.setScalar(1.5));
-  workspace.add(home);
-  home.visible = false;
+  homecp.scale.setScalar(1.5); // so we pick a size between 1.15 and 2
 
   // Create tool
+  let toolMaterial = new MeshStandardMaterial({
+    color: 'slategray',
+    roughness: 0.7,
+    metalness: 1,
+  });
   const toolHandle = new Mesh(
     new CylinderGeometry(
       exp.cfg.controlPointRadius,
@@ -175,46 +179,50 @@ async function main() {
       exp.cfg.handleLength,
       24
     ),
-    new MeshStandardMaterial({
-      color: 'slategray',
-      roughness: 0.7,
-      metalness: 1,
-    })
+    toolMaterial
   );
-  // cylinders in world space are oriented along +Y
-  // but grip in grip space is oriented along -Z
-  // rotate cylinder -90deg around X so +Y moves along the grip
-  toolHandle.rotateX(-Math.PI / 2);
-  // Create control point at end of tool
-  const cp = new Mesh(
-    new SphereGeometry(exp.cfg.controlPointRadius),
-    new MeshStandardMaterial()
-  );
-  cp.translateY(exp.cfg.handleLength / 2);
-  toolHandle.add(cp);
-  // Attach a Collider so we can test for collisions with other objects.
-  cp.add(new Collider(new SphereGeometry(exp.cfg.controlPointRadius, 8, 4)));
-
   // Put the tool in the right hand
   exp.rhObject = toolHandle;
   exp.lhObject; // TODO: left hand not yet supported!
+  // cylinder height is along local +Y but controller grip in grip space is along -Z
+  // so we rotate cylinder -90 degrees around X to align +Y with -Z
+  toolHandle.rotateX(-Math.PI / 2);
+  const toolBar = new Mesh(
+    new CylinderGeometry(
+      exp.cfg.controlPointRadius * 0.99,
+      exp.cfg.controlPointRadius,
+      exp.cfg.targetSeparation,
+      24,
+      1,
+      true
+    ),
+    toolMaterial
+  );
+  // Rotate 90 degrees to get T-shape >> -X along grip, +Y to the right
+  toolBar.rotateZ(-Math.PI / 2);
+  // Gimbal: Keep toolBar independent of toolHandle to lock x-axis to world space
+  exp.sceneManager.scene.add(toolBar);
+  // Instead use "dummy" object
+  const toolBarDummy = new Object3D();
+  // translate up the grip by half the handle length
+  toolBarDummy.translateY(exp.cfg.handleLength / 2);
+  toolHandle.add(toolBarDummy);
 
-  // Create the reach target
+  // Create generic tool control point
+  const cp = new Mesh(
+    new SphereGeometry(exp.cfg.controlPointRadius, 24, 12),
+    new MeshStandardMaterial()
+  );
+  cp.add(new Collider(new SphereGeometry(exp.cfg.controlPointRadius, 8, 4)));
+
+  // Create generic reach target
   const target = new Mesh(
     new TorusGeometry(exp.cfg.targetRadius, exp.cfg.targetRadius / 10, 8, 24),
-    new MeshStandardMaterial({ color: 'orangered' })
+    new MeshStandardMaterial('red')
   );
   target.translateZ(-exp.cfg.targetDistance);
-  target.hitTween = new Tween(target)
-    .to({ scale: { x: 0, y: 0, z: 0 } }, 220)
-    .easing(Easing.Back.InOut)
-    .onComplete(function (o) {
-      o.visible = false;
-      o.scale.setScalar(1);
-    })
-    .start();
-  workspace.add(target);
-  // To register target hit when the control point goes through the ring, create a solid invisible object
+  target.visible = false;
+  // To test for target hit, fill the ring with a solid invisible object
   const targetCenter = new Mesh(
     new CylinderGeometry(
       target.geometry.parameters.radius,
@@ -226,12 +234,67 @@ async function main() {
   targetCenter.visible = false;
   targetCenter.rotateX(-Math.PI / 2);
   target.add(targetCenter);
-  // Attach a sound to the target
-  target.userData.sound = new PositionalAudio(exp.audioListener);
-  exp.audioLoader.load(bubbleSoundURL, function (buffer) {
-    target.userData.sound.setBuffer(buffer);
-  });
-  target.add(target.userData.sound);
+
+  // Per-target (i.e., per-control point) parameter loop
+  exp.cfg.targetIds = [0, 1];
+  exp.cfg.targetRotationSigns = [-1, 1];
+  exp.cfg.targetColors = [new Color('red'), new Color('blue')];
+  const targets = [];
+  const controlPoints = [];
+  const homePoints = [];
+  for (let oi of exp.cfg.targetIds) {
+    // Create target material
+    let mati = new MeshStandardMaterial({ color: exp.cfg.targetColors[oi] });
+
+    // Create target instance
+    let targi = target.clone();
+    workspace.add(targi);
+    targi.translateX((oi - 0.5) * exp.cfg.targetSeparation);
+    targi.material = mati;
+    targi.userData.sound = new PositionalAudio(exp.audioListener);
+    targi.add(targi.userData.sound);
+    targi.hitTween = new Tween(targi)
+      .to({ scale: { x: 0, y: 0, z: 0 } }, 220)
+      .easing(Easing.Back.InOut)
+      .onComplete(function (o) {
+        o.visible = false;
+        o.scale.setScalar(1);
+      });
+
+    // Create control point instance
+    let cpi = cp.clone();
+    toolBar.add(cpi);
+    cpi.translateY((oi - 0.5) * exp.cfg.targetSeparation);
+    cpi.material = mati;
+    // glow effect
+    cpi.material.emissive = new Color('white');
+    cpi.material.emissiveIntensity = 0;
+    cpi.glowTween = new Tween(cpi.material)
+      .to({ emissiveIntensity: 0.15 }, 500)
+      .repeat(Infinity)
+      .yoyo(true)
+      .easing(Easing.Sinusoidal.InOut)
+      .onStop((m) => (m.emissiveIntensity = 0));
+
+    // Create home point instance
+    let homecpi = homecp.clone();
+    home.add(homecpi);
+    homecpi.material = new LineBasicMaterial({
+      color: exp.cfg.targetColors[oi],
+    });
+    homecpi.translateX((oi - 0.5) * exp.cfg.targetSeparation);
+    homecpi.pulseTween = new Tween(homecpi.scale)
+      .to({ x: 1.8, y: 1.8, z: 1.8 }, 350)
+      .repeat(Infinity)
+      .yoyo(true)
+      .easing(Easing.Sinusoidal.InOut)
+      .onStop((scale) => scale.setScalar(1.5));
+
+    // Push to arrays
+    targets.push(targi);
+    controlPoints.push(cpi);
+    homePoints.push(homecpi);
+  }
 
   // Create a tool avatar to demonstrate reaching movements
   const demo = new Group();
@@ -245,7 +308,11 @@ async function main() {
     roughness: 1,
     metalness: 1,
   });
-  const democp = demoTool.children[0];
+  // Clone the tool bar and add it to the cloned dummy object
+  const demoToolBar = toolBar.clone(true);
+  demoToolBar.material = demoTool.material;
+  demoTool.children[0].add(demoToolBar);
+  const demoControlPoints = demoToolBar.children;
 
   // No feedback region
   const region = MeshFactory.noFeedbackZone({
@@ -256,6 +323,11 @@ async function main() {
   workspace.add(region);
   region.visible = false;
 
+  // We use the same sound for both targets
+  exp.audioLoader.load(bubbleSoundURL, function (buffer) {
+    targets.forEach((o) => o.userData.sound.setBuffer(buffer));
+  });
+
   /**
    * Create trial sequence (exp.trials) from array of block objects
    */
@@ -264,32 +336,38 @@ async function main() {
     // The combination of elements at index i are the variable values for one trial
     // options is required: create a new BlockOptions object to control sequencing
     {
-      rotation: [0],
+      targetId: [...exp.cfg.targetIds],
+      // BlockOptions control trial sequencing behavior
       options: new BlockOptions({
-        name: 'P0',
-        reps: exp.cfg.numBaselineCycles,
+        name: 'gradual',
+        shuffle: true,
+        reps:
+          exp.cfg.numBaselineCycles +
+          exp.cfg.numRampCycles +
+          exp.cfg.numPlateauCycles +
+          exp.cfg.numWashoutCycles,
       }),
     },
-    {
-      rotation: [exp.cfg.rotation],
-      options: new BlockOptions({
-        name: 'P+',
-        reps: exp.cfg.numPositiveCycles,
-      }),
-    },
-    {
-      rotation: [-exp.cfg.rotation],
-      options: new BlockOptions({
-        name: 'P-',
-        reps: exp.cfg.numNegativeCycles,
-      }),
-    },
-    {
-      rotation: [0],
-      errorClamp: [true],
-      options: new BlockOptions({ name: 'EC', reps: exp.cfg.numClampCycles }),
-    },
-  ]);
+  ]); // effect: creates exp.trials object array
+
+  // Assign rotation sequence
+  const rampDegPerCycle = exp.cfg.maxRotation / exp.cfg.numRampCycles;
+  for (let t of exp.trials) {
+    if (t.cycle < exp.cfg.numBaselineCycles) {
+      t.rotation = 0;
+    } else if (t.cycle < exp.cfg.numBaselineCycles + exp.cfg.numRampCycles) {
+      t.rotation = (1 + t.cycle - exp.cfg.numBaselineCycles) * rampDegPerCycle;
+    } else if (
+      t.cycle <
+      exp.cfg.numBaselineCycles +
+        exp.cfg.numRampCycles +
+        exp.cfg.numPlateauCycles
+    ) {
+      t.rotation = exp.cfg.maxRotation;
+    } else {
+      t.rotation = 0; // washout
+    }
+  }
 
   /**
    * Set up replay machine
@@ -325,14 +403,19 @@ async function main() {
     exp.replay?.update(); // Update any replay animations
 
     // During DEMO, the demo avatar is in control
-    let toolcp = exp.state.current === 'DEMO' ? democp : cp;
+    let toolPoints =
+      exp.state.current === 'DEMO' ? demoControlPoints : controlPoints;
 
-    // Check if control point is in the home position
-    home.atHome = checkAlignment({
-      o1: home,
-      o2: toolcp,
-      angleThresh: false,
-    });
+    // Check if control points are in the home positions
+    home.check = [];
+    for (let oi = 0; oi < 2; oi++) {
+      home.check[oi] = checkAlignment({
+        o1: homePoints[oi],
+        o2: toolPoints[oi],
+        angleThresh: false,
+      });
+    }
+    home.atHome = home.check.every((x) => x);
   }
 
   /**
@@ -387,10 +470,11 @@ async function main() {
           });
         });
         if (exp.ray.userData.isSelecting) {
-          let adjustHeight = cp.getWorldPosition(new Vector3()).y - 0.05;
+          let adjustHeight = toolBar.getWorldPosition(new Vector3()).y - 0.05;
           exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
           workspace.position.setY(adjustHeight);
           exp.cfg.homePosn.y = adjustHeight;
+          exp.demoTargetOn = false;
           exp.state.next('DEMO');
         }
         break;
@@ -410,11 +494,11 @@ async function main() {
           // Demonstration of the required movement with demo avatar
           home.visible = true;
           demo.visible = true;
-          // Align the avatar control point with the home position
+          // Align the avatar with the home position
           demo.position.add(
             new Vector3().subVectors(
               home.getWorldPosition(new Vector3()),
-              democp.getWorldPosition(new Vector3())
+              demoTool.children[0].getWorldPosition(new Vector3())
             )
           );
           if (!demo.demoTween?.isPlaying()) {
@@ -428,14 +512,19 @@ async function main() {
           demo.demoTween.start();
         });
         // Display the target when avatar returns home
-        if (home.atHome && !exp.demoTargetOn) {
-          exp.demoTargetOn = true;
-          target.visible = true;
+        if (home.atHome && exp.demoTargetOn === false) {
+          exp.demoTargetOn = Math.round(Math.random());
+          targets[exp.demoTargetOn].visible = true;
         }
         // Provide feedback when avatar hits the target
-        if (exp.demoTargetOn && democp.collider.test(targetCenter)) {
-          target.userData.sound.play(); // Auditory and hapic feedback
-          target.hitTween.start(); // Animate target hit
+        if (
+          Number.isInteger(exp.demoTargetOn) &&
+          demoControlPoints[exp.demoTargetOn].collider.test(
+            targets[exp.demoTargetOn].children[0]
+          )
+        ) {
+          targets[exp.demoTargetOn].userData.sound.play(); // Auditory and hapic feedback
+          targets[exp.demoTargetOn].hitTween.start(); // Animate target hit
           exp.demoTargetOn = false; // Prime for reset
         }
         if (exp.VRUI.clickedNext) {
@@ -458,8 +547,9 @@ async function main() {
         trial = { ...trial, ...structuredClone(trialInitialize) };
         // Set trial parameters
         trial.demoTrial =
-          exp.trialNumber === 0 || (exp.trialNumber < 6 && exp.repeatDemoTrial);
+          exp.trialNumber === 0 || (exp.trialNumber < 4 && exp.repeatDemoTrial);
         trial.noFeedback = trial.trialNumber >= exp.cfg.startNoFeedbackTrial;
+        trial.rotation *= exp.cfg.targetRotationSigns[trial.targetId];
         exp.state.next('START');
         break;
 
@@ -468,8 +558,8 @@ async function main() {
           exp.VRUI.edit({
             title: 'Go to start',
             instructions: trial.demoTrial
-              ? `To start a trial, hold the end of the tool inside the cube. \
-            The cube will turn black when you are in the right place.`
+              ? `To start a trial, hold the ends of the tool inside the cubes. \
+            The cubes will turn black when you are in the right place.`
               : false,
             interactive: false,
             buttons: false,
@@ -478,12 +568,13 @@ async function main() {
           });
           target.visible = false;
         });
-        // Shorthand if statement
+        // Shorthand for functional if statement
         home.atHome && exp.state.next('DELAY');
         break;
 
       case 'DELAY':
         exp.state.once(function () {
+          controlPoints[trial.targetId].glowTween.start();
           // clear frame data from possible prior visits to DELAY
           trial.t = [];
           trial.state = [];
@@ -492,9 +583,11 @@ async function main() {
         });
         handleFrameData();
         if (!home.atHome) {
+          controlPoints[trial.targetId].glowTween.stop();
           exp.state.next('START');
         } else if (exp.state.expired(exp.cfg.startDelay)) {
-          target.visible = true;
+          targets.map((x) => (x.visible = false));
+          targets[trial.targetId].visible = true;
           // Update origin then radians to reduce/mask blips when rotation changes
           trial.rotationOrigin = home.getWorldPosition(new Vector3());
           //exp.grip?.position.clone() || trial.rotationOrigin;
@@ -505,20 +598,26 @@ async function main() {
 
       case 'REACH':
         exp.state.once(function () {
+          let col = exp.cfg.targetColors[trial.targetId];
           exp.VRUI.edit({
             title: 'Hit target',
             instructions: trial.demoTrial
-              ? `Reach forward so the end of the tool goes through the ring.\n\
+              ? `Reach forward so the ${col} end of the tool goes through the ${col} ring.\n\
             Then return to the start.`
               : false,
           });
         });
         handleFrameData();
         // Check for target hit
-        if (cp.collider.test(targetCenter)) {
+        if (
+          controlPoints[trial.targetId].collider.test(
+            targets[trial.targetId].children[0]
+          )
+        ) {
           // Visual, auditory, and haptic feedback of hit
-          target.hitTween.start();
-          target.userData.sound.play();
+          targets[trial.targetId].hitTween.start();
+          controlPoints[trial.targetId].glowTween.stop();
+          targets[trial.targetId].userData.sound.play();
           exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
           exp.state.next('RETURN');
         }
@@ -592,7 +691,7 @@ async function main() {
           DisplayElement.hide(exp.sceneManager.renderer.domElement);
           workspace.visible = false;
           // Turn off any perturbations
-          trial.errorClamp = trial.rotation = false;
+          trial.rotation = false;
           toolHandle.position.set(0, 0, 0);
           exp.state.next('SURVEY');
         }
@@ -610,6 +709,7 @@ async function main() {
 
       case 'CODE':
         if (!exp.firebase.saveSuccessful) {
+          // wait until firebase save returns successful
           break;
         }
         exp.state.once(function () {
@@ -695,7 +795,7 @@ async function main() {
         exp.state.once(function () {
           exp.blocker.show('connection');
           exp.VRUI.edit({
-            title: 'Not connected',
+            title: 'Network disconnected!',
             instructions:
               'Your device is not connected to the internet. Reconnect to resume.',
             buttons: false,
@@ -715,12 +815,15 @@ async function main() {
    */
   function displayFunc() {
     // Set home color and pulse animation
-    if (home.atHome) {
-      home.material.color = new Color('black');
-      home.pulseTween.stop();
-    } else {
-      home.material.color = new Color('orangered');
-      home.pulseTween.start();
+    for (let oi = 0; oi < 2; oi++) {
+      // set color and tween based on alignment
+      if (home.check[oi]) {
+        homePoints[oi].material.color = new Color('black');
+        homePoints[oi].pulseTween.stop();
+      } else {
+        homePoints[oi].material.color = exp.cfg.targetColors[oi];
+        homePoints[oi].pulseTween.start();
+      }
     }
 
     // Hide feedback in the no-feedback region
@@ -742,17 +845,9 @@ async function main() {
       toolHandle.position.copy(x); // set as tool position
     }
 
-    // Error clamp X values to the YZ plane
-    if (exp.grip && trial.errorClamp) {
-      // Small offset to clamp the control point, not the grip position
-      let dx = new Vector3().subVectors(
-        cp.getWorldPosition(new Vector3()),
-        toolHandle.getWorldPosition(new Vector3())
-      ).x;
-      toolHandle.position.set(
-        ...exp.grip.worldToLocal(exp.grip.position.clone().setX(-dx))
-      );
-    }
+    // Gimbal
+    toolBar.visible = toolHandle.visible; // toolBar not a child so set visibility manually
+    toolBarDummy.getWorldPosition(toolBar.position);
 
     tweenUpdate();
     exp.VRUI.updateUI();

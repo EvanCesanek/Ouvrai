@@ -708,17 +708,18 @@ async function mturkPrepareQualifications(client, expName, config, options) {
     ActionsGuarded: 'DiscoverPreviewAndAccept',
   });
 
-  if (
-    (!config.mturk?.qualificationBlocklist ||
-      config.mturk?.qualificationBlocklist?.length === 0) &&
-    (!config.mturk?.qualificationAllowlist ||
-      config.mturk?.qualificationAllowlist?.length === 0)
-  ) {
-    ora(
-      'Tip: To exclude participants who completed specific past studies, use the studyAllowlist parameter of study-config.js. ' +
-        'To allow only those who have completed specific past studies, use the studyBlocklist parameter.'
-    ).info();
-  }
+  // TODO: implement studyBlocklist and studyAllowlist
+  // if (
+  //   (!config.mturk?.qualificationBlocklist ||
+  //     config.mturk?.qualificationBlocklist?.length === 0) &&
+  //   (!config.mturk?.qualificationAllowlist ||
+  //     config.mturk?.qualificationAllowlist?.length === 0)
+  // ) {
+  //   ora(
+  //     'Tip: To block participants who completed specific past studies, use the studyBlocklist parameter of study-config.js. ' +
+  //       'To allow only those who have completed specific past studies, use the studyAllowlist parameter.'
+  //   ).info();
+  // }
 
   // Block list
   config.mturk?.qualificationBlocklist?.forEach((exqid) =>
