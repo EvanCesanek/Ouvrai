@@ -17,7 +17,6 @@ export default {
   instructionsPara: [],
 
   totalAvailablePlaces: 5,
-
   studyAllowlist: [],
   studyBlocklist: [],
 

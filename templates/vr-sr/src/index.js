@@ -10,6 +10,7 @@ import {
   Mesh,
   TorusGeometry,
   CylinderGeometry,
+  Quaternion,
 } from 'three';
 import { Easing, Tween, update as tweenUpdate } from '@tweenjs/tween.js'; // https://github.com/tweenjs/tween.js/
 
@@ -21,9 +22,10 @@ import {
   MeshFactory,
   Collider,
   InstructionsPanel,
-  feedbackShowHide,
   checkAlignment,
   generateDemoReaches,
+  clamp,
+  quantizeAngle,
 } from 'ouvrai';
 
 // Static asset imports (https://vitejs.dev/guide/assets.html)
@@ -65,17 +67,19 @@ async function main() {
     targetDistance: 0.2,
     homePosn: new Vector3(0, 0.9, -0.3),
 
-    // Procedure
-    numBaselineCycles: 5, //20, // 1 cycle = 1 trial (because 1 target)
-    numPositiveCycles: 0, //80,
-    numNegativeCycles: 0, //10,
-    numClampCycles: 0,
-    restDuration: 5, // minimum duration of rest state
-    restTrials: [], //[30,70] // rest before which trials?
-    startNoFeedbackDuration: 5, // minimum duration of notification state
-    startNoFeedbackTrial: 10, // remove feedback before which trial?
-    noFeedbackNear: 0.015, // radius beyond which feedback is off
-    startDelay: 0.25, // time to remain in start position
+    // Procedure (120 trials total)
+    maxDemoTrials: 3,
+    numBaselineCycles: 20, // 1 cycle = 1 trial (because 1 target)
+    numPositiveCycles: 60,
+    numNegativeCycles: 10,
+    numClampCycles: 30,
+    restDuration: 15, // minimum duration of rest state
+    restTrials: [30, 70], // rest before which trials?
+    startNoFeedbackDuration: 10, // minimum duration of notification state
+    startNoFeedbackTrial: 12, // remove feedback before which trial?
+    startClampTrial: 90,
+    noFeedbackNear: 0.03, // radius beyond which feedback is off
+    startDelay: 0.2, // time to remain in start position
   });
 
   /**
@@ -83,14 +87,12 @@ async function main() {
    * Define states here. Define behavior & transitions in stateFunc().
    */
   exp.cfg.stateNames = [
-    // Begin required states
     'BROWSER',
     'CONSENT',
     'SIGNIN',
     'WELCOME',
     'CALIBRATE',
     'DEMO',
-    // End required states
     // Begin customizable states
     'SETUP',
     'START',
@@ -99,16 +101,15 @@ async function main() {
     'RETURN',
     'FINISH',
     'ADVANCE',
-    // End customizable states
-    // Begin required states
     'REST',
     'STARTNOFEEDBACK',
+    'STARTCLAMP',
+    // End customizable states
     'SURVEY',
     'CODE',
     'CONTROLLER',
     'DBCONNECT',
     'BLOCKED',
-    // End required states
   ];
 
   // Initialize the state machine
@@ -139,6 +140,7 @@ async function main() {
   /**
    * Objects
    */
+
   // Workspace "root" (helpful for individual height calibration)
   const workspace = new Group();
   exp.sceneManager.scene.add(workspace);
@@ -155,9 +157,8 @@ async function main() {
     ),
     color: 'orangered',
   });
-  // cube of edge length 2r "contains" the sphere but looks too big as wireframe
-  // cube of edge length 2r/sqrt(3) ~= 1.15 is contained by the sphere
-  home.scale.setScalar(1.5); // so we pick a size between 1.15 and 2
+  // cube of edge length 1.414*r forms tight cage around sphere of radius r
+  home.scale.setScalar(1.5); // we go slightly larger
   home.pulseTween = new Tween(home.scale)
     .to({ x: 1.8, y: 1.8, z: 1.8 }, 350)
     .repeat(Infinity)
@@ -165,9 +166,19 @@ async function main() {
     .easing(Easing.Sinusoidal.InOut)
     .onStop((scale) => scale.setScalar(1.5));
   workspace.add(home);
-  home.visible = false;
 
   // Create tool
+  let handleTransMat = new MeshStandardMaterial({
+    color: 'slategray',
+    roughness: 0.7,
+    metalness: 1,
+    transparent: true,
+  });
+  let handleMat = new MeshStandardMaterial({
+    color: 'slategray',
+    roughness: 0.7,
+    metalness: 1,
+  });
   const toolHandle = new Mesh(
     new CylinderGeometry(
       exp.cfg.controlPointRadius,
@@ -175,21 +186,17 @@ async function main() {
       exp.cfg.handleLength,
       24
     ),
-    new MeshStandardMaterial({
-      color: 'slategray',
-      roughness: 0.7,
-      metalness: 1,
-    })
+    handleMat
   );
-  // cylinders in world space are oriented along +Y
-  // but grip in grip space is oriented along -Z
-  // rotate cylinder -90deg around X so +Y moves along the grip
+  // cylinder height is along local +Y but controller in grip space is along -Z
+  // so rotate cylinder -90 degrees around X to align +Y with -Z
   toolHandle.rotateX(-Math.PI / 2);
   // Create control point at end of tool
-  const cp = new Mesh(
-    new SphereGeometry(exp.cfg.controlPointRadius),
-    new MeshStandardMaterial()
-  );
+  let cpTransMat = new MeshStandardMaterial({
+    transparent: true,
+  });
+  let cpMat = new MeshStandardMaterial();
+  const cp = new Mesh(new SphereGeometry(exp.cfg.controlPointRadius), cpMat);
   cp.translateY(exp.cfg.handleLength / 2);
   toolHandle.add(cp);
   // Attach a Collider so we can test for collisions with other objects.
@@ -202,13 +209,13 @@ async function main() {
   // Create the reach target
   const target = new Mesh(
     new TorusGeometry(exp.cfg.targetRadius, exp.cfg.targetRadius / 10, 8, 24),
-    new MeshStandardMaterial({ color: 'orangered' })
+    new MeshStandardMaterial()
   );
   target.translateZ(-exp.cfg.targetDistance);
   target.hitTween = new Tween(target)
     .to({ scale: { x: 0, y: 0, z: 0 } }, 220)
     .easing(Easing.Back.InOut)
-    .onComplete(function (o) {
+    .onComplete((o) => {
       o.visible = false;
       o.scale.setScalar(1);
     })
@@ -250,9 +257,9 @@ async function main() {
   // No feedback region
   const region = MeshFactory.noFeedbackZone({
     near: exp.cfg.noFeedbackNear,
-    far: exp.cfg.targetDistance,
+    far: exp.cfg.targetDistance - exp.cfg.noFeedbackNear,
   });
-  region.translateZ(-0.025); // local Z is world Y (vertical)
+  region.translateZ(-0.01); // local Z is world Y (vertical)
   workspace.add(region);
   region.visible = false;
 
@@ -362,16 +369,18 @@ async function main() {
         break;
 
       case 'WELCOME':
-        exp.state.once(function () {
+        exp.state.once(() => {
           exp.VRUI.edit({
             title: 'Instructions',
-            instructions: `Welcome! You may sit or stand.\n\
-            You will be reaching out quickly with your right hand, \
-            so please make sure the area in front of you is clear.`,
+            instructions: `Welcome!\n\
+            Please sit up straight or stand.\n\
+            Notice the tool in your right hand.\n\
+            You will reach in this direction to touch various targets with this tool.`,
             interactive: true,
             backButtonState: 'disabled',
             nextButtonState: 'idle',
           });
+          home.visible = false;
         });
         if (exp.VRUI.clickedNext) exp.state.next('CALIBRATE');
         break;
@@ -381,13 +390,14 @@ async function main() {
           exp.VRUI.edit({
             title: 'Calibrate',
             instructions: `Please calibrate your chest height.\n\
-            Hold the controller near your chest and press the trigger.`,
+            Hold the controller against your chest and press the trigger.`,
             interactive: false,
             buttons: false,
           });
+          home.visible = false;
         });
-        if (exp.ray.userData.isSelecting) {
-          let adjustHeight = cp.getWorldPosition(new Vector3()).y - 0.05;
+        if (exp.ray?.userData.isSelecting) {
+          let adjustHeight = cp.getWorldPosition(new Vector3()).y;
           exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
           workspace.position.setY(adjustHeight);
           exp.cfg.homePosn.y = adjustHeight;
@@ -399,9 +409,9 @@ async function main() {
         exp.state.once(function () {
           exp.VRUI.edit({
             title: 'Comfortable?',
-            instructions: `Please watch the demonstration.\n\
-            Can you perform these movements?\n\
-            Click Back to change the height.\n\
+            instructions: `Can you perform these movements?\n\
+            Adjust your position or reset your view so that you are positioned comfortably behind the start cube.\n\
+            Click Back to recalibrate chest height.\n\
             Click Next to continue.`,
             interactive: true,
             backButtonState: 'idle',
@@ -434,7 +444,7 @@ async function main() {
         }
         // Provide feedback when avatar hits the target
         if (exp.demoTargetOn && democp.collider.test(targetCenter)) {
-          target.userData.sound.play(); // Auditory and hapic feedback
+          target.userData.sound.play(); // Auditory feedback
           target.hitTween.start(); // Animate target hit
           exp.demoTargetOn = false; // Prime for reset
         }
@@ -454,11 +464,14 @@ async function main() {
         trial = structuredClone(exp.trials[exp.trialNumber]);
         trial.trialNumber = exp.trialNumber;
         trial.startTime = performance.now();
+        trial.cameraGroupPosn = exp.sceneManager.cameraGroup.position.clone();
+        trial.cameraGroupOri = exp.sceneManager.cameraGroup.rotation.clone();
         // Reset data arrays and other defaults
         trial = { ...trial, ...structuredClone(trialInitialize) };
         // Set trial parameters
         trial.demoTrial =
-          exp.trialNumber === 0 || (exp.trialNumber < 6 && exp.repeatDemoTrial);
+          exp.trialNumber === 0 ||
+          (exp.trialNumber < exp.cfg.maxDemoTrials && exp.repeatDemoTrial);
         trial.noFeedback = trial.trialNumber >= exp.cfg.startNoFeedbackTrial;
         exp.state.next('START');
         break;
@@ -468,7 +481,7 @@ async function main() {
           exp.VRUI.edit({
             title: 'Go to start',
             instructions: trial.demoTrial
-              ? `To start a trial, hold the end of the tool inside the cube. \
+              ? `To start a trial, hold the end of the tool inside the cube.\n\
             The cube will turn black when you are in the right place.`
               : false,
             interactive: false,
@@ -492,24 +505,25 @@ async function main() {
         });
         handleFrameData();
         if (!home.atHome) {
+          // Update origin then radians to reduce/mask blips when rotation changes
+          trial.rotationOrigin = home.getWorldPosition(new Vector3());
+          trial.rotationRadians = (trial.rotation * Math.PI) / 180;
           exp.state.next('START');
         } else if (exp.state.expired(exp.cfg.startDelay)) {
           target.visible = true;
           // Update origin then radians to reduce/mask blips when rotation changes
           trial.rotationOrigin = home.getWorldPosition(new Vector3());
-          //exp.grip?.position.clone() || trial.rotationOrigin;
           trial.rotationRadians = (trial.rotation * Math.PI) / 180;
           exp.state.next('REACH');
         }
         break;
 
       case 'REACH':
-        exp.state.once(function () {
+        exp.state.once(() => {
           exp.VRUI.edit({
             title: 'Hit target',
             instructions: trial.demoTrial
-              ? `Reach forward so the end of the tool goes through the ring.\n\
-            Then return to the start.`
+              ? `Reach forward so the end of the tool goes through the ring.`
               : false,
           });
         });
@@ -519,16 +533,19 @@ async function main() {
           // Visual, auditory, and haptic feedback of hit
           target.hitTween.start();
           target.userData.sound.play();
-          exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
+          exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 40);
           exp.state.next('RETURN');
         }
         break;
 
       case 'RETURN':
         exp.state.once(function () {
-          exp.VRUI.edit({ title: 'Go to start' });
-          // Show feedback if hidden (forcevisible = true)
-          trial.noFeedback && feedbackShowHide(toolHandle, home, region, true);
+          exp.VRUI.edit({
+            title: 'Go to start',
+            instructions: trial.demoTrial
+              ? `Good! Return to the start cube when you are ready for the next trial.`
+              : false,
+          });
         });
         // Time limit avoids excessive data if they meander
         !exp.state.expired(2) && handleFrameData();
@@ -537,17 +554,25 @@ async function main() {
 
       case 'FINISH':
         exp.state.once(function () {
+          let canRepeatDemo = exp.trialNumber < exp.cfg.maxDemoTrials - 1;
           trial.demoTrial &&
             exp.VRUI.edit({
               title: 'Make sense?',
-              instructions: `Please avoid curved movements and avoid twisting or rotating the tool.\n\
-              There will be two rest breaks.\n\
-              To repeat the instructions, click Back.\n\
+              instructions: `You will perform ${
+                exp.numTrials - exp.trialNumber - 1
+              } movements toward the same target. \
+              There will be ${
+                exp.cfg.restTrials.length
+              } rest breaks, but you may rest at any time before returning to the start cube.
+              ${
+                canRepeatDemo ? 'To repeat the instructions, click Back.\n' : ''
+              }\
               If you are ready to start, click Next.`,
               interactive: true,
-              backButtonState: 'idle',
+              backButtonState: canRepeatDemo ? 'idle' : 'disabled',
               nextButtonState: 'idle',
             });
+          target.visible = false;
         });
         // Wait for button click on demo trial
         if (trial.demoTrial) {
@@ -581,6 +606,9 @@ async function main() {
           } else if (exp.trialNumber === exp.cfg.startNoFeedbackTrial) {
             exp.state.next('STARTNOFEEDBACK');
             exp.VRUI.countdown(exp.cfg.startNoFeedbackDuration); // start countdown *before new state*
+          } else if (exp.trialNumber === exp.cfg.startClampTrial) {
+            exp.state.next('STARTCLAMP');
+            exp.VRUI.countdown(exp.cfg.startNoFeedbackDuration); // start countdown *before new state*
           } else if (exp.repeatDemoTrial) {
             exp.state.next('WELCOME');
           } else {
@@ -592,7 +620,9 @@ async function main() {
           DisplayElement.hide(exp.sceneManager.renderer.domElement);
           workspace.visible = false;
           // Turn off any perturbations
-          trial.errorClamp = trial.rotation = false;
+          trial.noFeedback = false;
+          trial.errorClamp = false;
+          trial.rotation = 0;
           toolHandle.position.set(0, 0, 0);
           exp.state.next('SURVEY');
         }
@@ -634,12 +664,14 @@ async function main() {
           exp.VRUI.edit({
             title: 'Rest break',
             instructions: `Good work! \
-            Take a short break to relax your arm. \
+            Take a short break to stretch and relax your arm.\n\
             Do not exit or remove your headset.`,
             backButtonState: 'disabled',
             nextButtonState: 'idle',
           });
           trial.rotation = 0; // shut off the rotation
+          trial.noFeedback = false;
+          trial.errorClamp = false;
         });
         if (exp.VRUI.clickedNext) {
           // Hide UI
@@ -656,14 +688,35 @@ async function main() {
         exp.state.once(function () {
           exp.VRUI.edit({
             title: 'Challenge',
-            instructions: `Can you hit the targets without visual feedback?\n\
-            In the gray area, the tool disappears. A black ring shows your distance.\n\
-            Try it out!`,
+            instructions: `Try to hit the target without visual feedback! \
+            In the gray area, the tool will disappear. A dark ring shows your distance.\n\
+            Try it out now before continuing.`,
             backButtonState: 'disabled',
             nextButtonState: 'idle',
           });
-          trial.noFeedback = true; // for convenience - we've already saved this trial
-          region.visible = true; // show the no-feedback zone
+          trial.noFeedback = true; // not a problem bc we've already saved this trial
+        });
+        if (exp.VRUI.clickedNext) {
+          // Hide UI
+          exp.VRUI.edit({
+            interactive: false,
+            buttons: false,
+            instructions: false,
+          });
+          exp.state.next('SETUP');
+        }
+        break;
+
+      case 'STARTCLAMP':
+        exp.state.once(function () {
+          exp.VRUI.edit({
+            title: 'Almost done',
+            instructions: `For the remaining trials, please aim straight at the target, the way you would normally. \
+              Do not deliberately aim to either side of the target.`,
+            backButtonState: 'disabled',
+            nextButtonState: 'idle',
+          });
+          trial.errorClamp = true; // not a problem bc we've already saved this trial
         });
         if (exp.VRUI.clickedNext) {
           // Hide UI
@@ -715,7 +768,7 @@ async function main() {
    */
   function displayFunc() {
     // Set home color and pulse animation
-    if (home.atHome) {
+    if (home.atHome || exp.state.current === 'REACH') {
       home.material.color = new Color('black');
       home.pulseTween.stop();
     } else {
@@ -723,35 +776,69 @@ async function main() {
       home.pulseTween.start();
     }
 
-    // Hide feedback in the no-feedback region
-    if (
-      trial.noFeedback &&
-      ['START', 'DELAY', 'REACH', 'REST', 'STARTNOFEEDBACK'].includes(
-        exp.state.current
-      )
-    )
-      feedbackShowHide(toolHandle, home, region);
+    // No visual feedback
+    if (['REST', 'STARTCLAMP'].includes(exp.state.current)) {
+      toolHandle.visible = false;
+    } else if (trial.noFeedback) {
+      let homeWorldXZ = home.getWorldPosition(new Vector3()).setY(0);
+      let cpHomeXZ = cp
+        .getWorldPosition(new Vector3())
+        .setY(0)
+        .sub(homeWorldXZ);
+      let d = cpHomeXZ.length();
+      let e = Math.min(d, exp.cfg.targetDistance - d) / exp.cfg.noFeedbackNear;
+      let opacity = 1 - clamp(e, 0, 1);
+      region.visible = region.ring.visible = true;
+      // Fade the tool
+      if (opacity > 0) {
+        cp.material = cpTransMat;
+        toolHandle.material = handleTransMat;
+        toolHandle.visible = true;
+        cp.material.opacity = toolHandle.material.opacity = opacity;
+        if (d < exp.cfg.noFeedbackNear) {
+          region.rotateZ(
+            Math.PI / 2 -
+              region.rotation.z -
+              region.geometry.parameters.thetaLength / 2
+          );
+          region.ring.scale.setScalar(exp.cfg.noFeedbackNear);
+        }
+      } else {
+        cp.material = cpMat;
+        toolHandle.material = handleMat;
+        toolHandle.visible = false;
+        // Draw the no-feedback region
+        region.ring.scale.setScalar(d);
+        let theta = quantizeAngle(-Math.atan2(cpHomeXZ.z, cpHomeXZ.x));
+        region.rotateZ(
+          theta - region.rotation.z - region.geometry.parameters.thetaLength / 2
+        );
+      }
+    } else if (cp.material.transparent || !toolHandle.visible) {
+      cp.material = cpMat;
+      toolHandle.material = handleMat;
+      toolHandle.visible = true;
+    }
 
-    // Visuomotor rotation
-    if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
-      let x = exp.grip.position.clone(); // get grip position (world)
+    if (exp.grip && trial.errorClamp) {
+      // Error clamp control point to the Z axis
+      let dxyz = new Vector3().subVectors(
+        cp.getWorldPosition(new Vector3()),
+        toolHandle.getWorldPosition(new Vector3())
+      );
+      toolHandle.position.set(
+        ...exp.grip.worldToLocal(
+          exp.grip.getWorldPosition(new Vector3()).setX(-dxyz.x)
+        )
+      );
+    } else if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
+      // Visuomotor rotation
+      let x = exp.grip.getWorldPosition(new Vector3()); // get grip position (world)
       x.sub(trial.rotationOrigin); // subtract origin (world)
       x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
       x.add(trial.rotationOrigin); // add back origin
       exp.grip.worldToLocal(x); // convert to grip space
       toolHandle.position.copy(x); // set as tool position
-    }
-
-    // Error clamp X values to the YZ plane
-    if (exp.grip && trial.errorClamp) {
-      // Small offset to clamp the control point, not the grip position
-      let dx = new Vector3().subVectors(
-        cp.getWorldPosition(new Vector3()),
-        toolHandle.getWorldPosition(new Vector3())
-      ).x;
-      toolHandle.position.set(
-        ...exp.grip.worldToLocal(exp.grip.position.clone().setX(-dx))
-      );
     }
 
     tweenUpdate();
@@ -768,9 +855,9 @@ async function main() {
     if (exp.grip) {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
-      // clone or you will get a reference
-      trial.rhPos.push(exp.grip.position.clone());
-      trial.rhOri.push(exp.grip.rotation.clone());
+      // getWorld...() bc grip is child of cameraGroup
+      trial.rhPos.push(exp.grip.getWorldPosition(new Vector3()));
+      trial.rhOri.push(exp.grip.getWorldQuaternion(new Quaternion()));
     }
   }
 
@@ -779,8 +866,12 @@ async function main() {
     trial.stateChange?.push(exp.state.current);
     trial.stateChangeTime?.push(performance.now());
     // Head data at state changes only (see handleFrameData)
-    trial.stateChangeHeadPos?.push(exp.sceneManager.camera.position.clone());
-    trial.stateChangeHeadOri?.push(exp.sceneManager.camera.rotation.clone());
+    trial.stateChangeHeadPos?.push(
+      exp.sceneManager.camera.getWorldPosition(new Vector3())
+    );
+    trial.stateChangeHeadOri?.push(
+      exp.sceneManager.camera.getWorldQuaternion(new Quaternion())
+    );
   }
 
   // Subject-specific replay configuration

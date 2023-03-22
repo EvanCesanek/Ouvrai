@@ -13,7 +13,7 @@ def test():
     print("Hello from Ouvrai!")
 
 
-def load(data_folder="../", file_regex="^data_", from_pkl=False, pickle=False):
+def load(data_folder="./", file_regex="^data_", from_pkl=False, pickle=False):
     """Load Firebase .json data into data frames.
 
     Parameters
@@ -193,9 +193,7 @@ def load_demographics(df_sub, path="demographics.csv"):
 
 
 def compute_kinematics(
-    df_sub,
-    dfx,
-    pos_prefix="rhPos",
+    df_sub, dfx, pos_prefix="rhPos",
 ):
     cols_to_diff = ["t", f"{pos_prefix}_x", f"{pos_prefix}_y", f"{pos_prefix}_z"]
     g = dfx.groupby(["subject", "trialNumber"])
@@ -250,11 +248,7 @@ def compute_kinematics(
 
 
 def find_first_velocity_peak(
-    df,
-    df_sub,
-    dfx,
-    dist_range=[0.1, 0.75],
-    pv_thresh=0.05,
+    df, df_sub, dfx, dist_range=[0.1, 0.75], pv_thresh=0.05,
 ):
     if "targetDistance" not in df_sub.columns:
         warnings.warn(
@@ -432,7 +426,7 @@ def predict(lm, x):
 
 # cubic function (for MACC onset detection)
 def cubic(x, b, const):
-    return const + b * x**3
+    return const + b * x ** 3
 
 
 # MACC is some garbage (nothing to stop it from fitting two flat lines anywhere...)

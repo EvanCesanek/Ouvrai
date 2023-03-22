@@ -94,8 +94,9 @@ export async function prolificCreateStudyObject(expName, studyURL, config) {
     completion_option: 'url',
     completion_codes: [
       {
-        code: config.prolific.defaultCompletionCode || 'OUVRAI',
+        code: 'OUVRAI',
         code_type: 'COMPLETED',
+        actions: [{ action: 'MANUALLY_REVIEW' }],
       },
     ],
     total_available_places: config.totalAvailablePlaces,
@@ -104,17 +105,244 @@ export async function prolificCreateStudyObject(expName, studyURL, config) {
     reward: config.prolific.reward,
     device_compatibility: config.prolific.compatibleDevices,
     peripheral_requirements: [],
-    eligibility_requirements: [],
+    eligibility_requirements: [
+      {
+        _cls: 'web.eligibility.models.AgeRangeEligibilityRequirement',
+        query: {
+          id: '54ac6ea9fdf99b2204feb893',
+        },
+        attributes: [
+          {
+            value: 18,
+            name: 'min_age',
+          },
+          {
+            value: 65,
+            name: 'max_age',
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.ApprovalRateEligibilityRequirement',
+        attributes: [
+          {
+            name: 'minimum_approval_rate',
+            value: 95,
+          },
+          {
+            name: 'maximum_approval_rate',
+            value: 100,
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.MultiSelectAnswerEligibilityRequirement',
+        query: {
+          id: '58c6b44ea4dd0a4799361afc',
+          question: 'Which of the following languages are you fluent in?',
+        },
+        attributes: [
+          {
+            name: 'English',
+            value: true,
+            index: 19,
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+        query: {
+          id: '59cb6f8c21454d000194c364',
+          question:
+            'Have you ever been diagnosed with mild cognitive impairment or dementia?',
+        },
+        attributes: [
+          {
+            name: 'No',
+            value: true,
+            index: 1,
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+        query: {
+          id: '5d825cdfbe876600168b6d16',
+          question:
+            'Have you ever been diagnosed with multiple sclerosis (MS)?',
+        },
+        attributes: [
+          {
+            name: 'No',
+            value: true,
+            index: 1,
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+        query: {
+          id: '58c951b0a4dd0a08048f3017',
+          question:
+            'Do you have any diagnosed mental health condition that is uncontrolled (by medication or intervention) and which has a significant impact on your daily life / activities?',
+        },
+        attributes: [
+          {
+            name: 'No',
+            value: true,
+            index: 1,
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+        query: {
+          id: '57a0c4d2717b34954e81b919',
+          question: 'Do you have normal or corrected-to-normal vision?',
+          participant_help_text:
+            'For example, you can see colour normally, and if you need glasses, you are wearing them or contact lenses',
+        },
+        attributes: [
+          {
+            name: 'Yes',
+            value: true,
+            index: 0,
+          },
+        ],
+      },
+      {
+        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+        query: {
+          id: '5eac255ff716eb05e0ed3853',
+          question: 'Do you own a VR (Virtual Reality) headset?',
+        },
+        attributes: [
+          {
+            name: 'Yes',
+            value: true,
+            index: 0,
+          },
+        ],
+      },
+      {
+        query: {
+          id: '5eabe23bb79d980009a5eab7',
+          question:
+            'Have you engaged in any of the following simulated experiences before? Choose all that apply:',
+        },
+        _cls: 'web.eligibility.models.MultiSelectAnswerEligibilityRequirement',
+        attributes: [
+          {
+            label: 'Virtual reality',
+            name: 'Virtual reality',
+            value: true,
+            index: 0,
+          },
+          {
+            label: 'Augmented reality',
+            name: 'Augmented reality',
+            value: true,
+            index: 1,
+          },
+          {
+            label: 'Mixed reality',
+            name: 'Mixed reality',
+            value: true,
+            index: 2,
+          },
+        ],
+      },
+    ],
     naivety_distribution_rate: config.prolific.naivety,
     project: config.prolific.project,
   };
   if (!studyObject.project) {
     studyObject.project = await prolificSelectProject();
   }
+  // TODO: blocklist and allowlist (no support for studies from diff projects or unpublished/active studies)
+  // let spinner = ora(
+  //   'Fetching previous studies for blocklist and allowlist...'
+  // ).start();
+  // let results;
+  // try {
+  //   let res = await axios.get(
+  //     `https://api.prolific.co/api/v1/projects/${studyObject.project}/studies/`,
+  //     {
+  //       headers: {
+  //         Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+  //       },
+  //     }
+  //   );
+  //   results = res.data.results;
+  //   if (results.length === 0) {
+  //     spinner.warn('No previous studies found in selected project.');
+  //   } else {
+  //     spinner.succeed(
+  //       `Found ${results.length} previous studies in this project.`
+  //     );
+  //   }
+  // } catch (err) {
+  //   spinner.fail(`${err.message}`);
+  //   console.log(err.response?.data?.error);
+  //   process.exit(1);
+  // }
+  // if (
+  //   config.studyBlocklist &&
+  //   Array.isArray(config.studyBlocklist) &&
+  //   config.studyBlocklist.length > 0
+  // ) {
+  //   let blocklist = results.filter((study) =>
+  //     config.studyBlocklist.includes(study.internal_name)
+  //   );
+  //   let blockstudies = blocklist.map((study) => ({
+  //     id: study.id,
+  //     value: true,
+  //     completion_codes: [],
+  //   }));
+  //   console.log(blockstudies);
+  //   studyObject.eligibility_requirements.push({
+  //     _cls: 'web.eligibility.models.PreviousStudiesEligibilityRequirement',
+  //     attributes: blockstudies,
+  //   });
+  //   ora(
+  //     `Added previous studies [${blocklist
+  //       .map((s) => s.internal_name)
+  //       .join(', ')}] to blocklist.`
+  //   ).info();
+  // } else {
+  //   ora(`No previous study blocklist initialized.`).info();
+  // }
+  // if (
+  //   config.studyAllowlist &&
+  //   Array.isArray(config.studyAllowlist) &&
+  //   config.studyAllowlist.length > 0
+  // ) {
+  //   let allowlist = results.filter((study) =>
+  //     config.studyAllowlist.includes(study.internal_name)
+  //   );
+  //   let allowstudies = allowlist.map((study) => ({
+  //     id: study.id,
+  //     value: true,
+  //     completion_codes: [],
+  //   }));
+  //   studyObject.eligibility_requirements.push({
+  //     _cls: 'web.eligibility.models.PreviousStudiesAllowlistEligibilityRequirement',
+  //     attributes: allowstudies,
+  //   });
+  //   ora(
+  //     `Added previous studies [${allowlist
+  //       .map((s) => s.internal_name)
+  //       .join(', ')}] to allowlist.`
+  //   ).info();
+  // } else {
+  //   ora(`No previous study allowlist initialized.`).info();
+  // }
   return studyObject;
 }
 
 export async function prolificCreateDraftStudy(studyObject) {
+  let spinner = ora('Creating Prolific draft study..').start();
+  let id;
   try {
     let res = await axios.post(
       `https://api.prolific.co/api/v1/studies/`,
@@ -125,14 +353,36 @@ export async function prolificCreateDraftStudy(studyObject) {
         },
       }
     );
+    spinner.succeed();
+    id = res.data.id;
+  } catch (err) {
+    spinner.fail(`${err.message}`);
+    console.log(err.response?.data?.error);
+    process.exit(1);
+  }
+
+  spinner = ora('Patching draft study as API bug workaround...');
+  try {
+    let res = await axios.patch(
+      `https://api.prolific.co/api/v1/studies/${id}/`,
+      {
+        completion_code: 'OUVRAI',
+        completion_code_action: 'MANUALLY_REVIEW',
+      },
+      {
+        headers: {
+          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+        },
+      }
+    );
+    spinner.succeed();
     console.log(
       `Successfully created draft study!` +
         `\n Preview it at https://app.prolific.co/researcher/workspaces/studies/${res.data.id}.`
     );
     return res.data;
   } catch (err) {
-    console.log(studyObject);
-    console.log(err.message);
+    spinner.fail(`${err.message} : ${err.response?.data?.error}`);
     process.exit(1);
   }
 }
@@ -323,7 +573,7 @@ export async function prolificPostStudy(studyId) {
 }
 
 function prolificPrepareDescriptionHTML(config) {
-  let description;
+  let description = '';
   // Requirements
   // If requirements list items are supplied
   if (
@@ -331,7 +581,7 @@ function prolificPrepareDescriptionHTML(config) {
     config.requirementsList.length > 0
   ) {
     // Add the header
-    description = '<h2>Requirements</h2>';
+    description += '<h2>Requirements</h2>';
     // Add the ordered list
     description += '<p><ul>';
     for (let req of config.requirementsList) {
@@ -356,7 +606,7 @@ function prolificPrepareDescriptionHTML(config) {
   // Summary
   if (Array.isArray(config.summaryPara) && config.summaryPara.length > 0) {
     // Add the header
-    description = '<h2>Summary</h2>';
+    description += '<h2>Summary</h2>';
     for (let summp of config.summaryPara) {
       description += `<p>${summp}</p>`;
     }
