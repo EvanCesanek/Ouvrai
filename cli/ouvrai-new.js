@@ -45,7 +45,7 @@ spinner = ora(`Checking if ${projectPathDecoded} already exists`).start();
 if (await exists(projectPath)) {
   if (!options.overwrite) {
     spinner.fail(
-      `${projectPath.pathname} already exists! Use the --overwrite (-o) flag if this is really what you want.`
+      `${projectPathDecoded} already exists! Use the --overwrite (-o) flag if this is really what you want.`
     );
     process.exit(1);
   } else {
@@ -56,9 +56,9 @@ if (await exists(projectPath)) {
 }
 
 try {
-  spinner = ora(`Copying template files from ${templatePath}`).start();
+  spinner = ora(`Copying template files from ${templatePathDecoded}`).start();
   try {
-    await copy(templatePath, projectPath, {
+    await copy(templatePathDecoded, projectPathDecoded, {
       overwrite: options.overwrite,
       errorOnExist: true,
     });
@@ -70,7 +70,7 @@ try {
 
   spinner = ora(`Copying config files from ${settingsPathDecoded}`).start();
   try {
-    await copy(settingsPath, projectPath, {
+    await copy(settingsPathDecoded, projectPathDecoded, {
       overwrite: options.overwrite,
       errorOnExist: true,
     });
@@ -94,5 +94,5 @@ subprocess.on('error', (err) => {
   process.exit(1);
 });
 subprocess.on('close', (err) => {
-  spinner.succeed(`New study created at ${projectPath}`);
+  spinner.succeed(`New study created at ${projectPathDecoded}`);
 });

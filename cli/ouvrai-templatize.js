@@ -27,7 +27,7 @@ let spinner = ora(`Checking if ${templatePathDecoded} already exists`).start();
 if (await exists(templatePath)) {
   if (!options.overwrite) {
     spinner.fail(
-      `${templatePath} already exists! Use the --overwrite (-o) flag if this is really what you want.`
+      `${templatePathDecoded} already exists! Use the --overwrite (-o) flag if this is really what you want.`
     );
     process.exit(1);
   } else {
