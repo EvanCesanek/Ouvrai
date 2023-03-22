@@ -19,15 +19,15 @@ const options = program.opts();
 const expName = program.processedArgs[0];
 const templateName = program.processedArgs[1];
 
-const projectPath = new URL(`../experiments/${expName}`, import.meta.url)
-  .pathname;
-const templatePath = new URL(`../templates/${templateName}`, import.meta.url)
-  .pathname;
-const settingsPath = new URL('../config/template', import.meta.url).pathname;
+const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
+const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
+const templatePathDecoded = decodeURIComponent(templatePath.pathname);
+const settingsPath = new URL('../config/template', import.meta.url);
+const settingsPathDecoded = decodeURIComponent(settingsPath.pathname);
 
-let spinner = ora(`Checking that ${templatePath} exists`).start();
-let templateExists = await exists(templatePath);
-if (!templateExists) {
+let spinner = ora(`Checking that ${templatePathDecoded} exists`).start();
+if (!(await exists(templatePath))) {
   let templateNames = await readdir(new URL(`../templates`, import.meta.url));
   // Filter out .DS_Store and other hidden files
   templateNames = templateNames.filter((item) => !/(^|\/)\.[^/.]/g.test(item));
@@ -41,11 +41,11 @@ if (!templateExists) {
   spinner.succeed();
 }
 
-spinner = ora(`Checking if ${projectPath} already exists`).start();
+spinner = ora(`Checking if ${projectPathDecoded} already exists`).start();
 if (await exists(projectPath)) {
   if (!options.overwrite) {
     spinner.fail(
-      `${projectPath} already exists! Use the --overwrite (-o) flag if this is really what you want.`
+      `${projectPath.pathname} already exists! Use the --overwrite (-o) flag if this is really what you want.`
     );
     process.exit(1);
   } else {
@@ -68,7 +68,7 @@ try {
     process.exit(1);
   }
 
-  spinner = ora(`Copying config files from ${settingsPath}`).start();
+  spinner = ora(`Copying config files from ${settingsPathDecoded}`).start();
   try {
     await copy(settingsPath, projectPath, {
       overwrite: options.overwrite,

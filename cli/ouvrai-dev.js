@@ -34,7 +34,7 @@ try {
 // client.emulators.start({ project: projectId, only: 'auth,database' });
 // Vite Server: This works
 // let server = await createServer({
-//   root: `${experimentDir.pathname}/src`,
+//   root: `${decodeURIComponent(experimentDir.pathname)}/src`,
 //   publicDir: '/static'
 // });
 // await server.listen();

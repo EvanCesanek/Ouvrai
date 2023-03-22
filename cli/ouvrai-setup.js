@@ -33,7 +33,11 @@ firebaseJSON.hosting.site = siteId;
 try {
   await writeFile(firebaseURL, JSON.stringify(firebaseJSON, null, 2));
 } catch (err) {
-  console.log(`Setup failed! Could not write to ${firebaseURL.pathname}`);
+  console.log(
+    `Setup failed! Could not write to ${decodeURIComponent(
+      firebaseURL.pathname
+    )}`
+  );
   console.error(err.message);
   process.exit(1);
 }

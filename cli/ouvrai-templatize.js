@@ -18,12 +18,12 @@ const options = program.opts();
 const expName = program.processedArgs[0];
 const templateName = program.processedArgs[1];
 
-const projectPath = new URL(`../experiments/${expName}`, import.meta.url)
-  .pathname;
-const templatePath = new URL(`../templates/${templateName}`, import.meta.url)
-  .pathname;
+const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
+const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
+const templatePathDecoded = decodeURIComponent(templatePath.pathname);
 
-let spinner = ora(`Checking if ${templatePath} already exists`).start();
+let spinner = ora(`Checking if ${templatePathDecoded} already exists`).start();
 if (await exists(templatePath)) {
   if (!options.overwrite) {
     spinner.fail(
@@ -38,9 +38,9 @@ if (await exists(templatePath)) {
 }
 
 try {
-  spinner = ora(`Copying source files from ${projectPath}`).start();
+  spinner = ora(`Copying source files from ${projectPathDecoded}`).start();
   try {
-    await copy(`${projectPath}/src`, `${templatePath}/src`, {
+    await copy(`${projectPathDecoded}/src`, `${templatePathDecoded}/src`, {
       overwrite: options.overwrite,
       errorOnExist: true,
     });
@@ -50,11 +50,11 @@ try {
     process.exit(1);
   }
 
-  spinner = ora(`Copying study-config.js from ${projectPath}`).start();
+  spinner = ora(`Copying study-config.js from ${projectPathDecoded}`).start();
   try {
     await copy(
-      `${projectPath}/study-config.js`,
-      `${templatePath}/study-config.js`,
+      `${projectPathDecoded}/study-config.js`,
+      `${templatePathDecoded}/study-config.js`,
       {
         overwrite: options.overwrite,
         errorOnExist: true,
@@ -66,12 +66,16 @@ try {
     process.exit(1);
   }
 
-  spinner = ora(`Copying package.json from ${projectPath}`).start();
+  spinner = ora(`Copying package.json from ${projectPathDecoded}`).start();
   try {
-    await copy(`${projectPath}/package.json`, `${templatePath}/package.json`, {
-      overwrite: options.overwrite,
-      errorOnExist: true,
-    });
+    await copy(
+      `${projectPathDecoded}/package.json`,
+      `${templatePathDecoded}/package.json`,
+      {
+        overwrite: options.overwrite,
+        errorOnExist: true,
+      }
+    );
     spinner.succeed();
   } catch (err) {
     spinner.fail(err.message);

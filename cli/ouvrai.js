@@ -9,6 +9,9 @@ import { exists } from './cli-utils.js';
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { config } from 'dotenv';
 import axios from 'axios';
+import replace from 'replace-in-file';
+//import jsdom from 'jsdom';
+import { copy } from 'fs-extra/esm';
 
 const program = new Command();
 
@@ -117,7 +120,7 @@ program.command('completion').action(async () => {
   if (!env.complete) return;
 
   if (env.prev === 'ouvrai') {
-    const libFolder = new URL('.', import.meta.url).pathname;
+    const libFolder = new URL('.', import.meta.url);
     var commands = [];
     let files;
     try {
@@ -156,14 +159,52 @@ program
   .action(async function () {
     console.log('Write your own tests in /cli/ouvrai.js.');
 
-    const res = await axios.get(
-      'https://api.prolific.co/api/v1/studies/641b0a90db5fe667c9bef6c1/',
-      {
-        headers: {
-          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
-        },
-      }
-    );
+    // let testpath = new URL('../experiments/test directory', import.meta.url);
+
+    // try {
+    //   await copy(
+    //     `${decodeURIComponent(testpath.pathname)}/another one`,
+    //     `${decodeURIComponent(testpath.pathname)}/src`,
+    //     {
+    //       overwrite: true,
+    //       errorOnExist: true,
+    //     }
+    //   );
+    // } catch (err) {
+    //   console.log(err);
+    // }
+    // let testexists = await exists(testpath);
+    // console.log(
+    //   `${decodeURIComponent(testpath.pathname)} exists? ${testexists}`
+    // );
+    // let dom;
+    // try {
+    //   dom = await jsdom.JSDOM.fromFile(decodeURIComponent(testpath.pathname));
+    // } catch (err) {
+    //   console.log(err);
+    // }
+    // console.log(dom.window.document.getElementById('testdiv').innerHTML);
+
+    // let replaceOptions = {
+    //   files: decodeURIComponent(testpath.pathname),
+    //   from: ['line', 'the file'],
+    //   to: ['not line', 'the world'],
+    // };
+
+    // try {
+    //   await replace(replaceOptions);
+    // } catch (err) {
+    //   console.log(err);
+    // }
+
+    // const res = await axios.get(
+    //   'https://api.prolific.co/api/v1/studies/641b0a90db5fe667c9bef6c1/',
+    //   {
+    //     headers: {
+    //       Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+    //     },
+    //   }
+    // );
 
     // const res = await axios.get(
     //   'https://api.prolific.co/api/v1/studies/6419dc00884f2780678c31f4/',
@@ -178,8 +219,8 @@ program
     //   }
     // );
 
-    delete res.data.eligibility_requirements;
-    console.log(res.data);
+    // delete res.data.eligibility_requirements;
+    // console.log(res.data);
 
     // await writeFile(
     //   new URL('all_screeners.json', import.meta.url),

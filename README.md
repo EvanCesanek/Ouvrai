@@ -8,20 +8,23 @@
 
 ## Prerequisites
 
-1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager](#nodejs) with Node.js 18+.
+1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager](#nodejs) with Node.js 18. Make sure `node -v` displays `v18.15.0` (major version 18, minor version 13 or greater).
 2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project. Just choose a name for the project, Ouvrai handles the rest.
 3. To recruit participants, you'll need a [Prolific Researcher](https://app.prolific.co/register/researcher) account and/or [AWS and MTurk Requester](https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html) accounts.
 
 ## Installation and one-time setup
 
 ```
+# Install Firebase CLI and log in
+npm i -g firebase-tools
+firebase login --reauth
+# Download and install Ouvrai
 git clone https://www.github.com/evancesanek/ouvrai
 cd ouvrai
-npm i -g firebase-tools # Install Firebase CLI globally
-firebase login # Log in to Firebase
-npm i -g # Install Ouvrai CLI globally
-npm i # Install Ouvrai
-ouvrai setup # One-time setup, follow the prompts
+npm i -g
+npm i
+# One-time setup; press Enter to accept defaults
+ouvrai setup
 ```
 
 ## Development
@@ -72,8 +75,9 @@ You can monitor and manage your studies using the Ouvrai dashboard: `ouvrai laun
 
 ## Node.js
 
-- Install [nvm](https://github.com/nvm-sh/nvm) (Linux and Mac, use `curl`) or [nvm-windows](https://github.com/coreybutler/nvm-windows) (Windows, use provided installer).
-- Restart shell and install Node.js: `nvm install node`
+- Linux and Mac: Install [nvm](https://github.com/nvm-sh/nvm) with `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash`
+- Windows: Install [nvm-windows](https://github.com/coreybutler/nvm-windows) using provided installer.
+- After installation, close shell, reopen, and install/use Node.js 18 with `nvm install 18`
 
 ## Firebase
 

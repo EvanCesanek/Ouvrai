@@ -24,7 +24,8 @@ const experimentDir = new URL(
   `../experiments/${program.args[0]}`,
   import.meta.url
 );
-let buildDir = `${experimentDir.pathname}/dist`;
+const experimentPathDecoded = decodeURIComponent(experimentDir.pathname);
+let buildDir = `${experimentPathDecoded}/dist`;
 
 let spinner = ora(`Validating experiment name "${program.args[0]}"`).start();
 try {
@@ -60,11 +61,11 @@ if (options.github) {
 }
 
 let res = await build({
-  root: `${experimentDir.pathname}/src`, // index.html must be here
+  root: `${experimentPathDecoded}/src`, // index.html must be here
   base: buildBase ?? '/', // base == repo name to access assets on GitHub Pages
   publicDir: 'public',
   build: {
-    outDir: relative(`${experimentDir.pathname}/src`, buildDir),
+    outDir: relative(`${experimentPathDecoded}/src`, buildDir),
     emptyOutDir: true,
   },
 });

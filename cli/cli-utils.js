@@ -105,159 +105,145 @@ export async function prolificCreateStudyObject(expName, studyURL, config) {
     reward: config.prolific.reward,
     device_compatibility: config.prolific.compatibleDevices,
     peripheral_requirements: [],
-    eligibility_requirements: [
-      {
-        _cls: 'web.eligibility.models.AgeRangeEligibilityRequirement',
-        query: {
-          id: '54ac6ea9fdf99b2204feb893',
-        },
-        attributes: [
-          {
-            value: 18,
-            name: 'min_age',
-          },
-          {
-            value: 65,
-            name: 'max_age',
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.ApprovalRateEligibilityRequirement',
-        attributes: [
-          {
-            name: 'minimum_approval_rate',
-            value: 95,
-          },
-          {
-            name: 'maximum_approval_rate',
-            value: 100,
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.MultiSelectAnswerEligibilityRequirement',
-        query: {
-          id: '58c6b44ea4dd0a4799361afc',
-          question: 'Which of the following languages are you fluent in?',
-        },
-        attributes: [
-          {
-            name: 'English',
-            value: true,
-            index: 19,
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
-        query: {
-          id: '59cb6f8c21454d000194c364',
-          question:
-            'Have you ever been diagnosed with mild cognitive impairment or dementia?',
-        },
-        attributes: [
-          {
-            name: 'No',
-            value: true,
-            index: 1,
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
-        query: {
-          id: '5d825cdfbe876600168b6d16',
-          question:
-            'Have you ever been diagnosed with multiple sclerosis (MS)?',
-        },
-        attributes: [
-          {
-            name: 'No',
-            value: true,
-            index: 1,
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
-        query: {
-          id: '58c951b0a4dd0a08048f3017',
-          question:
-            'Do you have any diagnosed mental health condition that is uncontrolled (by medication or intervention) and which has a significant impact on your daily life / activities?',
-        },
-        attributes: [
-          {
-            name: 'No',
-            value: true,
-            index: 1,
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
-        query: {
-          id: '57a0c4d2717b34954e81b919',
-          question: 'Do you have normal or corrected-to-normal vision?',
-          participant_help_text:
-            'For example, you can see colour normally, and if you need glasses, you are wearing them or contact lenses',
-        },
-        attributes: [
-          {
-            name: 'Yes',
-            value: true,
-            index: 0,
-          },
-        ],
-      },
-      {
-        _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
-        query: {
-          id: '5eac255ff716eb05e0ed3853',
-          question: 'Do you own a VR (Virtual Reality) headset?',
-        },
-        attributes: [
-          {
-            name: 'Yes',
-            value: true,
-            index: 0,
-          },
-        ],
-      },
-      {
-        query: {
-          id: '5eabe23bb79d980009a5eab7',
-          question:
-            'Have you engaged in any of the following simulated experiences before? Choose all that apply:',
-        },
-        _cls: 'web.eligibility.models.MultiSelectAnswerEligibilityRequirement',
-        attributes: [
-          {
-            label: 'Virtual reality',
-            name: 'Virtual reality',
-            value: true,
-            index: 0,
-          },
-          {
-            label: 'Augmented reality',
-            name: 'Augmented reality',
-            value: true,
-            index: 1,
-          },
-          {
-            label: 'Mixed reality',
-            name: 'Mixed reality',
-            value: true,
-            index: 2,
-          },
-        ],
-      },
-    ],
+    eligibility_requirements: [],
     naivety_distribution_rate: config.prolific.naivety,
     project: config.prolific.project,
   };
   if (!studyObject.project) {
     studyObject.project = await prolificSelectProject();
+  }
+  if (Array.isArray(config.prolific.screeners?.ageRange)) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.AgeRangeEligibilityRequirement',
+      query: {
+        id: '54ac6ea9fdf99b2204feb893',
+      },
+      attributes: [
+        {
+          value: config.prolific.screeners?.ageRange[0],
+          name: 'min_age',
+        },
+        {
+          value: config.prolific.screeners?.ageRange[1],
+          name: 'max_age',
+        },
+      ],
+    });
+  }
+  if (Array.isArray(config.prolific.screeners?.approvalRateRange)) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.ApprovalRateEligibilityRequirement',
+      attributes: [
+        {
+          name: 'minimum_approval_rate',
+          value: config.prolific.screeners?.approvalRateRange[0],
+        },
+        {
+          name: 'maximum_approval_rate',
+          value: config.prolific.screeners?.approvalRateRange[1],
+        },
+      ],
+    });
+  }
+  if (config.prolific.screeners?.fluentEnglish) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.MultiSelectAnswerEligibilityRequirement',
+      query: {
+        id: '58c6b44ea4dd0a4799361afc',
+        question: 'Which of the following languages are you fluent in?',
+      },
+      attributes: [
+        {
+          name: 'English',
+          value: true,
+          index: 19,
+        },
+      ],
+    });
+  }
+  if (config.prolific.excludeDementia) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+      query: {
+        id: '59cb6f8c21454d000194c364',
+        question:
+          'Have you ever been diagnosed with mild cognitive impairment or dementia?',
+      },
+      attributes: [
+        {
+          name: 'No',
+          value: true,
+          index: 1,
+        },
+      ],
+    });
+  }
+  if (config.prolific.screeners?.excludeMS) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+      query: {
+        id: '5d825cdfbe876600168b6d16',
+        question: 'Have you ever been diagnosed with multiple sclerosis (MS)?',
+      },
+      attributes: [
+        {
+          name: 'No',
+          value: true,
+          index: 1,
+        },
+      ],
+    });
+  }
+  if (config.prolific.screeners?.excludeMentalHealthImpact) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+      query: {
+        id: '58c951b0a4dd0a08048f3017',
+        question:
+          'Do you have any diagnosed mental health condition that is uncontrolled (by medication or intervention) and which has a significant impact on your daily life / activities?',
+      },
+      attributes: [
+        {
+          name: 'No',
+          value: true,
+          index: 1,
+        },
+      ],
+    });
+  }
+  if (config.prolific.screeners?.normalVision) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+      query: {
+        id: '57a0c4d2717b34954e81b919',
+        question: 'Do you have normal or corrected-to-normal vision?',
+        participant_help_text:
+          'For example, you can see colour normally, and if you need glasses, you are wearing them or contact lenses',
+      },
+      attributes: [
+        {
+          name: 'Yes',
+          value: true,
+          index: 0,
+        },
+      ],
+    });
+  }
+  if (config.prolific.screeners?.ownVR) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
+      query: {
+        id: '5eac255ff716eb05e0ed3853',
+        question: 'Do you own a VR (Virtual Reality) headset?',
+      },
+      attributes: [
+        {
+          name: 'Yes',
+          value: true,
+          index: 0,
+        },
+      ],
+    });
   }
   // TODO: blocklist and allowlist (no support for studies from diff projects or unpublished/active studies)
   // let spinner = ora(
@@ -750,11 +736,12 @@ async function mturkPrepareHTML(
     const mturkLayoutPath = new URL(
       '../config/layout/mturk-layout.html',
       import.meta.url
-    ).pathname;
+    );
+    const mturkLayoutPathDecoded = decodeURIComponent(mturkLayoutPath.pathname);
     // 1. Overwrite JavaScript variables
     let timestampComment = '// ' + new Date();
     let replaceOptions = {
-      files: mturkLayoutPath,
+      files: mturkLayoutPathDecoded,
       from: [/^.*expName = .*$/m, /^.*taskURL = .*$/m, /^.*databaseURL = .*$/m],
       to: [
         `        const expName = '${expName}'; ${timestampComment}`,
@@ -771,7 +758,7 @@ async function mturkPrepareHTML(
     }
 
     // 2. Modify the DOM
-    let dom = await jsdom.JSDOM.fromFile(mturkLayoutPath);
+    let dom = await jsdom.JSDOM.fromFile(mturkLayoutPathDecoded);
     let document = dom.window.document;
     // Title
     document.getElementById('title-text').textContent = config.title;
@@ -1260,7 +1247,9 @@ export async function updateStudyHistory(expName, key, value) {
   try {
     await writeFile(studyHistoryURL, JSON.stringify(studyHistoryJSON, null, 2));
   } catch (err) {
-    console.log(`Error: Write failed to ${studyHistoryURL.pathname}`);
+    console.log(
+      `Error: Write failed to ${decodeURIComponent(studyHistoryURL.pathname)}`
+    );
     throw err;
   }
   console.log(`Study history updated. Most recent ${key} is '${value}'.`);
@@ -1282,7 +1271,9 @@ export async function getStudyHistory(expName) {
     }
   } else {
     console.log(
-      `Warning: Study history not found at ${studyHistoryURL.pathname}.`
+      `Warning: Study history not found at ${decodeURIComponent(
+        studyHistoryURL.pathname
+      )}.`
     );
   }
   return studyHistoryJSON;
