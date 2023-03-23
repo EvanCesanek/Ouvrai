@@ -113,6 +113,7 @@ if (options.local) {
   init.on('close', async (code) => {
     if (code === 0) {
       await updateStudyHistory(expName, 'siteId', siteId);
+      await updateStudyHistory(expName, 'projectId', projectId);
     }
   });
 }

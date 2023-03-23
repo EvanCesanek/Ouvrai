@@ -5,7 +5,12 @@ import tabtab from 'tabtab';
 import { join } from 'path';
 import { URL } from 'url';
 import { homedir } from 'os';
-import { exists } from './cli-utils.js';
+import {
+  dateStringYMDHMS,
+  exists,
+  firebaseClient,
+  firebaseGetData,
+} from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
 
@@ -89,7 +94,8 @@ program
     'Create a template from an existing experiment'
   )
   .command('setup', 'Set up Ouvrai to work with Firebase')
-  .command('launch', 'Launch the Ouvrai web app');
+  .command('launch', 'Launch the Ouvrai web app')
+  .command('download', 'Download participant data from Firebase');
 
 program.command('install-completion').action(async () => {
   await tabtab
@@ -154,7 +160,6 @@ program
   .description('Edit this function in /cli/ouvrai.js to test things out!')
   .action(async function () {
     console.log('Write your own tests in /cli/ouvrai.js.');
-    // Write any package code you want to test here, then run: ouvrai test
   });
 
 program.parse();

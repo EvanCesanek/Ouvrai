@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import {
-  getLatestDeployURL,
+  getLatestDeploySite,
   getStudyConfig,
   mturkPostStudy,
   prolificCreateDraftStudy,
@@ -43,7 +43,7 @@ let config = await getStudyConfig(expName);
 //console.log(config);
 
 // Get study history (for latest deploy)
-let studyURL = await getLatestDeployURL(expName);
+let studyURL = await getLatestDeploySite(expName);
 
 if (options.prolific) {
   // PROLIFIC

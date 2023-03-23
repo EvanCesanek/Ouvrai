@@ -13,17 +13,17 @@ const program = new Command()
 // See /lib/components/Experiment.js: this.cfg.experiment = import.meta.env.VITE_EXPERIMENT_NAME;
 process.env.VITE_EXPERIMENT_NAME = program.args[0];
 
-const experimentDir = new URL(
+const projectPath = new URL(
   `../experiments/${program.args[0]}`,
   import.meta.url
 );
+const projectPathDecoded = decodeURIComponent(projectPath.pathname);
 
-let spinner = ora(`Validating experiment name "${program.args[0]}"`).start();
-try {
-  await access(experimentDir);
+let spinner = ora(`Accessing study at ${projectPathDecoded}.`).start();
+if (await exists(projectPath)) {
   spinner.succeed();
-} catch (err) {
-  spinner.fail(err.message);
+} else {
+  spinner.fail(`'No study found at ${projectPathDecoded}'.`);
   process.exit(1);
 }
 
@@ -34,7 +34,7 @@ try {
 // client.emulators.start({ project: projectId, only: 'auth,database' });
 // Vite Server: This works
 // let server = await createServer({
-//   root: `${decodeURIComponent(experimentDir.pathname)}/src`,
+//   root: `${projectPathDecoded}/src`,
 //   publicDir: '/static'
 // });
 // await server.listen();
@@ -52,7 +52,7 @@ let subprocess = spawn(
     '"firebase emulators:start --only auth,database"',
   ],
   {
-    cwd: experimentDir,
+    cwd: projectPath,
     stdio: 'inherit',
     shell: true,
   }

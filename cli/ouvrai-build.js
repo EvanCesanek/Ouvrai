@@ -20,19 +20,18 @@ const options = program.opts();
 // See /lib/components/Experiment.js: this.cfg.experiment = import.meta.env.VITE_EXPERIMENT_NAME;
 process.env.VITE_EXPERIMENT_NAME = program.args[0];
 
-const experimentDir = new URL(
+const projectPath = new URL(
   `../experiments/${program.args[0]}`,
   import.meta.url
 );
-const experimentPathDecoded = decodeURIComponent(experimentDir.pathname);
-let buildDir = `${experimentPathDecoded}/dist`;
+const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+let buildDir = `${projectPathDecoded}/dist`;
 
-let spinner = ora(`Validating experiment name "${program.args[0]}"`).start();
-try {
-  await access(experimentDir);
+let spinner = ora(`Accessing study at ${projectPathDecoded}.`).start();
+if (await exists(projectPath)) {
   spinner.succeed();
-} catch (err) {
-  spinner.fail(err.message);
+} else {
+  spinner.fail(`'No study found at ${projectPathDecoded}'.`);
   process.exit(1);
 }
 
@@ -61,11 +60,11 @@ if (options.github) {
 }
 
 let res = await build({
-  root: `${experimentPathDecoded}/src`, // index.html must be here
+  root: `${projectPathDecoded}/src`, // index.html must be here
   base: buildBase ?? '/', // base == repo name to access assets on GitHub Pages
   publicDir: 'public',
   build: {
-    outDir: relative(`${experimentPathDecoded}/src`, buildDir),
+    outDir: relative(`${projectPathDecoded}/src`, buildDir),
     emptyOutDir: true,
   },
 });

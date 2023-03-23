@@ -2,7 +2,7 @@ import { MTurkClient } from '@aws-sdk/client-mturk';
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import {
-  getLatestDeployURL,
+  getLatestDeploySite,
   getStudyConfig,
   mturkPostStudy,
   prolificListStudies,
@@ -127,7 +127,7 @@ if (options.prolific) {
 
   // Get study configuration file
   let config = await getStudyConfig(expName);
-  let studyURL = await getLatestDeployURL(expName);
+  let studyURL = await getLatestDeploySite(expName);
 
   await mturkPostStudy(
     client,

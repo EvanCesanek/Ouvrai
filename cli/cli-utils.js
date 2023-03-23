@@ -1273,7 +1273,13 @@ export async function firebaseChooseSite(
   return siteName;
 }
 
-export async function firebaseGetData(refString, projectId, shallow = false) {
+export async function firebaseGetData(
+  refString,
+  projectId,
+  shallow = false,
+  orderBy,
+  startAt
+) {
   if (refString.slice(0, 1) !== '/') {
     throw new Error('refString path must begin with /');
   }
@@ -1282,6 +1288,13 @@ export async function firebaseGetData(refString, projectId, shallow = false) {
   if (shallow) {
     args.push('--shallow');
   }
+  if (orderBy) {
+    args.push('--order-by', orderBy);
+  }
+  if (startAt) {
+    args.push('--start-at', startAt);
+  }
+  console.log([quote(args)]);
 
   let proc = spawn('firebase', [quote(args)], { shell: true });
   proc.stdout.on('data', (data) => {
@@ -1306,18 +1319,20 @@ export async function updateStudyHistory(expName, key, value) {
   }
   if (studyHistoryJSON === undefined) {
     console.log('Initializing new study history.');
-    studyHistoryJSON = { HITId: [], siteId: [] };
+    studyHistoryJSON = { HITId: [], projectId: [], siteId: [] };
   }
 
   // Update
-  if (!Object.keys(studyHistoryJSON).includes(key)) {
+  if (
+    !Object.keys(studyHistoryJSON).includes(key) ||
+    !Array.isArray(studyHistoryJSON[key])
+  ) {
     console.log(
-      `Error: Failed to update study-history.json. Key ${key} does not exist!`
+      `Warning: Field '${key}' does not exist in study-history.json. Creating new field...`
     );
-    return -1;
-  } else {
-    studyHistoryJSON[key].push(value);
+    studyHistoryJSON[key] = [];
   }
+  studyHistoryJSON[key].push(value);
 
   // Write
   let studyHistoryURL = new URL(
@@ -1359,7 +1374,7 @@ export async function getStudyHistory(expName) {
   return studyHistoryJSON;
 }
 
-export async function getLatestDeployURL(expName) {
+export async function getLatestDeploySite(expName) {
   let history = await getStudyHistory(expName);
   if (history === undefined) {
     console.log(
@@ -1369,6 +1384,18 @@ export async function getLatestDeployURL(expName) {
   }
   let latestURL = `https://${history.siteId.slice(-1)}.web.app`;
   return latestURL;
+}
+
+export async function getLatestDeployProject(expName) {
+  let history = await getStudyHistory(expName);
+  if (history === undefined) {
+    console.log(
+      'Error: You have never deployed this study to a Firebase Hosting site.'
+    );
+    process.exit(1);
+  }
+  let latestProject = history.projectId?.slice(-1);
+  return latestProject;
 }
 
 export async function getStudyConfig(expName) {
