@@ -75,7 +75,7 @@ async function main() {
     numBaselineCycles: 15,
     numRampCycles: 15,
     numPlateauCycles: 20,
-    numWashoutCycles: 10,
+    numWashoutCycles: 15,
     restDuration: 15, // minimum duration of rest state
     restTrials: [30, 70], // rest before which trials?
     startNoFeedbackDuration: 10, // minimum duration of notification state
@@ -164,7 +164,7 @@ async function main() {
     ),
   });
   // cube of edge length 1.414*r forms tight cage around sphere of radius r
-  home.scale.setScalar(1.5); // we go slightly larger
+  homecp.scale.setScalar(1.5); // we go slightly larger
 
   // Create tool
   let handleTransMat = new MeshStandardMaterial({
@@ -212,14 +212,7 @@ async function main() {
   toolHandle.add(toolBarDummy);
 
   // Create generic tool control point
-  let cpTransMat = new MeshStandardMaterial({
-    transparent: true,
-  });
-  let cpMat = new MeshStandardMaterial();
-  const cp = new Mesh(
-    new SphereGeometry(exp.cfg.controlPointRadius, 24, 12),
-    cpMat
-  );
+  const cp = new Mesh(new SphereGeometry(exp.cfg.controlPointRadius, 24, 12));
   cp.add(new Collider(new SphereGeometry(exp.cfg.controlPointRadius, 8, 4)));
 
   // Put the tool in the right hand
@@ -254,14 +247,13 @@ async function main() {
   const controlPoints = [];
   const homePoints = [];
   for (let oi of exp.cfg.targetIds) {
-    // Create target material
-    let mati = new MeshStandardMaterial({ color: exp.cfg.targetColors[oi] });
-
     // Create target instance
     let targi = target.clone();
     workspace.add(targi);
     targi.translateX((oi - 0.5) * exp.cfg.targetSeparation);
-    targi.material = mati;
+    targi.material = new MeshStandardMaterial({
+      color: exp.cfg.targetColors[oi],
+    });
     targi.userData.sound = new PositionalAudio(exp.audioListener);
     targi.add(targi.userData.sound);
     targi.hitTween = new Tween(targi)
@@ -274,9 +266,16 @@ async function main() {
 
     // Create control point instance
     let cpi = cp.clone();
+    cpi.userData.mat = new MeshStandardMaterial({
+      color: exp.cfg.targetColors[oi],
+    });
+    cpi.userData.transMat = new MeshStandardMaterial({
+      transparent: true,
+      color: exp.cfg.targetColors[oi],
+    });
+    cpi.material = cpi.userData.mat;
     toolBar.add(cpi);
     cpi.translateY((oi - 0.5) * exp.cfg.targetSeparation);
-    cpi.material = mati;
     // glow effect
     cpi.material.emissive = new Color('white');
     cpi.material.emissiveIntensity = 0;
@@ -293,6 +292,7 @@ async function main() {
     homecpi.material = new LineBasicMaterial({
       color: exp.cfg.targetColors[oi],
     });
+    homecpi.material.color.offsetHSL(0, -0.25, 0);
     homecpi.translateX((oi - 0.5) * exp.cfg.targetSeparation);
     homecpi.pulseTween = new Tween(homecpi.scale)
       .to({ x: 1.8, y: 1.8, z: 1.8 }, 350)
@@ -321,8 +321,8 @@ async function main() {
   });
   // Clone the tool bar and add it to the cloned dummy object
   const demoToolBar = toolBar.clone(true);
-  demoToolBar.material = demoTool.material;
   demoTool.children[0].add(demoToolBar);
+  demoToolBar.material = demoTool.material;
   const demoControlPoints = demoToolBar.children;
 
   // No feedback region
@@ -547,12 +547,15 @@ async function main() {
         break;
 
       case 'SETUP':
+        // Remember from last trial
+        let previousRotation = trial.rotationRadians ?? 0;
         // Start with a deep copy of the initialized trial from exp.trials
         trial = structuredClone(exp.trials[exp.trialNumber]);
         trial.trialNumber = exp.trialNumber;
         trial.startTime = performance.now();
         trial.cameraGroupPosn = exp.sceneManager.cameraGroup.position.clone();
         trial.cameraGroupOri = exp.sceneManager.cameraGroup.rotation.clone();
+        trial.rotationRadians = previousRotation;
         // Reset data arrays and other defaults
         trial = { ...trial, ...structuredClone(trialInitialize) };
         // Set trial parameters
@@ -597,13 +600,17 @@ async function main() {
           controlPoints[trial.targetId].glowTween.stop();
           // Update origin then radians to reduce/mask blips when rotation changes
           trial.rotationOrigin = home.getWorldPosition(new Vector3());
-          trial.rotationRadians = (trial.rotation * Math.PI) / 180;
+          //trial.rotationRadians = (trial.rotation * Math.PI) / 180;
+          let newRotation = (trial.rotation * Math.PI) / 180;
+          new Tween(trial).to({ rotationRadians: newRotation }, 50).start();
           exp.state.next('START');
         } else if (exp.state.expired(exp.cfg.startDelay)) {
           targets.map((x, i) => (x.visible = i === trial.targetId));
           // Update origin then radians to reduce/mask blips when rotation changes
           trial.rotationOrigin = home.getWorldPosition(new Vector3());
-          trial.rotationRadians = (trial.rotation * Math.PI) / 180;
+          //trial.rotationRadians = (trial.rotation * Math.PI) / 180;
+          let newRotation = (trial.rotation * Math.PI) / 180;
+          new Tween(trial).to({ rotationRadians: newRotation }, 50).start();
           exp.state.next('REACH');
         }
         break;
@@ -843,17 +850,17 @@ async function main() {
         homePoints[oi].material.color = new Color('black');
         homePoints[oi].pulseTween.stop();
       } else {
-        homePoints[oi].material.color = exp.cfg.targetColors[oi];
+        homePoints[oi].material.color = new Color(exp.cfg.targetColors[oi]);
         homePoints[oi].pulseTween.start();
       }
     }
 
     // No visual feedback
     if (['REST', 'STARTCLAMP'].includes(exp.state.current)) {
-      toolHandle.visible = false;
+      toolHandle.visible = toolBar.visible = false;
     } else if (trial.noFeedback) {
       let homeWorldXZ = home.getWorldPosition(new Vector3()).setY(0);
-      let cpHomeXZ = controlPoints[trial.targetId]
+      let cpHomeXZ = toolBarDummy //controlPoints[trial.targetId]
         .getWorldPosition(new Vector3())
         .setY(0)
         .sub(homeWorldXZ);
@@ -863,12 +870,13 @@ async function main() {
       region.visible = region.ring.visible = true;
       // Fade the tool
       if (opacity > 0) {
-        cp.material = cpTransMat;
+        controlPoints.forEach((o) => (o.material = o.userData.transMat));
         toolHandle.material = toolBar.material = handleTransMat;
         toolHandle.visible = toolBar.visible = true;
-        cp.material.opacity =
+        controlPoints[0].material.opacity =
+          controlPoints[1].material.opacity =
           toolHandle.material.opacity =
-          toolBar.material =
+          toolBar.material.opacity =
             opacity;
         if (d < exp.cfg.noFeedbackNear) {
           region.rotateZ(
@@ -879,7 +887,7 @@ async function main() {
           region.ring.scale.setScalar(exp.cfg.noFeedbackNear);
         }
       } else {
-        cp.material = cpMat;
+        controlPoints.forEach((o) => (o.material = o.userData.mat));
         toolHandle.material = toolBar.material = handleMat;
         toolHandle.visible = toolBar.visible = false;
         // Draw the no-feedback region
@@ -889,8 +897,8 @@ async function main() {
           theta - region.rotation.z - region.geometry.parameters.thetaLength / 2
         );
       }
-    } else if (cp.material.transparent || !toolHandle.visible) {
-      cp.material = cpMat;
+    } else if (toolHandle.material.transparent || !toolHandle.visible) {
+      controlPoints.forEach((o) => (o.material = o.userData.mat));
       toolHandle.material = toolBar.material = handleMat;
       toolHandle.visible = toolBar.visible = true;
     }
@@ -909,11 +917,13 @@ async function main() {
     } else if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
       // Visuomotor rotation
       let x = exp.grip.getWorldPosition(new Vector3()); // get grip position (world)
-      x.sub(trial.rotationOrigin); // subtract origin (world)
-      x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
-      x.add(trial.rotationOrigin); // add back origin
-      exp.grip.worldToLocal(x); // convert to grip space
-      toolHandle.position.copy(x); // set as tool position
+      let d = toolBarDummy.getWorldPosition(new Vector3()); // get center of toolbar (world)
+      x.sub(d); // convert x into an offset so we can get back to the grip position from rotated toolbar position
+      d.sub(trial.rotationOrigin); // subtract origin from the center point (world)
+      d.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
+      d.add(trial.rotationOrigin).add(x); // add back origin and offset
+      exp.grip.worldToLocal(d); // convert to grip space
+      toolHandle.position.copy(d); // set as tool position
     }
 
     // Gimbal

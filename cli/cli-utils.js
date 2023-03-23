@@ -81,7 +81,58 @@ export function ask(rl, query) {
 /*********
  * Prolific Utilities */
 
-export async function prolificCreateStudyObject(expName, studyURL, config) {
+export async function prolificGetStudies(
+  internal_name,
+  states = [
+    'ACTIVE',
+    'PAUSED',
+    'UNPUBLISHED',
+    'PUBLISHING',
+    'COMPLETED',
+    'AWAITING REVIEW',
+    'UNKNOWN',
+    'SCHEDULED',
+  ]
+) {
+  let stateQuery = states[0] ? `(${states.join('|')})` : '';
+  let text = internal_name ? ` with internal name "${internal_name}"` : '';
+  let spinner = ora(`Fetching Prolific studies${text}...`).start();
+  let results;
+  try {
+    let res = await axios.get(
+      `https://api.prolific.co/api/v1/studies/?state=${stateQuery}`,
+      {
+        headers: {
+          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+        },
+      }
+    );
+    results = res.data.results;
+    if (internal_name) {
+      results = results.filter(
+        (study) => study.internal_name === internal_name
+      );
+    }
+    if (results.length === 0) {
+      spinner.info(`No previous studies found${text}.`);
+      return false;
+    } else {
+      spinner.succeed(`Found ${results.length} previous studies${text}.`);
+      return results;
+    }
+  } catch (err) {
+    spinner.fail(err.message);
+    console.log(err.response?.data?.error);
+    process.exit(1);
+  }
+}
+
+export async function prolificCreateStudyObject(
+  expName,
+  studyURL,
+  config,
+  existingStudy
+) {
   config.description = prolificPrepareDescriptionHTML(config);
   let studyObject = {
     name: config.title,
@@ -109,7 +160,7 @@ export async function prolificCreateStudyObject(expName, studyURL, config) {
     naivety_distribution_rate: config.prolific.naivety,
     project: config.prolific.project,
   };
-  if (!studyObject.project) {
+  if (!existingStudy && !studyObject.project) {
     studyObject.project = await prolificSelectProject();
   }
   if (Array.isArray(config.prolific.screeners?.ageRange)) {
@@ -161,7 +212,7 @@ export async function prolificCreateStudyObject(expName, studyURL, config) {
       ],
     });
   }
-  if (config.prolific.excludeDementia) {
+  if (config.prolific.screeners?.excludeDementia) {
     studyObject.eligibility_requirements.push({
       _cls: 'web.eligibility.models.SelectAnswerEligibilityRequirement',
       query: {
@@ -324,6 +375,31 @@ export async function prolificCreateStudyObject(expName, studyURL, config) {
   //   ora(`No previous study allowlist initialized.`).info();
   // }
   return studyObject;
+}
+
+export async function prolificUpdateStudy(studyObject, id) {
+  let spinner = ora(`Updating Prolific study ${id}..`).start();
+  try {
+    let res = await axios.patch(
+      `https://api.prolific.co/api/v1/studies/${id}/`,
+      studyObject,
+      {
+        headers: {
+          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+        },
+      }
+    );
+    spinner.succeed();
+    console.log(
+      `Successfully created draft study!` +
+        `\n Preview it at https://app.prolific.co/researcher/workspaces/studies/${res.data.id}.`
+    );
+    return res.data;
+  } catch (err) {
+    spinner.fail(`${err.message}`);
+    console.log(err.response?.data?.error);
+    process.exit(1);
+  }
 }
 
 export async function prolificCreateDraftStudy(studyObject) {

@@ -8,8 +8,8 @@
 
 ## Prerequisites
 
-1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager](#nodejs) with Node.js 18. Make sure `node -v` displays `v18.15.0` (major version 18, minor version 13 or greater).
-2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project. Just choose a name for the project, Ouvrai handles the rest.
+1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager](#nodejs) with Node.js 18.<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
+2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project.<br>Choose a good name for your project and Ouvrai will handle the rest of the setup.
 3. To recruit participants, you'll need a [Prolific Researcher](https://app.prolific.co/register/researcher) account and/or [AWS and MTurk Requester](https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html) accounts.
 
 ## Installation and one-time setup
@@ -18,25 +18,29 @@
 # Install Firebase CLI and log in
 npm i -g firebase-tools
 firebase login --reauth
-# Download and install Ouvrai
+
+# Download and install Ouvrai CLI + package
 git clone https://www.github.com/evancesanek/ouvrai
 cd ouvrai
 npm i -g
 npm i
-# One-time setup; press Enter to accept defaults
+
+# One-time setup, press Enter to accept defaults
 ouvrai setup
 ```
 
 ## Development
 
 ```
+# You choose studyname, templatename must be a subdirectory of templates/
 ouvrai new studyname templatename # Create new experiment from template
 ouvrai dev studyname # Start development server
 ```
 
-- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up.
+- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. Watch the command line for messages from Firebase.
 - To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to [localhost:4001](http://localhost:4001).
-- Design your experiment! Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
+- Design your experiment!
+  - Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
   - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
 - See the [develop for VR](#develop-for-vr) section for information on how to develop VR experiments.
 
@@ -44,7 +48,7 @@ ouvrai dev studyname # Start development server
 
 ```
 ouvrai build studyname # Build for production: tree-shaking, bundling, minifying
-ouvrai deploy studyname # Deploy production build to firebase hosting
+ouvrai deploy studyname # Deploy production build to Firebase Hosting
 ```
 
 ## Recruiting participants
@@ -65,7 +69,10 @@ ouvrai post studyname -m # Post study publicly on MTurk
 
 ## Monitor and manage studies
 
-You can monitor and manage your studies using the Ouvrai dashboard: `ouvrai launch`. This should open [localhost:5174](localhost:5174) in your web browser. This is the best way to manage MTurk studies. For Prolific users, we recommend relying primarily on the Prolific web interface.
+### **Note: Ouvrai Dashboard is still under development.**
+
+You can monitor and manage your studies by opening the Ouvrai
+Dashboard with `ouvrai launch`. This should open [localhost:5174](http://localhost:5174) in your web browser. This is the best way to manage MTurk studies. For Prolific users, we recommend relying primarily on the Prolific web interface.
 
 # Troubleshooting
 
@@ -73,11 +80,21 @@ You can monitor and manage your studies using the Ouvrai dashboard: `ouvrai laun
 
 - You can check that you have git installed by running `git -v`. If not, get it from https://git-scm.com.
 
+## Java
+
+- The Firebase Emulators depend on Java JDK version 11+. Check your installation with `java --version` and get the latest from https://www.oracle.com/java/technologies/downloads.
+
 ## Node.js
 
-- Linux and Mac: Install [nvm](https://github.com/nvm-sh/nvm) with `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash`
-- Windows: Install [nvm-windows](https://github.com/coreybutler/nvm-windows) using provided installer.
-- After installation, close shell, reopen, and install/use Node.js 18 with `nvm install 18`
+- Windows: Install [nvm-windows](https://github.com/coreybutler/nvm-windows) using the provided installer.
+- Linux and Mac: Install [nvm](https://github.com/nvm-sh/nvm) with `curl`
+  ```
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+  ```
+- **All users**<br>After installation, open a new terminal and install Node.js 18 (LTS/Hydrogen) with:
+  ```
+  nvm install 18
+  ```
 
 ## Firebase
 
@@ -135,6 +152,8 @@ During development, you probably do not want to write data to your actual databa
 - If you encounter an error like `Error: Could not start Database Emulator, port taken`, you may need to shut down other processes on port 9000 with `npx kill-port 8000`. By default, the emulators run processes on ports 8000 (Database), 9099 (Auth), and 4001 (Emulator UI). If you normally run other processes on any of these ports, set different unused ports in _`experiments/studyname/firebase.json`_. You should also make these changes in _`config/template/firebase.json`_ so they will be applied to all new experiments.
 - When testing experiments during development, you can open `localhost:4001/database` in your browser and inspect the data that is written to the emulated database during a test run.
 - When you're finished, shut down the development server and the Emulator Suite with control+c (Mac), or by closing the terminal.
+
+- If you are stuck on the **Warning: Not connected** screen during development and the command line shows the Emulator UI crashing with a fatal error, try deleting the cached Emulator files at: `~/.cache/firebase/emulators/` (~ is home directory).
 
 ## Develop for VR
 

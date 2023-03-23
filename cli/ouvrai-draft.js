@@ -5,10 +5,13 @@ import {
   mturkPostStudy,
   prolificCreateDraftStudy,
   prolificCreateStudyObject,
+  prolificGetStudies,
+  prolificUpdateStudy,
 } from './cli-utils.js';
 import { mturkConfig } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import { MTurkClient } from '@aws-sdk/client-mturk';
+import inquirer from 'inquirer';
 
 const program = new Command();
 program
@@ -37,7 +40,7 @@ if (expName === 'compensation' && !options.mturk) {
   process.exit(1);
 }
 let config = await getStudyConfig(expName);
-console.log(config);
+//console.log(config);
 
 // Get study history (for latest deploy)
 let studyURL = await getLatestDeployURL(expName);
@@ -45,13 +48,46 @@ let studyURL = await getLatestDeployURL(expName);
 if (options.prolific) {
   // PROLIFIC
   // Create study
+  let existingStudy;
+  try {
+    let existingDraftStudies = await prolificGetStudies(expName, [
+      'UNPUBLISHED',
+    ]);
+    if (existingDraftStudies) {
+      let expNames = existingDraftStudies.map((o) => ({
+        name: `${o.internal_name} created ${o.date_created.slice(0, 10)} (${
+          o.id
+        })`,
+        value: o,
+      }));
+      // Add option to create new draft study with same internal_name
+      expNames.push({ name: '* Create new draft study', value: false });
+      let answers = await inquirer.prompt([
+        {
+          name: 'updateOrCreate',
+          message: `Found existing drafts with internal name ${expName}. Choose one to update or create a new draft study.`,
+          type: 'list',
+          choices: expNames,
+        },
+      ]);
+      existingStudy = answers.updateOrCreate;
+    }
+  } catch (err) {
+    process.exit(1);
+  }
+
   try {
     let studyObject = await prolificCreateStudyObject(
       expName,
       studyURL,
-      config
+      config,
+      existingStudy
     );
-    await prolificCreateDraftStudy(studyObject);
+    if (existingStudy) {
+      await prolificUpdateStudy(studyObject, existingStudy.id);
+    } else {
+      await prolificCreateDraftStudy(studyObject);
+    }
   } catch (e) {
     console.log(e.message);
   }

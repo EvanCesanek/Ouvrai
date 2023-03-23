@@ -45,8 +45,7 @@ try {
 let subprocess = spawn(
   'npx',
   [
-    'concurrently',
-    //'-k',
+    'concurrently', //'-k',
     '-n server,emulators',
     '-c green,cyan',
     '"npx vite src --open"',

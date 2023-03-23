@@ -11,7 +11,7 @@ export default {
     '<b>If using the Meta Quest 2, please enable 120 Hz refresh rate (Settings > System > Display) and check that the floor level is properly set (Settings > Guardian).</b>',
   ],
   summaryPara: [
-    'You will make 120 reaching movements with your right hand, using a handheld tool to hit targets. Please make straight, direct movements and avoid rotating the tool.',
+    'You will make 130 reaching movements with your right hand, using a handheld tool to hit targets. Please make straight, direct movements and avoid rotating the tool.',
     'The actual study takes 8 - 12 minutes. The estimated completion time (25 minutes) includes additional time to get set up in VR and to log in to Prolific using the VR web browser.',
   ],
   instructionsList: [
@@ -29,8 +29,6 @@ export default {
   ],
 
   totalAvailablePlaces: 5,
-  studyBlocklist: [],
-  studyAllowlist: [],
 
   prolific: {
     reward: 500, // Prolific format: cents, using the currency of your account.
@@ -40,6 +38,16 @@ export default {
     peripheralRequirements: [], // ['audio', 'camera', 'download', 'microphone'],
     naivety: undefined, // [0, 1] - Prolific selects it "intelligently" if undefined
     project: undefined, // Project ID - if undefined and you have multiple, you will be prompted to select one
+    screeners: {
+      ageRange: [18, 65],
+      approvalRateRange: [95, 100],
+      fluentEnglish: true,
+      excludeDementia: true,
+      excludeMS: true,
+      excludeMentalHealthImpact: true,
+      normalVision: true,
+      ownVR: true,
+    },
   },
 
   mturk: {

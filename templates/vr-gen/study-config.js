@@ -29,8 +29,6 @@ export default {
   ],
 
   totalAvailablePlaces: 5,
-  studyBlocklist: [],
-  studyAllowlist: [],
 
   prolific: {
     reward: 600, // Prolific format: cents, using the currency of your account.
@@ -40,6 +38,16 @@ export default {
     peripheralRequirements: [], // ['audio', 'camera', 'download', 'microphone'],
     naivety: undefined, // [0, 1] - Prolific selects it "intelligently" if undefined
     project: undefined, // Project ID - if undefined and you have multiple, you will be prompted to select one
+    screeners: {
+      ageRange: [18, 65],
+      approvalRateRange: [95, 100],
+      fluentEnglish: true,
+      excludeDementia: true,
+      excludeMS: true,
+      excludeMentalHealthImpact: true,
+      normalVision: true,
+      ownVR: true,
+    },
   },
 
   mturk: {

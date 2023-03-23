@@ -5,12 +5,12 @@ import tabtab from 'tabtab';
 import { join } from 'path';
 import { URL } from 'url';
 import { homedir } from 'os';
-import { exists } from './cli-utils.js';
+import { exists, prolificGetStudies } from './cli-utils.js';
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { config } from 'dotenv';
 import axios from 'axios';
 import replace from 'replace-in-file';
-//import jsdom from 'jsdom';
+import jsdom from 'jsdom';
 import { copy } from 'fs-extra/esm';
 
 const program = new Command();
@@ -158,6 +158,9 @@ program
   .description('Edit this function in /cli/ouvrai.js to test things out!')
   .action(async function () {
     console.log('Write your own tests in /cli/ouvrai.js.');
+
+    let res = await prolificGetStudies(null, ['UNPUBLISHED']);
+    console.log(res);
 
     // let testpath = new URL('../experiments/test directory', import.meta.url);
 
