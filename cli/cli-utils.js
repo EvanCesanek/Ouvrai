@@ -15,6 +15,7 @@ import { readJSON } from 'fs-extra/esm';
 import { access, readFile, writeFile } from 'fs/promises';
 import { minify } from 'html-minifier-terser';
 import ora from 'ora';
+import { parse, quote } from 'shell-quote';
 
 /*********
  * Basic Utilities */
@@ -1273,13 +1274,16 @@ export async function firebaseChooseSite(
 }
 
 export async function firebaseGetData(refString, projectId, shallow = false) {
+  if (refString.slice(0, 1) !== '/') {
+    throw new Error('refString path must begin with /');
+  }
   let str = '';
   let args = ['database:get', refString, '--project', projectId];
   if (shallow) {
     args.push('--shallow');
   }
 
-  let proc = spawn('firebase', args);
+  let proc = spawn('firebase', [quote(args)], { shell: true });
   proc.stdout.on('data', (data) => {
     str += data;
   });

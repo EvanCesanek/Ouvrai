@@ -36,6 +36,7 @@
     "jsdom": "^21.1.0",
     "ora": "^6.1.2",
     "replace-in-file": "^6.3.5",
+    "shell-quote": "^1.8.0",
     "tabtab": "^3.0.2",
     "three": "^0.150.1",
     "three-mesh-ui": "^6.5.3",

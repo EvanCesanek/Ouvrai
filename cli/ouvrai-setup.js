@@ -8,6 +8,7 @@ import {
 } from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
 import { unlink, writeFile } from 'fs/promises';
+import { quote } from 'shell-quote';
 
 const program = new Command();
 program.showHelpAfterError();
@@ -43,9 +44,11 @@ try {
 }
 
 // Initialize the database
-let init = spawn(`firebase`, ['init', 'database', `--project=${projectId}`], {
+let args = [quote(['init', 'database', `--project=${projectId}`])];
+let init = spawn(`firebase`, args, {
   cwd: new URL('../config/template', import.meta.url),
   stdio: 'inherit',
+  shell: true,
 });
 //
 init.on('close', async (code) => {

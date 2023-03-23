@@ -14,6 +14,7 @@ import {
 } from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
 import { writeFile } from 'fs/promises';
+import { quote } from 'shell-quote';
 
 const program = new Command();
 program
@@ -47,6 +48,7 @@ if (options.local) {
   spawn('firebase', ['emulators:start'], {
     stdio: 'inherit',
     cwd: projectPath,
+    shell: true,
   });
 } else {
   const client = firebaseClient();
@@ -101,14 +103,12 @@ if (options.local) {
   }
 
   // Deploy
-  let init = spawn(
-    'firebase',
-    ['deploy', '-m', `${expName}, ${dateStringYMDHMS()}`],
-    {
-      stdio: 'inherit', // inherit parent process IO streams
-      cwd: projectPath, // change working directory
-    }
-  );
+  let args = [quote(['deploy', '-m', `${expName}, ${dateStringYMDHMS()}`])];
+  let init = spawn('firebase', args, {
+    stdio: 'inherit', // inherit parent process IO streams
+    cwd: projectPath, // change working directory
+    shell: true,
+  });
   // If successful, update study-history.json
   init.on('close', async (code) => {
     if (code === 0) {

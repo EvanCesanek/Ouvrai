@@ -88,6 +88,7 @@ spinner = ora('Installing npm dependencies').info();
 let subprocess = spawn('npm', ['i'], {
   stdio: 'inherit',
   cwd: projectPath,
+  shell: true,
 });
 subprocess.on('error', (err) => {
   spinner.fail(`Failed to install npm dependencies from package.json.`);

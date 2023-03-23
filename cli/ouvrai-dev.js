@@ -46,14 +46,15 @@ let subprocess = spawn(
   'npx',
   [
     'concurrently', //'-k',
-    '-n server,emulators',
-    '-c green,cyan',
-    '"npx vite src --open"',
+    '-n Vite,Firebase',
+    '-c magenta,red',
+    '"vite src --open"', // npx not needed if shell=true
     '"firebase emulators:start --only auth,database"',
   ],
   {
     cwd: experimentDir,
     stdio: 'inherit',
+    shell: true,
   }
 );
 subprocess.on('error', (err) => {
