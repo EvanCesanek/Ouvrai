@@ -11,6 +11,7 @@ import {
 } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import { mkdir, mkdirSync } from 'fs';
+import { fileURLToPath } from 'url';
 
 const program = new Command()
   .option(
@@ -26,13 +27,13 @@ const options = program.opts();
 const expName = program.processedArgs[0];
 
 const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
-const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+const projectPathDecoded = fileURLToPath(projectPath);
 
 let spinner = ora(`Accessing study at ${projectPathDecoded}.`).start();
 if (await exists(projectPath)) {
   spinner.succeed();
 } else {
-  spinner.fail(`'No study found at ${projectPathDecoded}'.`);
+  spinner.fail(`No study found at ${projectPathDecoded}.`);
   process.exit(1);
 }
 
@@ -46,11 +47,11 @@ let savePath = new URL(
   `../experiments/${expName}/analysis/data_${dateStringYMDHMS()}.json`,
   import.meta.url
 );
-let savePathDecoded = decodeURIComponent(savePath.pathname);
+let savePathDecoded = fileURLToPath(savePath);
 if (!(await exists(savePath))) {
   mkdirSync(
-    decodeURIComponent(
-      new URL(`../experiments/${expName}/analysis`, import.meta.url).pathname
+    fileURLToPath(
+      new URL(`../experiments/${expName}/analysis`, import.meta.url)
     )
   );
 }
@@ -89,12 +90,8 @@ spinner = ora(`Saving data...`).start();
 try {
   await writeFile(savePath, JSON.stringify(allData, null, 2), 'utf8');
   spinner.succeed(
-    `Data (N = ${retrievedWorkers.length}) saved to ${savePath.pathname}.`
+    `Data (N = ${retrievedWorkers.length}) saved to ${fileURLToPath(savePath)}.`
   );
 } catch (err) {
   spinner.fail(`Failed to save data! Error: ${err.message}`);
 }
-// const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
-// const templatePathDecoded = decodeURIComponent(templatePath.pathname);
-// const settingsPath = new URL('../config/template', import.meta.url);
-// const settingsPathDecoded = decodeURIComponent(settingsPath.pathname);

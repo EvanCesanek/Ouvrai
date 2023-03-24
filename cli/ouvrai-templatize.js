@@ -5,6 +5,7 @@ import { spawn } from 'child_process'; // Node.js built-in to access OS-level fu
 import { copy } from 'fs-extra/esm';
 import ora from 'ora';
 import { exists } from './cli-utils.js';
+import { fileURLToPath } from 'url';
 
 const program = new Command();
 program
@@ -19,11 +20,11 @@ const expName = program.processedArgs[0];
 const templateName = program.processedArgs[1];
 
 const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
-const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+const projectPathDecoded = fileURLToPath(projectPath);
 const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
-const templatePathDecoded = decodeURIComponent(templatePath.pathname);
+const templatePathDecoded = fileURLToPath(templatePath);
 
-let spinner = ora(`Checking if ${templatePathDecoded} already exists`).start();
+let spinner = ora(`Checking for template at ${templatePathDecoded}`).start();
 if (await exists(templatePath)) {
   if (!options.overwrite) {
     spinner.fail(

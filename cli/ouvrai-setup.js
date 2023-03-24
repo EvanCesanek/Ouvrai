@@ -9,6 +9,7 @@ import {
 import { readJSON } from 'fs-extra/esm';
 import { unlink, writeFile } from 'fs/promises';
 import { quote } from 'shell-quote';
+import { fileURLToPath } from 'url';
 
 const program = new Command();
 program.showHelpAfterError();
@@ -34,11 +35,7 @@ firebaseJSON.hosting.site = siteId;
 try {
   await writeFile(firebaseURL, JSON.stringify(firebaseJSON, null, 2));
 } catch (err) {
-  console.log(
-    `Setup failed! Could not write to ${decodeURIComponent(
-      firebaseURL.pathname
-    )}`
-  );
+  console.log(`Setup failed! Could not write to ${fileURLToPath(firebaseURL)}`);
   console.error(err.message);
   process.exit(1);
 }

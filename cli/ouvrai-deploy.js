@@ -15,6 +15,7 @@ import {
 import { readJSON } from 'fs-extra/esm';
 import { writeFile } from 'fs/promises';
 import { quote } from 'shell-quote';
+import { fileURLToPath } from 'url';
 
 const program = new Command();
 program
@@ -29,7 +30,7 @@ let options = program.opts();
 // Find the config file for this experiment
 const expName = program.args[0];
 const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
-const projectPathDecoded = decodeURIComponent(projectPath);
+const projectPathDecoded = fileURLToPath(projectPath);
 const distPath = new URL(`../experiments/${expName}/dist`, import.meta.url);
 if (!(await exists(projectPath))) {
   console.log(
@@ -38,7 +39,7 @@ if (!(await exists(projectPath))) {
   process.exit(1);
 } else if (!(await exists(distPath))) {
   console.log(
-    `Error: No production build of ${expName}. Run 'npm run build' from ${projectPathDecoded}.`
+    `Error: No production build of ${expName}. Run 'ouvrai build ${expName}'.`
   );
   process.exit(1);
 }
@@ -95,9 +96,7 @@ if (options.local) {
   try {
     await writeFile(firebaseURL, JSON.stringify(firebaseJSON, null, 2));
   } catch (err) {
-    console.log(
-      `Error: Write failed to ${decodeURIComponent(firebaseURL.pathname)}`
-    );
+    console.log(`Error: Write failed to ${fileURLToPath(firebaseURL)}`);
     console.error(err.message);
     process.exit(1);
   }

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { URL } from 'url';
+import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import { access } from 'fs/promises';
 import { build } from 'vite';
@@ -24,14 +24,14 @@ const projectPath = new URL(
   `../experiments/${program.args[0]}`,
   import.meta.url
 );
-const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+const projectPathDecoded = fileURLToPath(projectPath);
 let buildDir = `${projectPathDecoded}/dist`;
 
 let spinner = ora(`Accessing study at ${projectPathDecoded}.`).start();
 if (await exists(projectPath)) {
   spinner.succeed();
 } else {
-  spinner.fail(`'No study found at ${projectPathDecoded}'.`);
+  spinner.fail(`No study found at ${projectPathDecoded}.`);
   process.exit(1);
 }
 

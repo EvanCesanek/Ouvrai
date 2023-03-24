@@ -6,6 +6,7 @@ import { copy } from 'fs-extra/esm';
 import ora from 'ora';
 import { exists } from './cli-utils.js';
 import { readdir } from 'fs/promises';
+import { fileURLToPath } from 'url';
 
 const program = new Command();
 program
@@ -20,13 +21,15 @@ const expName = program.processedArgs[0];
 const templateName = program.processedArgs[1];
 
 const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
-const projectPathDecoded = decodeURIComponent(projectPath.pathname);
+const projectPathDecoded = fileURLToPath(projectPath);
 const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
-const templatePathDecoded = decodeURIComponent(templatePath.pathname);
+const templatePathDecoded = fileURLToPath(templatePath);
 const settingsPath = new URL('../config/template', import.meta.url);
-const settingsPathDecoded = decodeURIComponent(settingsPath.pathname);
+const settingsPathDecoded = fileURLToPath(settingsPath);
 
-let spinner = ora(`Checking that ${templatePathDecoded} exists`).start();
+let spinner = ora(
+  `Checking for study template at ${templatePathDecoded}`
+).start();
 if (!(await exists(templatePath))) {
   let templateNames = await readdir(new URL(`../templates`, import.meta.url));
   // Filter out .DS_Store and other hidden files
@@ -41,7 +44,7 @@ if (!(await exists(templatePath))) {
   spinner.succeed();
 }
 
-spinner = ora(`Checking if ${projectPathDecoded} already exists`).start();
+spinner = ora(`Checking for existing study at ${projectPathDecoded}`).start();
 if (await exists(projectPath)) {
   if (!options.overwrite) {
     spinner.fail(
@@ -49,7 +52,7 @@ if (await exists(projectPath)) {
     );
     process.exit(1);
   } else {
-    spinner.warn('Overwriting existing study!');
+    spinner.warn('Overwriting existing study.');
   }
 } else {
   spinner.succeed();

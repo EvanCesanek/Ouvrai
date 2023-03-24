@@ -16,6 +16,7 @@ import { access, readFile, writeFile } from 'fs/promises';
 import { minify } from 'html-minifier-terser';
 import ora from 'ora';
 import { parse, quote } from 'shell-quote';
+import { fileURLToPath } from 'url';
 
 /*********
  * Basic Utilities */
@@ -814,7 +815,7 @@ async function mturkPrepareHTML(
       '../config/layout/mturk-layout.html',
       import.meta.url
     );
-    const mturkLayoutPathDecoded = decodeURIComponent(mturkLayoutPath.pathname);
+    const mturkLayoutPathDecoded = fileURLToPath(mturkLayoutPath);
     // 1. Overwrite JavaScript variables
     let timestampComment = '// ' + new Date();
     let replaceOptions = {
@@ -1342,9 +1343,7 @@ export async function updateStudyHistory(expName, key, value) {
   try {
     await writeFile(studyHistoryURL, JSON.stringify(studyHistoryJSON, null, 2));
   } catch (err) {
-    console.log(
-      `Error: Write failed to ${decodeURIComponent(studyHistoryURL.pathname)}`
-    );
+    console.log(`Error: Write failed to ${fileURLToPath(studyHistoryURL)}`);
     throw err;
   }
   console.log(`Study history updated. Most recent ${key} is '${value}'.`);
@@ -1366,9 +1365,7 @@ export async function getStudyHistory(expName) {
     }
   } else {
     console.log(
-      `Warning: Study history not found at ${decodeURIComponent(
-        studyHistoryURL.pathname
-      )}.`
+      `Warning: Study history not found at ${fileURLToPath(studyHistoryURL)}.`
     );
   }
   return studyHistoryJSON;
