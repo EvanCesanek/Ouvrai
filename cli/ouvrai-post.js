@@ -9,7 +9,6 @@ import {
   prolificPostStudy,
   mturkConfig,
 } from './cli-utils.js';
-import { mturkConfig } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import ora from 'ora';
 

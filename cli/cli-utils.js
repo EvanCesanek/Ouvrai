@@ -15,7 +15,7 @@ import { readJSON } from 'fs-extra/esm';
 import { access, readFile, writeFile } from 'fs/promises';
 import { minify } from 'html-minifier-terser';
 import ora from 'ora';
-import { parse, quote } from 'shell-quote';
+import { quote } from 'shell-quote';
 import { fileURLToPath } from 'url';
 
 /*********

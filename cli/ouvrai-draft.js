@@ -7,8 +7,8 @@ import {
   prolificCreateStudyObject,
   prolificGetStudies,
   prolificUpdateStudy,
+  mturkConfig,
 } from './cli-utils.js';
-import { mturkConfig } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import { MTurkClient } from '@aws-sdk/client-mturk';
 import inquirer from 'inquirer';

@@ -5,12 +5,7 @@ import tabtab from 'tabtab';
 import { join } from 'path';
 import { URL } from 'url';
 import { homedir } from 'os';
-import {
-  dateStringYMDHMS,
-  exists,
-  firebaseClient,
-  firebaseGetData,
-} from './cli-utils.js';
+import { exists } from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
 
