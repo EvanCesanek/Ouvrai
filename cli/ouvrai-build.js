@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
-import { access } from 'fs/promises';
 import { build } from 'vite';
 import { relative } from 'path';
 import inquirer from 'inquirer';
 import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
+import { exists } from './cli-utils';
 inquirer.registerPrompt('file-tree-selection', inquirerFileTreeSelection);
 
 const program = new Command()

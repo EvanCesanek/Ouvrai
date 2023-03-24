@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import { fileURLToPath, URL } from 'url';
-import { access } from 'fs/promises';
 import ora from 'ora';
 import { spawn } from 'child_process';
+import { exists } from './cli-utils';
 
 const program = new Command()
   .argument('<experiment-name>', 'name of experiment')
@@ -41,7 +41,7 @@ if (await exists(projectPath)) {
 // server.printUrls();
 
 // Problems with above lead us to alternative solution using subprocess shell commands
-// This works - better than requiring this command to be a script in all package.json
+// This works - and is better than requiring this command to be a script in all package.json
 let subprocess = spawn(
   'npx',
   [
