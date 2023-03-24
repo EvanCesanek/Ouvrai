@@ -1294,9 +1294,9 @@ export async function firebaseGetData(
   if (startAt) {
     args.push('--start-at', startAt);
   }
-  console.log([quote(args)]);
+  args = [quote(args)];
 
-  let proc = spawn('firebase', [quote(args)], { shell: true });
+  let proc = spawn('firebase', args, { shell: true });
   proc.stdout.on('data', (data) => {
     str += data;
   });

@@ -44,7 +44,7 @@ try {
 }
 
 // Initialize the database
-let args = [quote(['init', 'database', `--project=${projectId}`])];
+let args = [quote(['init', 'database', '--project', projectId])];
 let init = spawn(`firebase`, args, {
   cwd: new URL('../config/template', import.meta.url),
   stdio: 'inherit',
