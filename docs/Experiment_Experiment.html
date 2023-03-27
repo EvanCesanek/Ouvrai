@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: Experiment</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: Experiment</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2><span class="attribs"><span class="type-signature"></span></span>Experiment<span class="signature">(p)</span><span class="type-signature"></span></h2>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+    
+
+    
+    <h4 class="name" id="Experiment"><span class="type-signature"></span>new Experiment<span class="signature">(p)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    The Experiment class handles lots of setup behind the scenes.
+Instantiate a new Experiment with the desired configuration options.
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>p</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>debug</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">(DEV) Enable debug mode? Always false in production build.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>backgroundColor</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">color</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Background color of experiment (default 'dimgray')</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>replay</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">(DEV) Enable replay machine to allow playback of trials from .json data files? (dev only)</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>demo</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Enable demo version of experiment (no consent, no Firebase, etc)?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>requireDesktop</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Block users on mobile devices?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>requireChrome</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Block users not using Google Chrome?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>requireVR</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Enable VR?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>handTracking</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">(VR) Enable hand tracking?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>controllerModels</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">(VR) Display 3D controller models?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>orthographic</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Enable orthographic camera for simple 2D scenes?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>cssScene</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Overlay additional three.js scene for displaying UI via CSS objects?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>environmentLighting</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">URL</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Imported URL of HDR lighting image</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>orbitControls</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">(DEV) Enable orbit controls to allow inspection of three.js scene?</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>gridRoom</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">(VR) Draw large cube with grid lines as a simple 3D environment surrounding observer</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>audio</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last">Attach an audio listener to the viewer camera for 3D spatial audio?</td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="Experiment.js.html">Experiment.js</a>, <a href="Experiment.js.html#line45">line 45</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="BlockOptions_BlockOptions.html">BlockOptions</a></li><li><a href="Consent.html">Consent</a></li><li><a href="DisplayElement.html">DisplayElement</a></li><li><a href="Experiment_Experiment.html">Experiment</a></li><li><a href="Fullscreen.html">Fullscreen</a></li><li><a href="Goodbye.html">Goodbye</a></li><li><a href="MeshFactory.html">MeshFactory</a></li><li><a href="PBRMapper.html">PBRMapper</a></li><li><a href="Pointerlock.html">Pointerlock</a></li><li><a href="Progressbar.html">Progressbar</a></li><li><a href="SpiralCurve.html">SpiralCurve</a></li><li><a href="Survey.html">Survey</a></li></ul><h3>Global</h3><ul><li><a href="global.html#checkAlignment">checkAlignment</a></li><li><a href="global.html#computeMassSpringDamperParameters">computeMassSpringDamperParameters</a></li><li><a href="global.html#computeMassSpringDamperPosition">computeMassSpringDamperPosition</a></li><li><a href="global.html#generateDemoReaches">generateDemoReaches</a></li><li><a href="global.html#quantizeAngle">quantizeAngle</a></li><li><a href="global.html#randomNumericString">randomNumericString</a></li><li><a href="global.html#randomVectorFromCone">randomVectorFromCone</a></li><li><a href="global.html#required">required</a></li><li><a href="global.html#rotationHelper">rotationHelper</a></li><li><a href="global.html#rotationalClamp">rotationalClamp</a></li><li><a href="global.html#truncQuadCost">truncQuadCost</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.2</a> on Mon Mar 27 2023 11:46:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

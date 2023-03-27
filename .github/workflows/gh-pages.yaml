@@ -9,18 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Build
-        uses: andstor/jsdoc-action@v1.2.1
-        with:
-          source_dir: ./lib/components
-          output_dir: ./docs
-          recurse: true
-          #config_file: conf.json
-          template: minami
-          front_page: README.md
+      - uses: actions/checkout@v3
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
