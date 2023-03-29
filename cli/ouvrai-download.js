@@ -61,7 +61,7 @@ if (options.full) {
   let spinner = ora(`Downloading data from ${firebasePath}...`).start();
   try {
     await client.database.get(firebasePath, {
-      project: 'cognitivescience',
+      project: projectId,
       output: saveFileDecoded,
     });
     spinner.succeed(`Data from ${firebasePath} saved to ${saveFileDecoded}.`);
