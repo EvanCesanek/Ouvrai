@@ -85,7 +85,7 @@ Dashboard with `ouvrai launch`. This should open [localhost:5174](http://localho
 
 - The Firebase Emulators depend on Java JDK version 11+. Check your installation with `java --version` and get the latest from https://www.oracle.com/java/technologies/downloads.
 
-## nvm and ode.js
+## Node Version Manager (nvm) and Node.js (node)
 
 - Windows: Install [nvm-windows](https://github.com/coreybutler/nvm-windows) using the provided installer.
 - Linux and Mac: Install [nvm](https://github.com/nvm-sh/nvm) with `curl`
