@@ -35,11 +35,12 @@ ouvrai setup
 ```
 # You choose <studyname>, <templatename> must be one of the subdirectories of /ouvrai/templates (e.g., cursor)
 ouvrai new <studyname> <templatename> # Create new experiment from template
-ouvrai dev <studyname> # Start development server
+ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Suite)
+# To end session, press control+c (Windows users can close the Java window as well)
 ```
 
-- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. Watch the command line for messages from Firebase.
-- To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to [localhost:4001](http://localhost:4001).
+- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. You may get a warning message asking you to refresh the browser window.
+- To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to <a href="http://localhost:4001" target="_blank">localhost:4001</a>. You can see authenticated UIDs created during your testing in the Authentication Emulator. You can explore the data your study writes to the database in the Realtime Database Emulator. All other emulators should be off.
 - Design your experiment!
   - Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
   - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
@@ -48,8 +49,8 @@ ouvrai dev <studyname> # Start development server
 ### Create production build
 
 ```
-ouvrai build studyname # Build for production: tree-shaking, bundling, minifying
-ouvrai deploy studyname # Deploy production build to Firebase Hosting
+ouvrai build <studyname> # Build for production: tree-shaking, bundling, minifying
+ouvrai deploy <studyname> # Deploy production build to Firebase Hosting
 ```
 
 ## Recruiting participants
@@ -57,8 +58,8 @@ ouvrai deploy studyname # Deploy production build to Firebase Hosting
 We recommend using Prolific for crowdsourced recruitment. Before posting, review study settings in _`ouvrai/experiments/studyname/study-config.js`_. Before publishing, review draft studies and set additional configuration options (e.g., screeners) on the Prolific web interface.
 
 ```
-ouvrai draft studyname -p # Create unpublished draft study on Prolific
-ouvrai post studyname -p # Publish the draft study on Prolific
+ouvrai draft <studyname> -p # Create unpublished draft study on Prolific
+ouvrai post <studyname> -p # Publish the draft study on Prolific
 ```
 
 If you prefer to use MTurk:
