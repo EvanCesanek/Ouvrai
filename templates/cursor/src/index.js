@@ -39,7 +39,7 @@ async function main() {
     // Three.js settings
     orthographic: true,
     cssScene: true,
-    orbitControls: true,
+    orbitControls: false,
 
     // Scene quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
@@ -59,11 +59,9 @@ async function main() {
    * Define states here. Define behavior & transitions in stateFunc().
    */
   exp.cfg.stateNames = [
-    // Begin required states
     'BROWSER',
     'CONSENT',
     'SIGNIN',
-    // End required states
     // Begin customizable states
     'SETUP',
     'START',
@@ -73,6 +71,7 @@ async function main() {
     'RETURN',
     'FINISH',
     'ADVANCE',
+    // End customizable states
     'SURVEY',
     'CODE',
     'FULLSCREEN',
@@ -96,7 +95,7 @@ async function main() {
     'RETURN',
     'FINISH',
     'ADVANCE',
-  ].map((s) => exp.state[s]);
+  ];
 
   // An instructions panel (HTML so use <br> for newlines)
   exp.instructions = new InstructionsPanel({
@@ -289,14 +288,15 @@ async function main() {
         } else if (exp.firebase.saveFailed) {
           // go to fatal screen if save failed
           exp.state.push('BLOCKED');
-          exp.blocker.fatal(err);
+          exp.blocker.fatal(exp.firebase.saveFailed);
         }
         exp.nextTrial();
         if (exp.trialNumber < exp.numTrials) {
           exp.state.next('SETUP');
         } else {
-          exp.firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(exp.firebase.uid);
+          // NB: Must call exp.complete()
+          exp.complete();
+          // Clean up
           DisplayElement.hide(exp.sceneManager.renderer.domElement);
           DisplayElement.hide(exp.sceneManager.cssRenderer.domElement);
           exp.fullscreen.exitFullscreen();
@@ -308,7 +308,6 @@ async function main() {
         exp.state.once(() => exp.survey?.hidden && exp.survey.show());
         if (!exp.survey || exp.surveysubmitted) {
           exp.survey?.hide();
-          exp.cfg.trialNumber = 'info';
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }

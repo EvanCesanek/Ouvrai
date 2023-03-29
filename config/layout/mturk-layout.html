@@ -347,7 +347,7 @@
           submitting = true;
           const submittedNodeRef = `workers/${workerId}/${expName}/submitted`;
           try {
-            await set(ref(db, submittedNodeRef), 'y');
+            await set(ref(db, submittedNodeRef), new Date().toISOString());
           } catch (error) {
             // if this write fails for some reason, return so the worker can try again
             console.error(error.message);

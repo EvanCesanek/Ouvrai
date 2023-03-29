@@ -12,14 +12,13 @@ import {
 import firebaseConfig from '../config/firebase-config.js';
 import ora from 'ora';
 
-const program = new Command();
-program
-  .option('-p --prolific', 'use Prolific')
-  .option('-m --mturk', 'use MTurk')
-  .argument('<experiment-name>', 'name of experiment directory')
-  .showHelpAfterError();
-
-program.parse(process.argv);
+const program = new Command()
+  .name('ouvrai post')
+  .argument('<experiment>', 'Name of experiment')
+  .option('-p --prolific', 'Use Prolific')
+  .option('-m --mturk', 'Use MTurk')
+  .showHelpAfterError()
+  .parse();
 const options = program.opts();
 const expName = program.args[0];
 if (expName === 'compensation' && !options.mturk) {

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "docs": "jsdoc lib/components -d docs"
+    "docs": "jsdoc lib/components README.md -d docs"
   },
   "repository": {
     "type": "git",

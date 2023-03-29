@@ -10,7 +10,6 @@ import {
   firebaseClient,
   updateStudyHistory,
   exists,
-  dateStringYMDHMS,
 } from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
 import { writeFile } from 'fs/promises';
@@ -19,12 +18,12 @@ import { fileURLToPath } from 'url';
 
 const program = new Command();
 program
+  .name('ouvrai deploy')
   .argument('<experiment>', 'name of experiment directory')
   .option('-p, --project [project]', 'choose or specify Firebase project')
   .option('-l, --local', 'host production build locally with Emulator Suite')
-  .showHelpAfterError();
-
-program.parse(process.argv);
+  .showHelpAfterError()
+  .parse();
 let options = program.opts();
 
 // Find the config file for this experiment
@@ -102,14 +101,15 @@ if (options.local) {
   }
 
   // Deploy
-  let args = [quote(['deploy', '-m', `${expName}, ${dateStringYMDHMS()}`])];
-  let init = spawn('firebase', args, {
+  let args = [quote(['deploy', '-m', expName])];
+  let subprocess = spawn('firebase', args, {
     stdio: 'inherit', // inherit parent process IO streams
     cwd: projectPath, // change working directory
     shell: true,
   });
+  subprocess.on('error', (e) => console.error(e));
   // If successful, update study-history.json
-  init.on('close', async (code) => {
+  subprocess.on('close', async (code) => {
     if (code === 0) {
       await updateStudyHistory(expName, 'siteId', siteId);
       await updateStudyHistory(expName, 'projectId', projectId);

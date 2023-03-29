@@ -10,16 +10,18 @@ import {
   getLatestDeployProject,
 } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
-import { mkdir, mkdirSync } from 'fs';
+import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { writeFile } from 'fs/promises';
 
 const program = new Command()
+  .name('ouvrai download')
+  .argument('<experiment>', 'Name of experiment')
   .option(
     '-p, --project <projectId>',
-    'Specify a Firebase project; if omitted, looks in study-history.json, then in /config/firebase-config.js'
+    'Specify a Firebase project; default from study-history.json, then /config/firebase-config.js'
   )
-  .option('-f, --full', '[Not recommended] Download all data from study node')
-  .argument('<experiment-name>', 'Name of experiment')
+  .option('-f, --full', '(Not recommended) Download all data from study node')
   .showHelpAfterError()
   .parse();
 
@@ -39,22 +41,20 @@ if (await exists(projectPath)) {
 
 let projectId =
   options.project ||
-  getLatestDeployProject(expName) ||
+  (await getLatestDeployProject(expName)) ||
   firebaseConfig.projectId;
 let firebasePath = `/experiments/${expName}`;
 
-let savePath = new URL(
+let savePath = new URL(`../experiments/${expName}/analysis`, import.meta.url);
+if (!(await exists(savePath))) {
+  mkdirSync(savePath);
+}
+let saveFile = new URL(
   `../experiments/${expName}/analysis/data_${dateStringYMDHMS()}.json`,
   import.meta.url
 );
-let savePathDecoded = fileURLToPath(savePath);
-if (!(await exists(savePath))) {
-  mkdirSync(
-    fileURLToPath(
-      new URL(`../experiments/${expName}/analysis`, import.meta.url)
-    )
-  );
-}
+let saveFileDecoded = fileURLToPath(savePath);
+
 if (options.full) {
   // If you are getting all the data from that node (not recommended...)
   let client = firebaseClient();
@@ -62,9 +62,9 @@ if (options.full) {
   try {
     await client.database.get(firebasePath, {
       project: 'cognitivescience',
-      output: savePathDecoded,
+      output: saveFileDecoded,
     });
-    spinner.succeed(`Data from ${firebasePath} saved to ${savePathDecoded}...`);
+    spinner.succeed(`Data from ${firebasePath} saved to ${saveFileDecoded}.`);
     process.exit(0);
   } catch (err) {
     spinner.fail(err.message);
@@ -72,26 +72,46 @@ if (options.full) {
   }
 }
 
-// TODO: Would be really nice to use the Admin SDK here for better querying...
+// Complete participant data only
 spinner = ora(
-  `Downloading data for participants who completed the study from ${firebasePath}...`
+  `Downloading participants with complete data from ${firebasePath}...`
 ).start();
+let data;
 try {
-  let data = Object.keys(
-    await firebaseGetData(firebasePath, projectId, true, 'info', 'false')
+  data = await firebaseGetData(
+    firebasePath,
+    projectId,
+    false,
+    'info/completed', // TODO: FIX THIS
+    'true'
   );
   spinner.succeed();
+  let uids = Object.keys(data);
+  ora(`Found ${uids.length} participants with complete data:`).info();
+  uids.forEach((x) =>
+    console.log(
+      ` - ${data[x].info.platform} ID: ${data[x].info.workerId}, Firebase UID: ${x}`
+    )
+  );
 } catch (err) {
-  spinner.fail(err.message);
-  process.exit(1);
+  spinner.fail();
+  throw err;
 }
 
 spinner = ora(`Saving data...`).start();
 try {
-  await writeFile(savePath, JSON.stringify(allData, null, 2), 'utf8');
-  spinner.succeed(
-    `Data (N = ${retrievedWorkers.length}) saved to ${fileURLToPath(savePath)}.`
-  );
+  await writeFile(saveFile, JSON.stringify(data), 'utf8');
+  spinner.succeed(`Data from ${firebasePath} saved to ${saveFileDecoded}.`);
 } catch (err) {
-  spinner.fail(`Failed to save data! Error: ${err.message}`);
+  spinner.fail();
+  throw err;
 }
+
+// TODO:
+
+// 'Looks like you downloaded data from a Prolific study. Would you like to download the demographic data for this study now?'
+// (Similar for MTurk - logic to parse Assignments will be trickier though...)
+
+// Aavoid downloading same participants again in the future?
+// Probably need to record download events in Firebase and use that to check (order-by + start-at/equal-to)
+// Instead of using cfg.completed = true/false, implement a cfg.status with various values (consented, completed, downloaded, etc)

@@ -549,6 +549,14 @@ async function main() {
         });
         // Time limit avoids excessive data if they meander
         !exp.state.expired(2) && handleFrameData();
+        // Shut off error clamp during the return movement
+        if (
+          trial.errorClamp &&
+          trial.clampOff === undefined &&
+          !toolHandle.visible
+        ) {
+          trial.clampOff = performance.now();
+        }
         home.atHome && exp.state.next('FINISH');
         break;
 
@@ -615,24 +623,26 @@ async function main() {
             exp.state.next('SETUP');
           }
         } else {
-          exp.firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(exp.firebase.uid);
-          DisplayElement.hide(exp.sceneManager.renderer.domElement);
+          // NB: Must call exp.complete()
+          exp.complete();
+          // Clean up
           workspace.visible = false;
-          // Turn off any perturbations
           trial.noFeedback = false;
           trial.errorClamp = false;
           trial.rotation = 0;
           toolHandle.position.set(0, 0, 0);
+          DisplayElement.hide(exp.sceneManager.renderer.domElement);
           exp.state.next('SURVEY');
         }
         break;
 
       case 'SURVEY':
+        if (!exp.cfg.completed) {
+          break;
+        }
         exp.state.once(() => exp.survey?.hidden && exp.survey.show());
         if (!exp.survey || exp.surveysubmitted) {
           exp.survey?.hide();
-          exp.cfg.trialNumber = 'info';
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }
@@ -776,6 +786,31 @@ async function main() {
       home.pulseTween.start();
     }
 
+    if (exp.grip && trial.errorClamp) {
+      if (trial.clampOff || ['START', 'DELAY'].includes(exp.state.current)) {
+        toolHandle.position.set(0, 0, 0);
+      } else {
+        // Error clamp control point to the Z axis
+        let dxyz = new Vector3().subVectors(
+          cp.getWorldPosition(new Vector3()),
+          toolHandle.getWorldPosition(new Vector3())
+        );
+        toolHandle.position.set(
+          ...exp.grip.worldToLocal(
+            exp.grip.getWorldPosition(new Vector3()).setX(-dxyz.x)
+          )
+        );
+      }
+    } else if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
+      // Visuomotor rotation
+      let x = exp.grip.getWorldPosition(new Vector3()); // get grip position (world)
+      x.sub(trial.rotationOrigin); // subtract origin (world)
+      x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
+      x.add(trial.rotationOrigin); // add back origin
+      exp.grip.worldToLocal(x); // convert to grip space
+      toolHandle.position.copy(x); // set as tool position
+    }
+
     // No visual feedback
     if (['REST', 'STARTCLAMP'].includes(exp.state.current)) {
       toolHandle.visible = false;
@@ -796,12 +831,13 @@ async function main() {
         toolHandle.visible = true;
         cp.material.opacity = toolHandle.material.opacity = opacity;
         if (d < exp.cfg.noFeedbackNear) {
+          // Draw the no-feedback region
+          region.ring.scale.setScalar(exp.cfg.noFeedbackNear);
           region.rotateZ(
             Math.PI / 2 -
               region.rotation.z -
               region.geometry.parameters.thetaLength / 2
           );
-          region.ring.scale.setScalar(exp.cfg.noFeedbackNear);
         }
       } else {
         cp.material = cpMat;
@@ -818,27 +854,6 @@ async function main() {
       cp.material = cpMat;
       toolHandle.material = handleMat;
       toolHandle.visible = true;
-    }
-
-    if (exp.grip && trial.errorClamp) {
-      // Error clamp control point to the Z axis
-      let dxyz = new Vector3().subVectors(
-        cp.getWorldPosition(new Vector3()),
-        toolHandle.getWorldPosition(new Vector3())
-      );
-      toolHandle.position.set(
-        ...exp.grip.worldToLocal(
-          exp.grip.getWorldPosition(new Vector3()).setX(-dxyz.x)
-        )
-      );
-    } else if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
-      // Visuomotor rotation
-      let x = exp.grip.getWorldPosition(new Vector3()); // get grip position (world)
-      x.sub(trial.rotationOrigin); // subtract origin (world)
-      x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
-      x.add(trial.rotationOrigin); // add back origin
-      exp.grip.worldToLocal(x); // convert to grip space
-      toolHandle.position.copy(x); // set as tool position
     }
 
     tweenUpdate();

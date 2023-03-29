@@ -13,14 +13,13 @@ import firebaseConfig from '../config/firebase-config.js';
 import { MTurkClient } from '@aws-sdk/client-mturk';
 import inquirer from 'inquirer';
 
-const program = new Command();
-program
+const program = new Command()
+  .name('ouvrai draft')
+  .argument('<experiment>', 'name of experiment directory')
   .option('-p --prolific', 'use Prolific')
   .option('-m --mturk', 'use MTurk')
-  .argument('<experiment-name>', 'name of experiment directory')
-  .showHelpAfterError();
-
-program.parse();
+  .showHelpAfterError()
+  .parse();
 const options = program.opts();
 
 if (

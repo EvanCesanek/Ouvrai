@@ -66,53 +66,45 @@ program
   .name('ouvrai')
   .version('1.0.0')
   .usage('<command>')
-  .command('build <experiment>', 'Build production version of experiment')
-  .command('deploy <experiment>', 'Deploy experiment to Firebase Hosting')
-  .command(
-    'dev <experiment>',
-    'Start the Vite development server and Firebase Emulators'
-  )
-  .command(
-    'draft <experiment>',
-    'Create draft study (Prolific) or post Sandbox HIT (MTurk)'
-  )
-  .command(
-    'post <experiment>',
-    'Publish draft study (Prolific) or post HIT (MTurk)'
-  )
-  .command(
-    'new <name> <template>',
-    'Create a new experiment from one of the templates'
-  )
-  .command(
-    'templatize <experiment>',
-    'Create a template from an existing experiment'
-  )
+  .command('build', 'Build production version of experiment')
+  .command('deploy', 'Deploy experiment to Firebase Hosting')
+  .command('dev', 'Start the Vite development server and Firebase Emulators')
+  .command('draft', 'Create draft study (Prolific) or post Sandbox HIT (MTurk)')
+  .command('post', '($$$) Publish draft study (Prolific) or post HIT (MTurk)')
+  .command('new', 'Create a new experiment from a template')
+  .command('templatize', 'Create a template from an existing experiment')
   .command('setup', 'Set up Ouvrai to work with Firebase')
   .command('launch', 'Launch the Ouvrai web app')
-  .command('download', 'Download participant data from Firebase');
+  .command('download', 'Download participant data from Firebase')
+  .command('wrangle', 'Wrangle Firebase JSON data into data tables');
 
-program.command('install-completion').action(async () => {
-  await tabtab
-    .install({
-      name: 'ouvrai',
-      completer: 'ouvrai',
-    })
-    .catch((err) => console.error('INSTALL ERROR', err));
-  return;
-});
+program
+  .command('install-completion')
+  .description('(Mac/Linux) Install tab-autocompletions')
+  .action(async () => {
+    await tabtab
+      .install({
+        name: 'ouvrai',
+        completer: 'ouvrai',
+      })
+      .catch((err) => console.error('INSTALL ERROR', err));
+    return;
+  });
 
-program.command('uninstall-completion').action(async () => {
-  await tabtab
-    .uninstall({
-      name: 'ouvrai',
-    })
-    .catch((err) => console.error('UNINSTALL ERROR', err));
+program
+  .command('uninstall-completion')
+  .description('(Mac/Linux) Uninstall tab-autocompletions')
+  .action(async () => {
+    await tabtab
+      .uninstall({
+        name: 'ouvrai',
+      })
+      .catch((err) => console.error('UNINSTALL ERROR', err));
 
-  return;
-});
+    return;
+  });
 
-program.command('completion').action(async () => {
+program.command('completion', { hidden: true }).action(async () => {
   const env = tabtab.parseEnv(process.env);
   if (!env.complete) return;
 
@@ -129,7 +121,6 @@ program.command('completion').action(async () => {
       if (!/^ouvrai-/.test(file)) continue; // skip files without ouvrai prefix
       commands.push(file.replace(/ouvrai-|\.js/g, ''));
     }
-    //console.log('commands', commands);
     commands.push('help');
     return tabtab.log(commands);
   }

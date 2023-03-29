@@ -11,8 +11,7 @@ import { unlink, writeFile } from 'fs/promises';
 import { quote } from 'shell-quote';
 import { fileURLToPath } from 'url';
 
-const program = new Command();
-program.showHelpAfterError();
+const program = new Command().name('ouvrai setup').showHelpAfterError().parse();
 
 let client = firebaseClient();
 
@@ -42,13 +41,13 @@ try {
 
 // Initialize the database
 let args = [quote(['init', 'database', '--project', projectId])];
-let init = spawn(`firebase`, args, {
+let subprocess = spawn(`firebase`, args, {
   cwd: new URL('../config/template', import.meta.url),
   stdio: 'inherit',
   shell: true,
 });
 //
-init.on('close', async (code) => {
+subprocess.on('close', async (code) => {
   console.log('Creating firebase-config.js');
   if (code === 0) {
     // Get the app ID of this project's associated web app

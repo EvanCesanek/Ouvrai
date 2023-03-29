@@ -8,13 +8,13 @@ import { exists } from './cli-utils.js';
 import { readdir } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
-const program = new Command();
-program
+const program = new Command()
+  .name('ouvrai new')
+  .argument('<experiment>', 'name of experiment')
+  .argument('<template>', 'name of template')
   .option('-o, --overwrite', 'overwrite existing experiment')
-  .argument('<experiment-name>', 'name of experiment')
-  .argument('<template-name>', 'name of template')
-  .showHelpAfterError();
-program.parse();
+  .showHelpAfterError()
+  .parse();
 
 const options = program.opts();
 const expName = program.processedArgs[0];

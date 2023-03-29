@@ -7,13 +7,13 @@ import ora from 'ora';
 import { exists } from './cli-utils.js';
 import { fileURLToPath } from 'url';
 
-const program = new Command();
-program
-  .option('-o, --overwrite', 'overwrite existing template')
-  .argument('<experiment-name>', 'name of experiment')
-  .argument('<template-name>', 'name of template')
-  .showHelpAfterError();
-program.parse();
+const program = new Command()
+  .name('ouvrai templatize')
+  .argument('<experiment>', 'Name of experiment')
+  .argument('<template>', 'Name of template')
+  .option('-o, --overwrite', 'Overwrite existing template')
+  .showHelpAfterError()
+  .parse();
 
 const options = program.opts();
 const expName = program.processedArgs[0];

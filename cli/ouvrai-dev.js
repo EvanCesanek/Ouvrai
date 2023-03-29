@@ -5,7 +5,8 @@ import { spawn } from 'child_process';
 import { exists } from './cli-utils.js';
 
 const program = new Command()
-  .argument('<experiment-name>', 'name of experiment')
+  .name('ouvrai dev')
+  .argument('<experiment>', 'name of experiment')
   .showHelpAfterError()
   .parse();
 

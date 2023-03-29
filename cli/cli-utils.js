@@ -1392,7 +1392,7 @@ export async function getLatestDeployProject(expName) {
     process.exit(1);
   }
   let latestProject = history.projectId?.slice(-1);
-  return latestProject;
+  return latestProject[0];
 }
 
 export async function getStudyConfig(expName) {

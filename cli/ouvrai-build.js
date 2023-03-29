@@ -9,7 +9,8 @@ import { exists } from './cli-utils.js';
 inquirer.registerPrompt('file-tree-selection', inquirerFileTreeSelection);
 
 const program = new Command()
-  .argument('<experiment-name>', 'name of experiment')
+  .name('ouvrai build')
+  .argument('<experiment>', 'name of experiment')
   .option('-g, --github', 'build demo version for GitHub Pages')
   .showHelpAfterError()
   .parse();

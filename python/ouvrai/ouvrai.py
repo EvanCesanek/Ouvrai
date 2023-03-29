@@ -13,7 +13,13 @@ def test():
     print("Hello from Ouvrai!")
 
 
-def load(data_folder="./", file_regex="^data_", from_pkl=False, pickle=False):
+def load(
+    data_folder="./",
+    file_regex="^data_",
+    from_pkl=False,
+    pickle=False,
+    save_format="pkl",
+):
     """Load Firebase .json data into data frames.
 
     Parameters
@@ -26,6 +32,8 @@ def load(data_folder="./", file_regex="^data_", from_pkl=False, pickle=False):
         Load data frames from .pkl files (if they exist)
     pickle : bool
         Save data frames to .pkl files
+    save_format : bool
+        Save data frames to other file types (if pickle=False)
 
     Returns
     -------
@@ -34,21 +42,23 @@ def load(data_folder="./", file_regex="^data_", from_pkl=False, pickle=False):
     df_sub
         Data frame where each row is a subject.
     df_frame
-        Data frame where each row is a single render loop or movement event.
+        Data frame where each row is a single render loop.
     df_state
         Data frame where each row is a state transition in the experiment finite-state machine.
     """
-    try:
-        if not from_pkl:
-            raise Exception
-        df = pd.read_pickle(data_folder + "df.pkl")
-        df_sub = pd.read_pickle(data_folder + "df_sub.pkl")
-        df_frame = pd.read_pickle(data_folder + "df_frame.pkl")
-        df_state = pd.read_pickle(data_folder + "df_state.pkl")
-    except:
-        if from_pkl:
-            warnings.warn("Failed to load .pkl file. Loading from .json")
 
+    if from_pkl:
+        try:
+            df = pd.read_pickle(data_folder + "df.pkl")
+            df_sub = pd.read_pickle(data_folder + "df_sub.pkl")
+            df_frame = pd.read_pickle(data_folder + "df_frame.pkl")
+            df_state = pd.read_pickle(data_folder + "df_state.pkl")
+        except:
+            warnings.warn(
+                "Failed to load .pkl files. Did you mean to set from_pkl = False?"
+            )
+            return
+    else:
         # Collect data
         dir_contents = os.listdir(data_folder)  # contents of the data folder
         D = {}  # initalize dictionary D to store all the data
@@ -100,7 +110,6 @@ def load(data_folder="./", file_regex="^data_", from_pkl=False, pickle=False):
         df_frame["subject"] = df["subject"]
         df_frame["trialNumber"] = df["trialNumber"]
         df_frame["cycle"] = df["cycle"]
-        df_frame["targetId"] = df["targetId"]
         df_state["subject"] = df["subject"]
         df_state["trialNumber"] = df["trialNumber"]
 
@@ -124,11 +133,22 @@ def load(data_folder="./", file_regex="^data_", from_pkl=False, pickle=False):
         # Sometimes t is dtype 'object' due to mix of ints and floats
         df_frame["t"] = df_frame["t"].astype(float)
 
-        if pickle:
+        if pickle or save_format in {"pkl", ".pkl", "pickle"}:
             df.to_pickle(data_folder + "df.pkl")
             df_sub.to_pickle(data_folder + "df_sub.pkl")
             df_frame.to_pickle(data_folder + "df_frame.pkl")
             df_state.to_pickle(data_folder + "df_state.pkl")
+        elif save_format in {"csv", "txt", ".csv", ".txt"}:
+            df.to_csv(data_folder + "df.csv")
+            df_sub.to_csv(data_folder + "df_sub.csv")
+            df_frame.to_csv(data_folder + "df_frame.csv")
+            df_state.to_csv(data_folder + "df_state.csv")
+        elif save_format in {"xls", "xlsx", ".xls", ".xlsx", "excel"}:
+            with pd.ExcelWriter(data_folder + "df.xlsx") as writer:
+                df.to_excel(writer, "df_trial")
+                df_sub.to_excel(writer, "df_sub")
+                df_frame.to_excel(writer, "df_frame")
+                df_state.to_excel(writer, "df_state")
 
         df_frame.reset_index(drop=True, inplace=True)
 
@@ -193,33 +213,39 @@ def load_demographics(df_sub, path="demographics.csv"):
 
 
 def compute_kinematics(
-    df_sub, dfx, pos_prefix="rhPos",
+    df_sub, df_frame, pos_prefix="rhPos",
 ):
     cols_to_diff = ["t", f"{pos_prefix}_x", f"{pos_prefix}_y", f"{pos_prefix}_z"]
-    g = dfx.groupby(["subject", "trialNumber"])
-    dfx[["dt", "dx", "dy", "dz"]] = g[cols_to_diff].diff()
-    dfx["dpos"] = np.linalg.norm(dfx[["dx", "dy", "dz"]], axis=1)
+    g = df_frame.groupby(["subject", "trialNumber"])
+    df_frame[["dt", "dx", "dy", "dz"]] = g[cols_to_diff].diff()
+    df_frame["dpos"] = np.linalg.norm(df_frame[["dx", "dy", "dz"]], axis=1)
 
     # eliminate any frames with no movement
-    dfx = dfx[dfx["dpos"] != 0].copy()  # copy to avoid chained indexing warning
+    df_frame = df_frame[
+        df_frame["dpos"] != 0
+    ].copy()  # copy to avoid chained indexing warning
 
     # REPEAT diff after frame elimination
-    g = dfx.groupby(["subject", "trialNumber"])
-    dfx[["dt", "dx", "dy", "dz"]] = g[cols_to_diff].diff()
-    dfx["dpos"] = np.linalg.norm(dfx[["dx", "dy", "dz"]], axis=1)
-    dfx["dpos_xz"] = np.linalg.norm(dfx[["dx", "dz"]], axis=1)
-    dfx["cum_distance"] = dfx.groupby(["subject", "trialNumber"])["dpos"].cumsum()
-    dfx["cum_distance_xz"] = dfx.groupby(["subject", "trialNumber"])["dpos_xz"].cumsum()
-    dfx["velocity"] = dfx["dpos"] / (dfx["dt"] / 1000)
+    g = df_frame.groupby(["subject", "trialNumber"])
+    df_frame[["dt", "dx", "dy", "dz"]] = g[cols_to_diff].diff()
+    df_frame["dpos"] = np.linalg.norm(df_frame[["dx", "dy", "dz"]], axis=1)
+    df_frame["dpos_xz"] = np.linalg.norm(df_frame[["dx", "dz"]], axis=1)
+    df_frame["cum_distance"] = df_frame.groupby(["subject", "trialNumber"])[
+        "dpos"
+    ].cumsum()
+    df_frame["cum_distance_xz"] = df_frame.groupby(["subject", "trialNumber"])[
+        "dpos_xz"
+    ].cumsum()
+    df_frame["velocity"] = df_frame["dpos"] / (df_frame["dt"] / 1000)
 
     # Subtract start time from all trials
-    dfx = dfx.join(
-        dfx.groupby(["subject", "trialNumber"])["t"].min().rename("t_start"),
+    df_frame = df_frame.join(
+        df_frame.groupby(["subject", "trialNumber"])["t"].min().rename("t_start"),
         how="left",
         on=["subject", "trialNumber"],
     )
-    dfx["t_abs"] = dfx["t"]
-    dfx["t"] = dfx["t"] - dfx["t_start"]
+    df_frame["t_abs"] = df_frame["t"]
+    df_frame["t"] = df_frame["t"] - df_frame["t_start"]
 
     # Instantaneous distance from the start (along any dim or combination of dims)
     def distance_from_start(x, dims=[0, 1, 2]):
@@ -238,17 +264,17 @@ def compute_kinematics(
         out = pd.DataFrame(np.linalg.norm(xyz - home_xyz, axis=1), index=x.index)
         return out
 
-    dfx["distance"] = dfx.groupby("subject", group_keys=False).apply(
+    df_frame["distance"] = df_frame.groupby("subject", group_keys=False).apply(
         distance_from_start, dims=[0, 2]
     )
 
-    dfx = dfx.join(euler_to_direction(data=dfx, prefix="rhOri_"))
+    df_frame = df_frame.join(euler_to_direction(data=df_frame, prefix="rhOri_"))
 
-    return dfx
+    return df_frame
 
 
 def find_first_velocity_peak(
-    df, df_sub, dfx, dist_range=[0.1, 0.75], pv_thresh=0.05,
+    df, df_sub, df_frame, dist_range=[0.1, 0.75], pv_thresh=0.05,
 ):
     if "targetDistance" not in df_sub.columns:
         warnings.warn(
@@ -308,7 +334,7 @@ def find_first_velocity_peak(
         mask = before_pv["velocity"] <= pv_thresh * pv
         if not any(mask):
             warnings.warn(
-                f"Pre-peak velocity never below pv_thresh ({pv_thresh*pv} m/s). (subject, trial) = {x.name}"
+                f"Pre-peak velocity never below pv_thresh ({pv_thresh*pv:.2} m/s) for {x.name}"
             )
             t_onset_pv = before_pv["t"].values[0]
         else:
@@ -323,20 +349,20 @@ def find_first_velocity_peak(
         return
 
     # Compute movement onset time based on peak velocity threshold
-    dfx.groupby(["subject", "trialNumber"]).apply(helper)
+    df_frame.groupby(["subject", "trialNumber"]).apply(helper)
 
     # Subtract onset time from all trials
-    dfx = dfx.merge(
+    df_frame = df_frame.merge(
         df[["subject", "trialNumber", "t_onset_pv"]],
         how="left",
         on=["subject", "trialNumber"],
     )
-    dfx["t_onset"] = dfx["t"] - dfx["t_onset_pv"]
+    df_frame["t_onset"] = df_frame["t"] - df_frame["t_onset_pv"]
 
     # Identify onset frame
-    dfx["onset_pv"] = dfx["t_onset_pv"] == dfx["t"]
+    df_frame["onset_pv"] = df_frame["t_onset_pv"] == df_frame["t"]
 
-    return df, dfx
+    return df, df_frame
 
 
 def get_nearest_row(df, varname, value):
@@ -355,21 +381,28 @@ def euler_to_direction(
         y = euler["_y"]
         z = euler["_z"]
     elif isinstance(data, pd.DataFrame):
-        x = data[f"{prefix}x"]
-        y = data[f"{prefix}y"]
-        z = data[f"{prefix}z"]
-
-    # (Quaternion/setFromEuler)
-    c1 = np.cos(x / 2)
-    c2 = np.cos(y / 2)
-    c3 = np.cos(z / 2)
-    s1 = np.sin(x / 2)
-    s2 = np.sin(y / 2)
-    s3 = np.sin(z / 2)
-    qx = s1 * c2 * c3 + c1 * s2 * s3
-    qy = c1 * s2 * c3 - s1 * c2 * s3
-    qz = c1 * c2 * s3 + s1 * s2 * c3
-    qw = c1 * c2 * c3 - s1 * s2 * s3
+        isEuler = data.get(f"{prefix}isEuler", pd.Series([False]))
+        isQuaternion = data.get(f"{prefix}isQuaternion", pd.Series([False]))
+        if isEuler.all():
+            x = data[f"{prefix}x"]
+            y = data[f"{prefix}y"]
+            z = data[f"{prefix}z"]
+            # (Quaternion/setFromEuler)
+            c1 = np.cos(x / 2)
+            c2 = np.cos(y / 2)
+            c3 = np.cos(z / 2)
+            s1 = np.sin(x / 2)
+            s2 = np.sin(y / 2)
+            s3 = np.sin(z / 2)
+            qx = s1 * c2 * c3 + c1 * s2 * s3
+            qy = c1 * s2 * c3 - s1 * c2 * s3
+            qz = c1 * c2 * s3 + s1 * s2 * c3
+            qw = c1 * c2 * c3 - s1 * s2 * s3
+        elif isQuaternion.all():
+            qw = data[f"{prefix}w"]
+            qx = data[f"{prefix}x"]
+            qy = data[f"{prefix}y"]
+            qz = data[f"{prefix}z"]
 
     # (Vector3/applyQuaternion)
     ix = qw * dir["x"] + qy * dir["z"] - qz * dir["y"]

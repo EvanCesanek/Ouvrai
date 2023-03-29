@@ -5,7 +5,7 @@
         "$experiment": {
           "submitted": {
             ".read": true,
-            ".write": "newData.isString() && newData.val().length === 1"
+            ".write": "!data.exists()"
           },
           "$uid": {
             "completed": {
@@ -22,8 +22,12 @@
 
     "experiments": {
       "$experiment": {
+        ".indexOn": "info/completed",
         "$uid": {
           ".read": "$uid === auth.uid",
+          "info": {
+            ".write": "$uid === auth.uid"
+          },
           "$trial": {
             ".write": "$uid === auth.uid && !data.exists()"
           }

@@ -698,7 +698,7 @@ async function main() {
         } else if (exp.firebase.saveFailed) {
           // go to fatal screen if save failed
           exp.state.push('BLOCKED');
-          exp.blocker.fatal(err);
+          exp.blocker.fatal(exp.firebase.saveFailed);
         }
         exp.nextTrial();
         if (exp.trialNumber < exp.numTrials) {
@@ -715,14 +715,14 @@ async function main() {
             exp.state.next('SETUP');
           }
         } else {
-          exp.firebase.recordCompletion();
-          exp.goodbye.updateGoodbye(exp.firebase.uid);
-          DisplayElement.hide(exp.sceneManager.renderer.domElement);
+          // NB: Must call exp.complete()
+          exp.complete();
+          // Clean up
           workspace.visible = false;
-          // Turn off any perturbations
           trial.noFeedback = false;
           trial.rotation = 0;
           toolHandle.position.set(0, 0, 0);
+          DisplayElement.hide(exp.sceneManager.renderer.domElement);
           exp.state.next('SURVEY');
         }
         break;
@@ -731,7 +731,6 @@ async function main() {
         exp.state.once(() => exp.survey?.hidden && exp.survey.show());
         if (!exp.survey || exp.surveysubmitted) {
           exp.survey?.hide();
-          exp.cfg.trialNumber = 'info';
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }
