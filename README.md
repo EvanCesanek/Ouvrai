@@ -44,7 +44,7 @@ ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Sui
 ```
 
 - This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. You may get a warning message asking you to refresh the browser window.
-- To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to <a href="http://localhost:4001" target="_blank">localhost:4001</a>. You can see authenticated UIDs created during your testing in the Authentication Emulator. You can explore the data your study writes to the database in the Realtime Database Emulator. All other emulators should be off.
+- To inspect the Firebase emulators during testing, go to <a href="http://localhost:4001" target="_blank">localhost:4001</a>. In the Authentication Emulator, you can see the Firebase UIDs, created each time you complete the consent form. In the Realtime Database Emulator, you can explore the data your study is saving. All other emulators should be off.
 - Design your experiment!
   - Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
   - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
