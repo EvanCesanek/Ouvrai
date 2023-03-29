@@ -20,14 +20,14 @@ let data_folder = fileURLToPath(
 );
 
 let options = program.opts();
-let subprocess = spawn('pip', ['install', '-e', '.'], {
+let subprocess = spawn('pip3', ['install', '-e', '.'], {
   stdio: 'inherit', // inherit parent process IO streams
   cwd: new URL('../python', import.meta.url), // change working directory
   shell: true,
 });
 subprocess.on('close', (code) => {
   let subprocess = spawn(
-    'python',
+    'python3',
     ['wrangle.py', data_folder, options.format],
     {
       stdio: 'inherit', // inherit parent process IO streams
