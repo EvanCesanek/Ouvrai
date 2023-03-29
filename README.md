@@ -8,47 +8,54 @@
 
 ## Prerequisites
 
-1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager](#nodejs) with Node.js 18.<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
-2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project.<br>Choose a good name for your project and Ouvrai will handle the rest of the setup.
+1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager with Node.js 18](#nodejs).<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
+2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project.<br>Choose a descriptive name for your project and Ouvrai will handle the rest of the setup.
 3. To recruit participants, you'll need a [Prolific Researcher](https://app.prolific.co/register/researcher) account and/or [AWS and MTurk Requester](https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html) accounts.
 
 ## Installation and one-time setup
-
+Open a new shell (Terminal) and run the following commands:
 ```
-# Install Firebase CLI and log in
+# Install Firebase CLI and log in (ignore warnings about deprecated package versions)
 npm i -g firebase-tools
 firebase login --reauth
 
 # Download and install Ouvrai CLI + package
+# This will create the /ouvrai directory under your current directory
 git clone https://www.github.com/evancesanek/ouvrai
 cd ouvrai
 npm i -g
 npm i
 
-# One-time setup, press Enter to accept defaults
+# One-time setup, press Enter at all prompts to accept defaults
 ouvrai setup
 ```
 
-## Development
+## Creating and developing a study
 
 ```
-# You choose studyname, templatename must be a subdirectory of templates/
-ouvrai new studyname templatename # Create new experiment from template
-ouvrai dev studyname # Start development server
+# <studyname> will be the name of your study; you choose this
+# <templatename> must be a subdirectory of /ouvrai/templates (e.g., cursor)
+
+ouvrai new <studyname> <templatename> # Create new experiment from template
+
+ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Suite)
+
+# To end session, press control+c (Windows users close the Java window as well)
 ```
 
-- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. Watch the command line for messages from Firebase.
-- To inspect the Firebase emulators (Auth and Realtime Database) during testing, go to [localhost:4001](http://localhost:4001).
+- This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. You may get a warning message asking you to refresh the browser window.
+- To inspect the Firebase emulators during testing, go to <a href="http://localhost:4001" target="_blank">localhost:4001</a>. In the Authentication Emulator, you can see the Firebase UIDs, created each time you complete the consent form. In the Realtime Database Emulator, you can explore the data your study is saving. All other emulators should be off.
+- At any time you can download the data from your current run by pressing __shift+s__.
 - Design your experiment!
-  - Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
+  - Edit the experiment file (_`ouvrai/experiments/<studyname>/src/index.js`_) in [Visual Studio Code](https://code.visualstudio.com/) (or your favorite IDE).
   - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
 - See the [develop for VR](#develop-for-vr) section for information on how to develop VR experiments.
 
 ### Create production build
 
 ```
-ouvrai build studyname # Build for production: tree-shaking, bundling, minifying
-ouvrai deploy studyname # Deploy production build to Firebase Hosting
+ouvrai build <studyname> # Build for production: tree-shaking, bundling, minifying
+ouvrai deploy <studyname> # Deploy production build to Firebase Hosting
 ```
 
 ## Recruiting participants
@@ -56,8 +63,8 @@ ouvrai deploy studyname # Deploy production build to Firebase Hosting
 We recommend using Prolific for crowdsourced recruitment. Before posting, review study settings in _`ouvrai/experiments/studyname/study-config.js`_. Before publishing, review draft studies and set additional configuration options (e.g., screeners) on the Prolific web interface.
 
 ```
-ouvrai draft studyname -p # Create unpublished draft study on Prolific
-ouvrai post studyname -p # Publish the draft study on Prolific
+ouvrai draft <studyname> -p # Create unpublished draft study on Prolific
+ouvrai post <studyname> -p # Publish the draft study on Prolific
 ```
 
 If you prefer to use MTurk:
@@ -84,16 +91,18 @@ Dashboard with `ouvrai launch`. This should open [localhost:5174](http://localho
 
 - The Firebase Emulators depend on Java JDK version 11+. Check your installation with `java --version` and get the latest from https://www.oracle.com/java/technologies/downloads.
 
-## Node.js
+## Node Version Manager (nvm) and Node.js (node)
 
 - Windows: Install [nvm-windows](https://github.com/coreybutler/nvm-windows) using the provided installer.
 - Linux and Mac: Install [nvm](https://github.com/nvm-sh/nvm) with `curl`
   ```
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
   ```
+  This installation process should not take long. If it is, kill the process (control+c) and try again.
 - **All users**<br>After installation, open a new terminal and install Node.js 18 (LTS/Hydrogen) with:
   ```
   nvm install 18
+  nvm use 18
   ```
 
 ## Firebase
