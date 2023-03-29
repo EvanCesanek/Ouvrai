@@ -8,12 +8,14 @@
 
 ## Prerequisites
 
-1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager with Node.js 18](#nodejs).<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
+1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager with Node.js 18](#node-version-manager-nvm-and-nodejs-node).<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
 2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project.<br>Choose a descriptive name for your project and Ouvrai will handle the rest of the setup.
 3. To recruit participants, you'll need a [Prolific Researcher](https://app.prolific.co/register/researcher) account and/or [AWS and MTurk Requester](https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html) accounts.
 
 ## Installation and one-time setup
+
 Open a new shell (Terminal) and run the following commands:
+
 ```
 # Install Firebase CLI and log in (ignore warnings about deprecated package versions)
 npm i -g firebase-tools
@@ -45,7 +47,7 @@ ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Sui
 
 - This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. You may get a warning message asking you to refresh the browser window.
 - To inspect the Firebase emulators during testing, go to <a href="http://localhost:4001" target="_blank">localhost:4001</a>. In the Authentication Emulator, you can see the Firebase UIDs, created each time you complete the consent form. In the Realtime Database Emulator, you can explore the data your study is saving. All other emulators should be off.
-- At any time you can download the data from your current run by pressing __shift+s__.
+- At any time you can download the data from your current run by pressing **shift+s**.
 - Design your experiment!
   - Edit the experiment file (_`ouvrai/experiments/<studyname>/src/index.js`_) in [Visual Studio Code](https://code.visualstudio.com/) (or your favorite IDE).
   - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
@@ -166,13 +168,23 @@ During development, you probably do not want to write data to your actual databa
 
 ## Develop for VR
 
-Developing experiments on Meta Quest (or other Android-based VR headset) with Ouvrai is easy. On Meta Quest, make sure you have enabled USB connections in Settings > System > Developer.
+Developing experiments on Meta Quest (or other Android-based VR headset) with Ouvrai is easy.
 
-- Connect the headset to the development computer via USB-C. You may need to accept the connection in the headset.
-- **Tethered development**: Enable port forwarding in Google Chrome at [chrome://inspect](chrome://inspect). Add the development ports (5173, 8000, and 9099 by default) with `localhost:XXXX` as the host for each. If you do not see your device listed, toggle off and on the _Discover USB devices_ checkbox.
+1. Enable developer mode for the Quest in the companion app on you phone. You will need to create a developer account with Meta to do this.
+2. In the headset, make sure you have enabled USB connections in Settings > System > Developer.
+3. Connect the headset to the development computer via USB-C. Put on the headset and allow the connection.
+4. **Tethered development**: In Google Chrome, go to [chrome://inspect](chrome://inspect). Under Devices, click the **Port forwarding** button. In the popup, tick the checkbox for _Enable port forwarding_ and add the following ports:
+   | Port | IP address and port |
+   |------|---------------------|
+   | 5173 | localhost:5173 |
+   | 8000 | localhost:8000 |
+   | 9099 | localhost:9099 |
+   - If you do not see your device listed under Remote Target, toggle off and on the _Discover USB devices_ checkbox.
+5. Create a VR experiment from one of the templates, e.g. `ouvrai new my-vr-study vr-gen` (if you haven't done this already). Then start the development servers for this experiment with `ouvrai dev my-vr-study`.
+6. In the VR headset, open the browser and navigate to [localhost:5173](https://localhost:5173).
+7. On the development computer, from [chrome://inspect](chrome://inspect) you can open the Chrome DevTools console for debugging by clicking [Inspect] under the relevant browser tab listed for your device.
+
 - **Untethered development**: With [Meta Quest Developer Hub](https://developer.oculus.com/meta-quest-developer-hub/), you can unplug your headset and continue developing by enabling "ADB over Wi-fi" and running the following ADB command for reverse port forwarding: `adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:5173 tcp:5173 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:8000 tcp:8000 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:9099 tcp:9099`
-- In the VR headset, open the browser and navigate to [localhost:5173](localhost:5173).
-- With either method, From [chrome://inspect](chrome://inspect) on the development computer, you can open the Chrome DevTools console for debugging (click [inspect](chrome://inspect) under `localhost:5173`).
 
 # Tutorials
 
