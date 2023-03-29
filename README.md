@@ -13,7 +13,7 @@
 3. To recruit participants, you'll need a [Prolific Researcher](https://app.prolific.co/register/researcher) account and/or [AWS and MTurk Requester](https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html) accounts.
 
 ## Installation and one-time setup
-
+Open a new shell (Terminal) and run the following commands:
 ```
 # Install Firebase CLI and log in (ignore warnings about deprecated package versions)
 npm i -g firebase-tools
