@@ -18,6 +18,7 @@ const program = new Command()
 let data_folder = fileURLToPath(
   new URL(`../experiments/${program.args[0]}/analysis/`, import.meta.url)
 );
+data_folder = `"${data_folder}"`;
 
 let options = program.opts();
 let subprocess = spawn('pip3', ['install', '-e', '.'], {
