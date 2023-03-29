@@ -33,10 +33,11 @@ ouvrai setup
 ## Creating and developing a study
 
 ```
-# You choose <studyname>, <templatename> must be one of the subdirectories of /ouvrai/templates (e.g., cursor)
+# You choose <studyname>
+# <templatename> must be a subdirectory of /ouvrai/templates (e.g., cursor)
 ouvrai new <studyname> <templatename> # Create new experiment from template
 ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Suite)
-# To end session, press control+c (Windows users can close the Java window as well)
+# To end session, press control+c (Windows users close the Java window as well)
 ```
 
 - This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. You may get a warning message asking you to refresh the browser window.
