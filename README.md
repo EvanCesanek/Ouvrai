@@ -15,11 +15,12 @@
 ## Installation and one-time setup
 
 ```
-# Install Firebase CLI and log in
+# Install Firebase CLI and log in (ignore warnings about deprecated package versions)
 npm i -g firebase-tools
 firebase login --reauth
 
 # Download and install Ouvrai CLI + package
+# This will create the /ouvrai directory under your current directory
 git clone https://www.github.com/evancesanek/ouvrai
 cd ouvrai
 npm i -g
