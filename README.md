@@ -26,16 +26,16 @@ cd ouvrai
 npm i -g
 npm i
 
-# One-time setup, press Enter to accept defaults
+# One-time setup, press Enter at all prompts to accept defaults
 ouvrai setup
 ```
 
-## Development
+## Creating and developing a study
 
 ```
-# You choose studyname, templatename must be a subdirectory of templates/
-ouvrai new studyname templatename # Create new experiment from template
-ouvrai dev studyname # Start development server
+# You choose <studyname>, <templatename> must be one of the subdirectories of /ouvrai/templates (e.g., cursor)
+ouvrai new <studyname> <templatename> # Create new experiment from template
+ouvrai dev <studyname> # Start development server
 ```
 
 - This should automatically open [localhost:5173](http://localhost:5173) in your web browser, where you can test your experiment. It may take a moment for the page to load as the Firebase emulators start up, especially the very first time. Watch the command line for messages from Firebase.
