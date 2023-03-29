@@ -47,7 +47,7 @@ ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Sui
 - To inspect the Firebase emulators during testing, go to <a href="http://localhost:4001" target="_blank">localhost:4001</a>. In the Authentication Emulator, you can see the Firebase UIDs, created each time you complete the consent form. In the Realtime Database Emulator, you can explore the data your study is saving. All other emulators should be off.
 - At any time you can download the data from your current run by pressing __shift+s__.
 - Design your experiment!
-  - Edit the experiment file (_`ouvrai/experiments/studyname/index.js`_) in your favorite editor.
+  - Edit the experiment file (_`ouvrai/experiments/<studyname>/src/index.js`_) in [Visual Studio Code](https://code.visualstudio.com/) (or your favorite IDE).
   - Saved changes are immediately reflected at [localhost:5173](http://localhost:5173).
 - See the [develop for VR](#develop-for-vr) section for information on how to develop VR experiments.
 
