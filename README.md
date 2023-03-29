@@ -85,16 +85,18 @@ Dashboard with `ouvrai launch`. This should open [localhost:5174](http://localho
 
 - The Firebase Emulators depend on Java JDK version 11+. Check your installation with `java --version` and get the latest from https://www.oracle.com/java/technologies/downloads.
 
-## Node.js
+## nvm and ode.js
 
 - Windows: Install [nvm-windows](https://github.com/coreybutler/nvm-windows) using the provided installer.
 - Linux and Mac: Install [nvm](https://github.com/nvm-sh/nvm) with `curl`
   ```
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
   ```
+  This installation process should not take long. If it is, kill the process (control+c) and try again.
 - **All users**<br>After installation, open a new terminal and install Node.js 18 (LTS/Hydrogen) with:
   ```
   nvm install 18
+  nvm use 18
   ```
 
 ## Firebase
