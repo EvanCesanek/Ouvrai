@@ -55,22 +55,22 @@ let saveFile = new URL(
 );
 let saveFileDecoded = fileURLToPath(savePath);
 
-if (options.full) {
-  // If you are getting all the data from that node (not recommended...)
-  let client = firebaseClient();
-  let spinner = ora(`Downloading data from ${firebasePath}...`).start();
-  try {
-    await client.database.get(firebasePath, {
-      project: projectId,
-      output: saveFileDecoded,
-    });
-    spinner.succeed(`Data from ${firebasePath} saved to ${saveFileDecoded}.`);
-    process.exit(0);
-  } catch (err) {
-    spinner.fail(err.message);
-    process.exit(1);
-  }
-}
+// if (options.full) {
+//   // If you are getting all the data from that node (not recommended...)
+//   let client = firebaseClient();
+//   let spinner = ora(`Downloading data from ${firebasePath}...`).start();
+//   try {
+//     await client.database.get(firebasePath, {
+//       project: projectId,
+//       output: saveFileDecoded,
+//     });
+//     spinner.succeed(`Data from ${firebasePath} saved to ${saveFileDecoded}.`);
+//     process.exit(0);
+//   } catch (err) {
+//     spinner.fail(err.message);
+//     process.exit(1);
+//   }
+// }
 
 // Complete participant data only
 spinner = ora(
@@ -82,12 +82,16 @@ try {
     firebasePath,
     projectId,
     false,
-    'info/completed', // TODO: FIX THIS
-    'true'
+    options.full ? undefined : 'info/completed', // TODO: FIX THIS
+    options.full ? undefined : 'true'
   );
   spinner.succeed();
   let uids = Object.keys(data);
-  ora(`Found ${uids.length} participants with complete data:`).info();
+  ora(
+    `Found ${uids.length} participants ${
+      options.full ? 'with complete data' : 'with at least partial data'
+    }:`
+  ).info();
   uids.forEach((x) =>
     console.log(
       ` - ${data[x].info.platform} ID: ${data[x].info.workerId}, Firebase UID: ${x}`
