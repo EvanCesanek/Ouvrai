@@ -8,8 +8,8 @@
 
 ## Prerequisites
 
-1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager](#nodejs) with Node.js 18.<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
-2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project.<br>Choose a good name for your project and Ouvrai will handle the rest of the setup.
+1. Install [git](https://git-scm.com), [Java](https://www.oracle.com/java/technologies/downloads), and a [Node.js version manager with Node.js 18](#nodejs).<br/>Make sure `node -v` displays `v18.15.0` (minor version may vary).
+2. Create a [Google Firebase](https://console.firebase.google.com/) account and a new project.<br>Choose a descriptive name for your project and Ouvrai will handle the rest of the setup.
 3. To recruit participants, you'll need a [Prolific Researcher](https://app.prolific.co/register/researcher) account and/or [AWS and MTurk Requester](https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html) accounts.
 
 ## Installation and one-time setup
