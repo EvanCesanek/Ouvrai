@@ -33,10 +33,13 @@ ouvrai setup
 ## Creating and developing a study
 
 ```
-# You choose <studyname>
+# <studyname> will be the name of your study; you choose this
 # <templatename> must be a subdirectory of /ouvrai/templates (e.g., cursor)
+
 ouvrai new <studyname> <templatename> # Create new experiment from template
+
 ouvrai dev <studyname> # Start development servers (Vite & Firebase Emulator Suite)
+
 # To end session, press control+c (Windows users close the Java window as well)
 ```
 
