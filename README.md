@@ -60,6 +60,12 @@ ouvrai build <studyname> # Build for production: tree-shaking, bundling, minifyi
 ouvrai deploy <studyname> # Deploy production build to Firebase Hosting
 ```
 
+### Analysis
+
+- In dev mode, you can press **shift+s** to download the data from your current study run. This will save a JSON file to your Downloads folder.
+- After you run a full pilot of your study on your Hosting site, or if you collect real participant data, you can download data with `ouvrai download <studyname>`. This will save a JSON file to _`ouvrai/experiments/<studyname>/analysis`_.
+- Run `ouvrai wrangle <studyname> -f <format>` (where `<format>` can be 'pkl', 'csv', or 'xls') to wrangle the JSON file into a set of tidy data tables. See [Data analysis](#data-analysis) for more details.
+
 ## Recruiting participants
 
 We recommend using Prolific for crowdsourced recruitment. Before posting, review study settings in _`ouvrai/experiments/studyname/study-config.js`_. Before publishing, review draft studies and set additional configuration options (e.g., screeners) on the Prolific web interface.
@@ -87,7 +93,7 @@ Dashboard with `ouvrai launch`. This should open [localhost:5174](http://localho
 
 ## git
 
-- You can check that you have git installed by running `git -v`. If not, get it from https://git-scm.com.
+- You can check that you have git installed by running `git --version`. If not, get it from https://git-scm.com.
 
 ## Java
 
@@ -100,8 +106,8 @@ Dashboard with `ouvrai launch`. This should open [localhost:5174](http://localho
   ```
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
   ```
-  This installation process should not take long. If it is, kill the process (control+c) and try again.
-- **All users**<br>After installation, open a new terminal and install Node.js 18 (LTS/Hydrogen) with:
+  This installation process should not take very long. If it does (with lots of c++ compiling), kill the process (control+c) and try again.
+- Open a new terminal and install Node.js 18 (LTS/Hydrogen) with:
   ```
   nvm install 18
   nvm use 18
@@ -168,23 +174,49 @@ During development, you probably do not want to write data to your actual databa
 
 ## Develop for VR
 
-Developing experiments on Meta Quest (or other Android-based VR headset) with Ouvrai is easy.
+Ouvrai makes it easy to develop VR studies on Meta Quest headsets! Before getting started you must:
 
-1. Enable developer mode for the Quest in the companion app on you phone. You will need to create a developer account with Meta to do this.
-2. In the headset, make sure you have enabled USB connections in Settings > System > Developer.
-3. Connect the headset to the development computer via USB-C. Put on the headset and allow the connection.
-4. **Tethered development**: In Google Chrome, go to [chrome://inspect](chrome://inspect). Under Devices, click the **Port forwarding** button. In the popup, tick the checkbox for _Enable port forwarding_ and add the following ports:
+1. [Sign up for a Meta Quest Developer account](https://developer.oculus.com/sign-up/)
+
+2. [Create an organization from your dashboard](https://developer.oculus.com/manage/organizations/create/)
+
+### Tethered development
+
+1. Enable developer mode for your Quest using the companion app on your phone.
+2. Connect the headset to the development computer via USB-C. Put on the headset and allow the connection.
+3. In Google Chrome, go to [chrome://inspect](chrome://inspect). **You must leave this tab open while you develop!**
+
+   If you do not see your device listed under Remote Target, untick then retick the _Discover USB devices_ checkbox. You may also try repeating step 2. You may also check whether USB connections are enabled in the headset at Settings > System > Developer.
+
+   Click the button that says _Port forwarding..._. In the popup, tick the checkbox next to _Enable port forwarding_. Add the following ports:
+
    | Port | IP address and port |
-   |------|---------------------|
-   | 5173 | localhost:5173 |
-   | 8000 | localhost:8000 |
-   | 9099 | localhost:9099 |
-   - If you do not see your device listed under Remote Target, toggle off and on the _Discover USB devices_ checkbox.
-5. Create a VR experiment from one of the templates, e.g. `ouvrai new my-vr-study vr-gen` (if you haven't done this already). Then start the development servers for this experiment with `ouvrai dev my-vr-study`.
-6. In the VR headset, open the browser and navigate to [localhost:5173](https://localhost:5173).
-7. On the development computer, from [chrome://inspect](chrome://inspect) you can open the Chrome DevTools console for debugging by clicking [Inspect] under the relevant browser tab listed for your device.
+   | ---- | ------------------- |
+   | 5173 | localhost:5173      |
+   | 8000 | localhost:8000      |
+   | 9099 | localhost:9099      |
 
-- **Untethered development**: With [Meta Quest Developer Hub](https://developer.oculus.com/meta-quest-developer-hub/), you can unplug your headset and continue developing by enabling "ADB over Wi-fi" and running the following ADB command for reverse port forwarding: `adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:5173 tcp:5173 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:8000 tcp:8000 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:9099 tcp:9099`
+4. Create a VR experiment from one of the templates (vr-sr, vr-dual, or vr-gen) and start the development servers:
+   ```
+   ouvrai new <studyname> <templatename>
+   ouvrai dev <studyname>
+   ```
+5. In the headset, open the browser and navigate to [http://localhost:5173](http://localhost:5173). If the page does not load, make sure that [chrome://inspect]() is still open on the development computer.
+
+   Note: From [chrome://inspect](), click [Inspect]() under the entry for [localhost:5173]() to access the Chrome DevTools, which are helpful for debugging (_e.g._, viewing console logs and error messages)
+
+### Untethered development
+
+If you have tethered development working, you can try ditching the cable!
+
+1. Start with your headset plugged in to your computer via USB-C.
+2. Download and sign in to [Meta Quest Developer Hub](https://developer.oculus.com/meta-quest-developer-hub/). Make sure you see your headset in Devices. Reconnect it if you do not.
+
+- **If you are asked about the ADB Path, click Cancel to continue using the version of ADB that is included with Developer Hub.**
+
+3. In the Device options, enable "ADB over Wi-fi". This may cause your Device to become disconnected. Look in your headset for a new connection prompt and accept. Your device should reappear.
+4. In the Custom Commands section, click the three dots on the far right. Click 'Import commands'. In the file system prompt, navigate to _`/ouvrai/config`_ and select _`mqdh-port-forwarding.json`_. Click 'Run' next to the newly created command.
+5. See steps 4 & 5 above. Just like with tethered development, you can view the Chrome DevTools from [chrome://inspect]().
 
 # Tutorials
 
@@ -196,12 +228,12 @@ Click to expand:
   </summary>
   On MTurk, a Compensation HIT can be used to pay workers who worked on your study but could not submit the original HIT for some reason (e.g., bug or timeout). Here we explain how to create, submit, approve, and delete a Compensation HIT in the <a target="_blank" rel="noopener noreferrer" href="https://requester.mturk.com/developer/sandbox">MTurk Sandbox</a>. 
   <ol>
-    <li> Sign in to <a href="https://workersandbox.mturk.com">workersandbox.mturk.com</a>. Copy your worker ID by clicking on it in the top-left.  </li>
-    <li> Open <i><code>ouvrai/experiments/compensation/mturk-config.mjs</code></i> in your preferred editor. Find the <code>workersToCompensate</code> field, which should contain an array of worker IDs. Paste in your worker ID to replace the existing ID and save this file.  </li>
-    <li> Run <code>ouvrai draft-study -m compensation</code>. Remember <code>draft-study -m</code> will post to the MTurk Sandbox, whereas <code> post-study -m</code> will post publicly to real MTurk workers.
-    <li> The console output will include a link to your HIT (it may take a few moments to work as the HIT is created). Open this link, accept the HIT, and click the Submit button.</li>
-    <li> Run <code>ouvrai launch-dashboard</code> to launch the dashboard app at <a href="localhost:5174">localhost:5174</a>. From here, click the MTurk Sandbox tab, and you will see all of your existing MTurk Sandbox HITs. At the top of the HITs section, you should see the Compensation HIT you just created. In the Assignments section below, you can view and approve or reject any submissions that have been received for this HIT, and you can also send bonus payments. When you are 100% done with a HIT, you can delete it from the HITs section. If there are still available assignments, you will have to Expire the HIT first, wait for any pending assignments to be submitted or returned, and then you can delete it.</li>
-    <li>Warning: When you delete a HIT, you lose any demographic information submitted by the participant, and you can no longer pay them a bonus. HITs that have been inactive for 120 days are automatically deleted by MTurk.</li>
+    <li>Sign in to <a href="https://workersandbox.mturk.com">workersandbox.mturk.com</a>. Copy your worker ID by clicking on it in the top-left.  </li>
+    <li>Open <i><code>ouvrai/experiments/compensation/study-config.js</code></i> in VS Code. Find the <code>workersToCompensate</code> field. This field should contain an array of the worker IDs you wish to compensate. To test it, paste your own worker ID into the array and save the file.  </li>
+    <li>Run <code>ouvrai draft -m compensation</code>. Remember <code>ouvrai draft -m</code> will post to the MTurk Sandbox, whereas <code>ouvrai post -m</code> will post publicly to real MTurk workers.
+    <li>The console output will include a link to your HIT (it may take a moment as the HIT is created). Open this link, accept the HIT, and click the Submit button.</li>
+    <li>Run <code>ouvrai launch</code> to launch the dashboard app at <a href="http://localhost:5174">localhost:5174</a>. From here, click the MTurk Sandbox tab and you will see all of your existing MTurk Sandbox HITs. At the top of the HITs section, you should see the Compensation HIT you just created. In the Assignments section below, you can view and approve or reject any submissions that have been received for this HIT, and you can also send bonus payments. When you are 100% done with a HIT, you can delete it from the HITs section. If there are still available assignments, you will have to Expire the HIT first, wait for any pending assignments to be submitted or returned, and then you can delete it.</li>
+    <li>Warning: When you delete a HIT, you will lose any demographic information submitted through the MTurk HIT form and you can no longer pay them a bonus. HITs that have been inactive for 120 days are automatically deleted by MTurk.</li>
   </ol>
 </details>
 <br/>
@@ -210,7 +242,7 @@ Click to expand:
 
 # Experiments
 
-Each experiment is a stand-alone JavaScript web app located in its own subdirectory under _`ouvrai/experiments/`_, and with its own _`package.json`_ separate from the main Ouvrai package. Running `ouvrai new-experiment studyname` will initialize a new study in this location, with all of the necessary config files.
+Each experiment is a stand-alone JavaScript web app located in its own subdirectory under _`ouvrai/experiments/`_, and with its own _`package.json`_ separate from the main Ouvrai package. Running `ouvrai new <studyname> <templatename>` will initialize a new study in this location from one of the template experiment, copying the necessary Firebase configuration files from _`ouvrai/config/template`_.
 
 Ouvrai was developed for research on human sensorimotor control, so the template experiments are designed to support interactivity with the mouse/trackpad or VR devices.
 
@@ -220,16 +252,18 @@ Ouvrai was developed for research on human sensorimotor control, so the template
 
 **Replace the placeholder consent forms located at `config/consent/consent.(pdf|jpg)` with your own IRB-approved consent form!**
 
-- For VR studies, you must include a **.jpg image** of the consent form, due to current limitations on displaying pdf files in some VR web browsers. We recommend exporting a relatively low-quality JPG (<250 KB) that is readable but does not take long to load.
+- For VR studies, you must include a **.jpg image** of the consent form, due to current limitations on displaying pdf files in some VR web browsers. We recommend exporting a lightweight, lower-quality JPG (<250 KB) that is readable but quick to load.
 
 ## Structure
 
-- _`ouvrai/lib/components/`_ contains the Ouvrai component library. These components are imported in _`src/index.js`_ to help manage the various processes of a well-functioning experiment. The `Experiment` component is the most important. You must create an instance of the Experiment component with `const exp = new Experiment({...})` as the first step in all experiments. The constructor takes a single argument, which is an object with a wide variety of configuration options. You should also specify any experiment settings that you would like to save with your data (e.g., stimulus visual features, durations, condition codes, etc.). See the template experiments for examples.
+- _`ouvrai/lib/components/`_ contains the Ouvrai component library. These components help manage the various processes of a well-functioning experiment. The `Experiment` component is the most important. You must create an instance of the Experiment component with `const exp = new Experiment({...})` as the first step in all experiments. The constructor takes a single argument, which is an object with a wide variety of configuration options. You should also specify any experiment settings that you would like to save with your data (e.g., stimulus visual features, durations, condition codes, etc.). See the template experiments for examples.
 - The _`src/`_ folder contains all the source code and other assets needed for an experiment.
-  - `src/index.js` is the main experiment code that you would edit for a new experiment.
-  - `src/public/` is a static assets folder. Any files in here are available for reference by filename in your experiment code.
-  - Assets that are not located in `src/public/` can be [imported as URLs](https://vitejs.dev/guide/assets.html).
+  - _`src/index.js`_ is the main experiment code that you would edit for a new experiment.
+  - _`src/public/`_ is a static assets folder. Any files in here are available for reference by filename in your experiment code.
+  - Assets that are not located in _`src/public/`_ can be [imported as URLs](https://vitejs.dev/guide/assets.html).
 
 ## Configuration
 
-Familiarize yourself with the various fields in the `study-config.js` file, which is required for each experiment. These fields control how a study appears to participants on Prolific or MTurk (Title, Requirements, Summary, Instructions) and how it behaves (Reward, Total Available Places, Completion Time, Allowlist/Blocklist, etc).
+Familiarize yourself with the various fields of _`study-config.js`_, which is a required file for each experiment. These fields control how your study appears to participants on Prolific or MTurk (Title, Requirements, Summary, Instructions) and how it behaves (Reward, Total Available Places, Completion Time, Allowlist/Blocklist, etc).
+
+On Prolific, study configuration can be double-checked and, if needed, modified using the web interface after you create a draft study. However, on MTurk, whatever is in _`study-config.js`_ when you call `ouvrai draft -m` or `ouvrai post -m` will be reflected in the HIT and cannot be modified further.

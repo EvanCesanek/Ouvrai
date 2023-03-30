@@ -1,0 +1,7 @@
+[
+    {
+        "command": "adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:5173 tcp:5173 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:8000 tcp:8000 && adb -s _MQDH_CONNECTED_DEVICE_SERIAL_ID_ reverse tcp:9099 tcp:9099",
+        "displayOutputWindow": true,
+        "name": "Ouvrai port forwarding"
+    }
+]
