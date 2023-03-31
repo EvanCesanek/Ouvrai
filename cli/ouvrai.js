@@ -8,6 +8,8 @@ import { homedir } from 'os';
 import { exists } from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
+import { spawn } from 'child_process';
+import ora from 'ora';
 
 const program = new Command();
 
@@ -146,6 +148,32 @@ program
   .description('Edit this function in /cli/ouvrai.js to test things out!')
   .action(async function () {
     console.log('Write your own tests in /cli/ouvrai.js.');
+
+    function spawnPython(command, args) {
+      let errorMessage = '';
+      let subprocess = spawn(command, args, {
+        stdio: ['inherit', 'inherit', 'pipe'],
+        shell: true,
+      });
+      subprocess.stderr.on('data', (data) => {
+        errorMessage += data;
+      });
+      subprocess
+        .on('close', (code) => {
+          if (code === 127) {
+            ora(errorMessage.slice(0, -1)).info();
+            subprocess.emit('retry');
+          } else if (code !== 0) {
+            ora(errorMessage.slice(0, -1)).fail();
+          } else {
+            return command;
+          }
+        })
+        .on('retry', () => {
+          spawnPython('python', args);
+        });
+    }
+    spawnPython('python2', ['lmfao']);
   });
 
 program.parse();

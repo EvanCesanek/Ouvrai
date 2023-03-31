@@ -7,6 +7,7 @@ import ora from 'ora';
 import { exists } from './cli-utils.js';
 import { readdir } from 'fs/promises';
 import { fileURLToPath } from 'url';
+import firebaseConfig from '../config/firebase-config.js';
 
 const program = new Command()
   .name('ouvrai new')
@@ -100,3 +101,9 @@ subprocess.on('error', (err) => {
 subprocess.on('close', (err) => {
   spinner.succeed(`New study created at ${projectPathDecoded}`);
 });
+
+if (firebaseConfig.projectId === 'cognitivescience') {
+  ora(
+    `Error: You have not run "ouvrai setup". ${expName} will not work properly. Please delete the directory from your experiments.\n`
+  ).fail();
+}

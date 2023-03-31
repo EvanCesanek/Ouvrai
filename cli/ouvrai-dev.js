@@ -56,6 +56,7 @@ let subprocess = spawn(
     cwd: projectPath,
     stdio: 'inherit',
     shell: true,
+    windowsHide: true,
   }
 );
 subprocess.on('error', (err) => {
