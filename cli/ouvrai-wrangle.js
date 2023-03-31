@@ -45,7 +45,7 @@ let dataPathDecoded = fileURLToPath(dataPath);
 //   process.exit();
 // }
 
-let data_folder = `"${dataPathDecoded}"`;
+let data_folder = `'${dataPathDecoded}'`;
 
 let pythonDir = new URL('../python', import.meta.url);
 
@@ -53,6 +53,8 @@ let options = program.opts();
 
 let errorMessage = '';
 async function spawnPython(command, args, fallbackCommand) {
+  console.log('--- ouvrai-wrangle.js ---');
+  console.log(command, ...args);
   let subprocess = spawn(command, args, {
     stdio: ['inherit', 'inherit', 'pipe'],
     cwd: pythonDir,

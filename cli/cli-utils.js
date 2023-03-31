@@ -1285,7 +1285,7 @@ export async function firebaseGetData(
     throw new Error('refString path must begin with /');
   }
   let str = '';
-  let args = ['database:get', refString, '--project', projectId];
+  let args = [refString, '--project', projectId];
   if (shallow) {
     args.push('--shallow');
   }
@@ -1297,7 +1297,7 @@ export async function firebaseGetData(
   }
   args = [quote(args)];
 
-  let proc = spawn('firebase', args, { shell: true });
+  let proc = spawn('firebase database:get', args, { shell: true });
   proc.stdout.on('data', (data) => {
     str += data;
   });

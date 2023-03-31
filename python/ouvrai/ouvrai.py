@@ -47,6 +47,7 @@ def load(
         Data frame where each row is a state transition in the experiment finite-state machine.
     """
 
+    data_folder = data_folder.lstrip("'").rstrip("'")
     if from_pkl:
         try:
             df = pd.read_pickle(data_folder + "df.pkl")
