@@ -9,7 +9,6 @@ import { exists } from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
 import { spawn } from 'child_process';
-import ora from 'ora';
 
 const program = new Command();
 
@@ -26,11 +25,10 @@ if (!process.argv.includes('completion')) {
     if (await exists(prolificCredPath)) {
       process.env.PROLIFIC_AUTH_TOKEN = await readFile(prolificCredPath);
     } else {
-      console.log(
-        '\nWarning: Prolific credentials not found!\nThe Prolific API uses API tokens to authenticate requests. ' +
-          'You can view and manage your API tokens on the Prolific web app: Settings > Go to API Token page. ' +
-          `Copy your API token into a plain text file at ${prolificCredPath}.`
-      );
+      console.log(`\nWarning: Prolific credentials not found!\
+      \nThe Prolific API uses API tokens to authenticate requests.\
+      \nManage your API tokens on the Prolific web app: Settings > Go to API Token page\
+      \nCopy your API token into a plain text file at ${prolificCredPath}.\n`);
     }
   }
 
@@ -43,19 +41,16 @@ if (!process.argv.includes('completion')) {
     // Check for MTurk credentials
     let mturkCredPath = join(homedir(), '.aws/credentials');
     if (!(await exists(mturkCredPath))) {
-      console.log(
-        '\nWarning: MTurk credentials not found!\nThe MTurk API uses access keys to authenticate requests. ' +
-          'For detailed instructions, see:' +
-          '\n\t- https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html' +
-          `Insert your access keys into a plain text file at ${mturkCredPath} (no file extension). ` +
-          '\nContents should look like:' +
-          '\n  [default]' +
-          '\n  aws_access_key_id = AKIAIOSFODNN7EXAMPLE' +
-          '\n  aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n'
-      );
+      console.log(`\nWarning: MTurk credentials not found!\
+      \nThe MTurk API uses access keys to authenticate requests.\
+      \nSee instructions at https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html\
+      \nInsert your access keys into a plain text file at ${'lol'} (no file extension).\
+      Contents should look like:\
+      \n  [default]\
+      \n  aws_access_key_id = AKIAIOSFODNN7EXAMPLE\
+      \n  aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n`);
     }
   }
-
   // If you want to use firebase-admin package (we usually rely on global firebase-tools)
   // Store your Firebase Project Key credentials file at the following location and uncomment
   // process.env.GOOGLE_APPLICATION_CREDENTIALS = join(
@@ -148,32 +143,6 @@ program
   .description('Edit this function in /cli/ouvrai.js to test things out!')
   .action(async function () {
     console.log('Write your own tests in /cli/ouvrai.js.');
-
-    function spawnPython(command, args) {
-      let errorMessage = '';
-      let subprocess = spawn(command, args, {
-        stdio: ['inherit', 'inherit', 'pipe'],
-        shell: true,
-      });
-      subprocess.stderr.on('data', (data) => {
-        errorMessage += data;
-      });
-      subprocess
-        .on('close', (code) => {
-          if (code === 127) {
-            ora(errorMessage.slice(0, -1)).info();
-            subprocess.emit('retry');
-          } else if (code !== 0) {
-            ora(errorMessage.slice(0, -1)).fail();
-          } else {
-            return command;
-          }
-        })
-        .on('retry', () => {
-          spawnPython('python', args);
-        });
-    }
-    spawnPython('python2', ['lmfao']);
   });
 
 program.parse();

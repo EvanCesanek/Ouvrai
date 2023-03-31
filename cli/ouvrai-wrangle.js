@@ -65,8 +65,11 @@ async function spawnPython(command, args, fallbackCommand) {
   });
   subprocess
     .on('close', (code) => {
-      if (code === 127) {
+      if ((code === 127 || code === 9009) && fallbackCommand) {
         ora(errorMessage.slice(0, -1)).info();
+        ora(
+          `${command} not found - retrying with ${fallbackCommand}...`
+        ).info();
         subprocess.emit('retry');
       } else if (code !== 0) {
         ora(errorMessage.slice(0, -1)).fail();
