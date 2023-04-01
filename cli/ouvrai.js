@@ -8,7 +8,6 @@ import { homedir } from 'os';
 import { exists } from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
-import { spawn } from 'child_process';
 
 const program = new Command();
 

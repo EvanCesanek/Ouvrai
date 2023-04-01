@@ -11,9 +11,9 @@ import firebaseConfig from '../config/firebase-config.js';
 
 const program = new Command()
   .name('ouvrai new')
-  .argument('<experiment>', 'name of experiment')
-  .argument('<template>', 'name of template')
-  .option('-o, --overwrite', 'overwrite existing experiment')
+  .argument('<experiment>', 'Name of experiment')
+  .argument('<template>', 'Name of template')
+  .option('-o, --overwrite', 'Overwrite existing experiment')
   .showHelpAfterError()
   .parse();
 
@@ -104,6 +104,8 @@ subprocess.on('close', (err) => {
 
 if (firebaseConfig.projectId === 'cognitivescience') {
   ora(
-    `Error: You have not run "ouvrai setup". ${expName} will not work properly. Please delete the directory from your experiments.\n`
+    `Error: You have not run ouvrai setup.\
+    \n  Your new experiment '${expName}' will not work properly.\
+    \n  Please delete the directory from your experiments and run ouvrai setup.\n`
   ).fail();
 }

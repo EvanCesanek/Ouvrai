@@ -6,9 +6,11 @@ import { exists } from './cli-utils.js';
 
 const program = new Command()
   .name('ouvrai dev')
-  .argument('<experiment>', 'name of experiment')
+  .argument('<experiment>', 'Name of experiment')
   .showHelpAfterError()
   .parse();
+
+let options = program.opts();
 
 // We use a Vite environment variable to make the experiment name available to the source files.
 // See /lib/components/Experiment.js: this.cfg.experiment = import.meta.env.VITE_EXPERIMENT_NAME;
@@ -19,6 +21,12 @@ const projectPath = new URL(
   import.meta.url
 );
 const projectPathDecoded = fileURLToPath(projectPath);
+
+let savePath = new URL(
+  `../experiments/${program.args[0]}/analysis`,
+  import.meta.url
+);
+let savePathDecoded = fileURLToPath(savePath);
 
 let spinner = ora(`Accessing study at ${projectPathDecoded}.`).start();
 if (await exists(projectPath)) {
@@ -43,6 +51,9 @@ if (await exists(projectPath)) {
 
 // Problems with above lead us to alternative solution using subprocess shell commands
 // This works - and is better than requiring this command to be a script in all package.json
+spinner = ora(
+  'Spawning child processes for Vite and Firebase Emulators...'
+).start();
 let subprocess = spawn(
   'npx',
   [
@@ -50,7 +61,7 @@ let subprocess = spawn(
     '-n Vite,Firebase',
     '-c magenta,red',
     '"vite src --open"', // npx not needed if shell=true
-    '"firebase emulators:start --only auth,database"',
+    `"firebase emulators:start --only auth,database"`,
   ],
   {
     cwd: projectPath,
@@ -59,7 +70,8 @@ let subprocess = spawn(
     windowsHide: true,
   }
 );
+subprocess.on('spawn', () => spinner.succeed());
 subprocess.on('error', (err) => {
-  console.log(err.message);
+  ora(err.message).fail();
   process.exit(1);
 });

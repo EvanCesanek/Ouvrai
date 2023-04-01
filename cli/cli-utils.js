@@ -1249,17 +1249,16 @@ export async function firebaseChooseProject(
 export async function firebaseChooseSite(
   client,
   projectId,
-  promptMessage = 'You have multiple Firebase Hosting sites. Which would you like to use?'
+  promptMessage = 'You have multiple Firebase Hosting sites. Which would you like to use?',
+  defaultSite
 ) {
   let sites = await client.hosting.sites.list({ project: projectId });
   sites = sites.sites.map((x) => x.name.split('/').slice(-1)[0]);
   let siteName;
   if (sites.length === 1) {
     siteName = sites[0];
-    console.log(
-      `Project ${projectId} only has one Hosting site: ${siteName}.web.app. Using this site.` +
-        'To create additional Hosting sites, use the Firebase web console.'
-    );
+    ora(`Using the default Hosting site for this project: https://${siteName}.web.app \
+    \n\tTo choose from additional Hosting sites, create more sites in the Firebase console.`).info();
   } else if (sites.length > 1) {
     let answers = await inquirer.prompt([
       {
@@ -1267,6 +1266,7 @@ export async function firebaseChooseSite(
         name: 'siteName',
         message: promptMessage,
         choices: sites,
+        default: defaultSite,
       },
     ]);
     siteName = answers.siteName;

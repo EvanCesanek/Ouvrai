@@ -12,7 +12,8 @@ import {
 import firebaseConfig from '../config/firebase-config.js';
 import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { writeFile } from 'fs/promises';
+import { rm, unlink, writeFile } from 'fs/promises';
+import { readJSON } from 'fs-extra/esm';
 
 const program = new Command()
   .name('ouvrai download')
@@ -21,7 +22,14 @@ const program = new Command()
     '-p, --project <projectId>',
     'Specify a Firebase project; default from study-history.json, then /config/firebase-config.js'
   )
-  .option('-f, --full', '(Not recommended) Download all data from study node')
+  .option(
+    '-p, --partial',
+    'Download data from all sessions, including partial sessions'
+  )
+  .option(
+    '-d, --dev',
+    'Download from Firebase Emulator database (ouvrai dev must be running)'
+  )
   .showHelpAfterError()
   .parse();
 
@@ -41,7 +49,7 @@ if (await exists(projectPath)) {
 
 let projectId =
   options.project ||
-  (await getLatestDeployProject(expName)) ||
+  (options.dev ? undefined : await getLatestDeployProject(expName)) ||
   firebaseConfig.projectId;
 let firebasePath = `/experiments/${expName}`;
 
@@ -77,30 +85,73 @@ spinner = ora(
   `Downloading participants with complete data from ${firebasePath}...`
 ).start();
 let data;
+
 try {
-  data = await firebaseGetData(
-    firebasePath,
-    projectId,
-    false,
-    options.full ? undefined : 'info/completed', // TODO: FIX THIS
-    options.full ? undefined : 'true'
-  );
+  if (options.dev) {
+    let client = firebaseClient();
+    await client.emulators.export(fileURLToPath(savePath), {
+      project: projectId,
+      force: true,
+    });
+    let exportFile = new URL(
+      `../experiments/${expName}/analysis/database_export/${projectId}.json`,
+      import.meta.url
+    );
+    data = await readJSON(exportFile, 'utf8');
+    data = data.experiments[expName]; // key down to the subject level
+    if (!options.full) {
+      for (const [uid, subjectData] of Object.entries(data)) {
+        if (!subjectData.info.completed) {
+          delete data[uid];
+        }
+      }
+    }
+    await unlink(
+      new URL(
+        `../experiments/${expName}/analysis/firebase-export-metadata.json`,
+        import.meta.url
+      )
+    );
+    await rm(
+      new URL(
+        `../experiments/${expName}/analysis/database_export`,
+        import.meta.url
+      ),
+      { recursive: true, force: true }
+    );
+    await rm(
+      new URL(
+        `../experiments/${expName}/analysis/auth_export`,
+        import.meta.url
+      ),
+      { recursive: true, force: true }
+    );
+  } else {
+    data = await firebaseGetData(
+      firebasePath,
+      projectId,
+      false,
+      options.full ? undefined : 'info/completed', // TODO: FIX THIS
+      options.full ? undefined : 'true'
+    );
+  }
   spinner.succeed();
-  let uids = Object.keys(data);
-  ora(
-    `Found ${uids.length} participants ${
-      options.full ? 'with complete data' : 'with at least partial data'
-    }:`
-  ).info();
-  uids.forEach((x) =>
-    console.log(
-      ` - ${data[x].info.platform} ID: ${data[x].info.workerId}, Firebase UID: ${x}`
-    )
-  );
 } catch (err) {
   spinner.fail();
   throw err;
 }
+
+let uids = Object.keys(data);
+ora(
+  `Found ${uids.length} participants with ${
+    options.partial ? 'partial' : 'complete'
+  } sessions:`
+).info();
+uids.forEach((x) =>
+  console.log(
+    ` - ${data[x].info.platform} ID: ${data[x].info.workerId}, Firebase UID: ${x}`
+  )
+);
 
 spinner = ora(`Saving data...`).start();
 try {

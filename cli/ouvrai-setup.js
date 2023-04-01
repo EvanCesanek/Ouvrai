@@ -1,15 +1,14 @@
 import { Command } from 'commander';
 import { spawn } from 'child_process';
 import inquirer from 'inquirer';
-import {
-  firebaseChooseProject,
-  firebaseChooseSite,
-  firebaseClient,
-} from './cli-utils.js';
+import { firebaseChooseProject, firebaseClient } from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
 import { unlink, writeFile } from 'fs/promises';
 import { quote } from 'shell-quote';
 import { fileURLToPath } from 'url';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously } from 'firebase/auth';
+import ora from 'ora';
 
 const program = new Command().name('ouvrai setup').showHelpAfterError().parse();
 
@@ -19,11 +18,15 @@ let client = firebaseClient();
 let projectId = await firebaseChooseProject(client);
 
 // Get Firebase site
-let siteId = await firebaseChooseSite(
-  client,
-  projectId,
-  'You have multiple Firebase Hosting sites. Please choose a default site:'
-);
+// let siteId = await firebaseChooseSite(
+//   client,
+//   projectId,
+//   'You have multiple Firebase Hosting sites. Please choose a default site:'
+// );
+
+// Always use <projectName>.web.app as the default site.
+let sites = await client.hosting.sites.list({ project: projectId });
+let siteId = sites.sites.map((x) => x.name.split('/').slice(-1)[0])[0];
 
 const firebaseURL = new URL(
   '../config/template/firebase.json',
@@ -88,17 +91,29 @@ subprocess.on('close', async (code) => {
         JSON.stringify(configObject.sdkConfig, null, 2)
     );
     await unlink(new URL('../config/template/.gitignore', import.meta.url)); // delete .gitignore file...
-    console.log(
+
+    // Check for Anonymous Authentication
+    let app = initializeApp(configObject.sdkConfig);
+    let auth = getAuth(app);
+    let p = await signInAnonymously(auth).catch((err) => {
+      if (
+        err.code === 'auth/admin-restricted-operation' ||
+        err.code === 'auth/configuration-not-found'
+      ) {
+        ora(`Error: You must enable Anonymous Authentication from the Firebase web console:\
+        \n  https://console.firebase.google.com/project/${projectId}/authentication/providers\
+        \n  Do that now and then run ouvrai setup again.`).fail();
+        process.exit(1);
+      }
+    });
+
+    ora(
       'Success! Configuration files can be found in the /config folder.'
-    );
-    console.log(
-      `By default, experiments will deploy to https://${siteId}.web.app.` +
-        '\nYou will be given the option to select a different site each time you deploy.'
-    );
+    ).succeed();
   } else {
-    console.log(
+    ora(
       'Error in Firebase initialization! See console output for more info.'
-    );
+    ).fail();
     process.exit(1);
   }
 });

@@ -16,12 +16,11 @@ import { writeFile } from 'fs/promises';
 import { quote } from 'shell-quote';
 import { fileURLToPath } from 'url';
 
-const program = new Command();
-program
+const program = new Command()
   .name('ouvrai deploy')
-  .argument('<experiment>', 'name of experiment directory')
-  .option('-p, --project [project]', 'choose or specify Firebase project')
-  .option('-l, --local', 'host production build locally with Emulator Suite')
+  .argument('<experiment>', 'Name of experiment')
+  .option('-p, --project [project]', 'Choose (or specify) Firebase project')
+  .option('-l, --local', 'Host production build locally with Emulator Suite')
   .showHelpAfterError()
   .parse();
 let options = program.opts();
@@ -74,21 +73,24 @@ if (options.local) {
 
   // Prompt to use same Hosting site or select a different one
   let siteId = firebaseJSON.hosting.site;
-  let useCurrentSite = false;
-  if (siteId) {
-    let answers = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'useCurrentSite',
-        default: true,
-        message: `Do you want to deploy to ${siteId}.web.app?`,
-      },
-    ]);
-    useCurrentSite = answers.useCurrentSite;
-  }
-  if (!useCurrentSite) {
-    siteId = await firebaseChooseSite(client, projectId);
-  }
+  // let useCurrentSite = false;
+  // if (siteId) {
+  //   let answers = await inquirer.prompt([
+  //     {
+  //       type: 'confirm',
+  //       name: 'useCurrentSite',
+  //       default: true,
+  //       message: `Do you want to deploy to ${siteId}.web.app?`,
+  //     },
+  //   ]);
+  //   useCurrentSite = answers.useCurrentSite;
+  // }
+  // if (!useCurrentSite) {
+  //   siteId = await firebaseChooseSite(client, projectId);
+  // }
+
+  // Always prompt to choose a site, supplying siteId as default
+  siteId = await firebaseChooseSite(client, projectId, undefined, siteId);
 
   // Write selection to firebase.json
   firebaseJSON.hosting.site = siteId;
