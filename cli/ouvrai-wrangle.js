@@ -1,28 +1,37 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { spawn } from 'child_process'; // Node.js built-in to access OS-level functions
 import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { readdir } from 'fs/promises';
+import { spawnPython } from './cli-utils.js';
 
 const program = new Command()
   .name('ouvrai wrangle')
   .argument('<experiment>', 'Name of experiment')
   .option(
-    '-f, --format [pkl|csv|xls]',
+    '-f, --format [pkl|csv|xlsx]',
     'Desired file format for data tables',
     'pkl'
   )
   .showHelpAfterError()
   .parse();
 
+let options = program.opts();
+
 let dataPath = new URL(
   `../experiments/${program.args[0]}/analysis/`,
   import.meta.url
 );
 let dataPathDecoded = fileURLToPath(dataPath);
+let data_folder = `'${dataPathDecoded}'`;
+
+await spawnPython(
+  'python3',
+  ['wrangle.py', data_folder, options.format],
+  'python'
+);
 
 // WIP: UI to select files you want
 // let jsonFiles = await readdir(dataPath);
@@ -45,43 +54,8 @@ let dataPathDecoded = fileURLToPath(dataPath);
 //   process.exit();
 // }
 
-let data_folder = `'${dataPathDecoded}'`;
-
-let pythonDir = new URL('../python', import.meta.url);
-
-let options = program.opts();
-
-let errorMessage = '';
-async function spawnPython(command, args, fallbackCommand) {
-  console.log('--- ouvrai-wrangle.js ---');
-  console.log(command, ...args);
-  let subprocess = spawn(command, args, {
-    stdio: ['inherit', 'inherit', 'pipe'],
-    cwd: pythonDir,
-    shell: true,
-  });
-  subprocess.stderr.on('data', (data) => {
-    errorMessage += data;
-  });
-  subprocess
-    .on('close', (code) => {
-      if ((code === 127 || code === 9009) && fallbackCommand) {
-        ora(errorMessage.slice(0, -1)).info();
-        ora(
-          `${command} not found - retrying with ${fallbackCommand}...`
-        ).info();
-        subprocess.emit('retry');
-      } else if (code !== 0) {
-        ora(errorMessage.slice(0, -1)).fail();
-      } else {
-        return command;
-      }
-    })
-    .on('retry', () => {
-      spawnPython(fallbackCommand, args);
-    });
-}
-
-await spawnPython('pip3', ['install', '--editable', '.', '--quiet'], 'pip');
-
-spawnPython('python3', ['wrangle.py', data_folder, options.format], 'python');
+// spawnPython(
+//   'python3',
+//   ['wrangle.py', data_folder, options.format, ...jsonFiles],
+//   'python'
+// );

@@ -14,44 +14,50 @@ def test():
 
 
 def load(
-    data_folder="./",
-    file_regex="^data_",
-    from_pkl=False,
-    pickle=False,
-    save_format="pkl",
+    data_folder: str = "./",
+    file_regex: str = "^data_",
+    from_pkl: bool = False,
+    pickle: bool = False,
+    save_format: str = "pkl",
 ):
-    """Load Firebase .json data into data frames.
+    """
+    Wrangle Firebase JSON data into data frames.
 
     Parameters
     ----------
-    data_folder : string
-        Relative path to data.
-    file_regex : string
-        Regular expression uniquely identifying data files to load.
-    from_pkl : bool
-        Load data frames from .pkl files (if they exist)
-    pickle : bool
-        Save data frames to .pkl files
-    save_format : bool
-        Save data frames to other file types (if pickle=False)
+    data_folder : str, optional
+         Relative path to data, by default "./"
+    file_regex : str, optional
+        Regular expression uniquely identifying data files to load, by default "^data_"
+    from_pkl : bool, optional
+        Load data frames from .pkl files (if they exist), by default False
+    pickle : bool, optional
+        Save data frames to .pkl files, by default False
+    save_format : str, optional
+        Save data frames to other file types (if `pickle = False`), by default "pkl"
 
     Returns
     -------
-    df
-        Data frame where each row is a trial.
-    df_sub
-        Data frame where each row is a subject.
-    df_frame
-        Data frame where each row is a single render loop.
-    df_state
-        Data frame where each row is a state transition in the experiment finite-state machine.
+    tuple
+        A tuple containing:
+
+        df_trial
+            Data frame where each row is a trial.
+        df_subject
+            Data frame where each row is a subject.
+        df_frame
+            Data frame where each row is a single render loop.
+        df_state
+            Data frame where each row is a state transition in the experiment finite-state machine.
     """
 
+    # Strip any leading/trailing quotes added when running from command line (see ouvrai-wrangle.js)
     data_folder = data_folder.lstrip("'").rstrip("'")
+
     if from_pkl:
         try:
-            df = pd.read_pickle(data_folder + "df.pkl")
-            df_sub = pd.read_pickle(data_folder + "df_sub.pkl")
+            df_trial = pd.read_pickle(data_folder + "df_trial.pkl")
+            df_subject = pd.read_pickle(data_folder + "df_subject.pkl")
             df_frame = pd.read_pickle(data_folder + "df_frame.pkl")
             df_state = pd.read_pickle(data_folder + "df_state.pkl")
         except:
@@ -74,8 +80,8 @@ def load(
                 D = {**D, **d}  # concatenate dictionaries
 
         # Arrange it in a data frame
-        df = pd.DataFrame()
-        df_sub = pd.DataFrame()
+        df_trial = pd.DataFrame()
+        df_subject = pd.DataFrame()
         for si, (s, d) in enumerate(D.items()):  # loop over subjects
             info = pd.json_normalize(d.pop("info"))  # separate out the 'info'
             data = pd.DataFrame.from_dict(
@@ -85,11 +91,11 @@ def load(
             data["uid"] = s
             info["subject"] = "{:0>3}".format(si)
             info["uid"] = s
-            df = pd.concat([df, data], ignore_index=True)
-            df_sub = pd.concat([df_sub, info], ignore_index=True)
+            df_trial = pd.concat([df_trial, data], ignore_index=True)
+            df_subject = pd.concat([df_subject, info], ignore_index=True)
 
         # Separate list-type columns containing frame data or state-change data
-        reftrial = df.iloc[0]
+        reftrial = df_trial.iloc[0]
         reftrial = reftrial[reftrial.apply(isinstance, args=(list,))]
         # Per-frame columns should be the same length as "t"
         numframes_reftrial = len(reftrial["t"])
@@ -103,60 +109,73 @@ def load(
             c for c in reftrial.index if len(reftrial[c]) == numstatechanges_reftrial
         ]
         print(f"State change variables are: {statechange_columns}")
-        # Pop these columns from df and reassemble them in their own DataFrames
-        df_frame = pd.concat([df.pop(c) for c in frame_columns], axis=1)
-        df_state = pd.concat([df.pop(c) for c in statechange_columns], axis=1)
+        # Pop these columns from df_trial and reassemble them in their own DataFrames
+        df_frame = pd.concat([df_trial.pop(c) for c in frame_columns], axis=1)
+        df_state = pd.concat([df_trial.pop(c) for c in statechange_columns], axis=1)
 
         # Add information that is missing from the new DataFrames
-        df_frame["subject"] = df["subject"]
-        df_frame["trialNumber"] = df["trialNumber"]
-        df_frame["cycle"] = df["cycle"]
-        df_state["subject"] = df["subject"]
-        df_state["trialNumber"] = df["trialNumber"]
+        df_frame["subject"] = df_trial["subject"]
+        df_frame["trialNumber"] = df_trial["trialNumber"]
+        df_frame["cycle"] = df_trial["cycle"]
+        df_state["subject"] = df_trial["subject"]
+        df_state["trialNumber"] = df_trial["trialNumber"]
 
         # Explode new DataFrames with per-trial lists into long format
         df_frame = df_frame.explode(frame_columns, True)
         df_state = df_state.explode(statechange_columns, True)
 
         # Expand any object columns (typically x,y,z)
-        df = expand_object_columns(df)
-        df_sub = expand_object_columns(df_sub)
+        df_trial = expand_object_columns(df_trial)
+        df_subject = expand_object_columns(df_subject)
         df_frame = expand_object_columns(df_frame)
         df_state = expand_object_columns(df_state)
 
         # Transform "stateNames" into a dictionary mapping from integer codes to names
-        df_sub["stateNames"] = df_sub["stateNames"].transform(
+        df_subject["stateNames"] = df_subject["stateNames"].transform(
             lambda x: {id: name for id, name in enumerate(x)}
         )
-        df_frame["state"] = rename_states(df_frame, df_sub)
-        df_state["state"] = rename_states(df_state, df_sub, state_col="stateChange")
+        df_frame["state"] = rename_states(df_frame, df_subject)
+        df_state["state"] = rename_states(df_state, df_subject, state_col="stateChange")
 
         # Sometimes t is dtype 'object' due to mix of ints and floats
         df_frame["t"] = df_frame["t"].astype(float)
 
         if pickle or save_format in {"pkl", ".pkl", "pickle"}:
-            df.to_pickle(data_folder + "df.pkl")
-            df_sub.to_pickle(data_folder + "df_sub.pkl")
+            df_trial.to_pickle(data_folder + "df_trial.pkl")
+            df_subject.to_pickle(data_folder + "df_subject.pkl")
             df_frame.to_pickle(data_folder + "df_frame.pkl")
             df_state.to_pickle(data_folder + "df_state.pkl")
         elif save_format in {"csv", "txt", ".csv", ".txt"}:
-            df.to_csv(data_folder + "df.csv")
-            df_sub.to_csv(data_folder + "df_sub.csv")
+            df_trial.to_csv(data_folder + "df_trial.csv")
+            df_subject.to_csv(data_folder + "df_subject.csv")
             df_frame.to_csv(data_folder + "df_frame.csv")
             df_state.to_csv(data_folder + "df_state.csv")
         elif save_format in {"xls", "xlsx", ".xls", ".xlsx", "excel"}:
             with pd.ExcelWriter(data_folder + "df.xlsx") as writer:
-                df.to_excel(writer, "df_trial")
-                df_sub.to_excel(writer, "df_sub")
+                df_trial.to_excel(writer, "df_trial")
+                df_subject.to_excel(writer, "df_subject")
                 df_frame.to_excel(writer, "df_frame")
                 df_state.to_excel(writer, "df_state")
 
         df_frame.reset_index(drop=True, inplace=True)
 
-    return df, df_sub, df_frame, df_state
+    return df_trial, df_subject, df_frame, df_state
 
 
 def expand_object_columns(df):
+    """
+    Horizontally expand columns that contain Python dictionaries (with multiple values) into separate columns with single values.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Unexpanded data frame
+    
+    Returns
+    -------
+    df : DataFrame
+        Horizontally expanded data frame
+    """
     object_columns = df.columns[df.iloc[0].apply(isinstance, args=(dict,))].values
     for col_name in object_columns:
         child_names = df[col_name].to_list()
@@ -170,19 +189,52 @@ def expand_object_columns(df):
     return df
 
 
-def rename_states(df, df_sub, state_col="state"):
+def rename_states(df: pd.DataFrame, df_subject: pd.DataFrame, state_col: str = "state"):
+    """
+    [DEPRECATED] Transform integer-coded state values into categorical strings.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        A data frame containing a 'subject' column and a column of integer-coded states.
+    df_subject : pd.DataFrame
+        A subject-level data frame containing a vector of state names.
+        Integer codes correspond to indexes of this vector.
+    state_col : str, optional
+        Name of the column of integer-coded states in `df`, by default "state"
+
+    Returns
+    -------
+    pd.Series
+        A column of categorical state names,.
+    """
+
     g = df.groupby("subject")[state_col]
     return g.transform(
         lambda x: x.replace(
-            df_sub.loc[df_sub["subject"] == x.name, "stateNames"].values[0]
+            df_subject.loc[df_subject["subject"] == x.name, "stateNames"].values[0]
         ).astype(pd.CategoricalDtype(ordered=True))
     )
 
 
-def load_demographics(df_sub, path="demographics.csv"):
-    """Merge in demographic data from Prolific."""
+def load_demographics(df_subject: pd.DataFrame, path="demographics.csv"):
+    """
+    Merge demographic data into the subject-level data frame.
+
+    Parameters
+    ----------
+    df_subject : pd.DataFrame
+        Subject-level data frame.
+    path : str, optional
+        Path to the demographics file you wish to load, by default "demographics.csv"
+
+    Returns
+    -------
+    pd.DataFrame
+        Subject-level data frame with added columns of demographic info.
+    """
     try:
-        df_sub = df_sub.merge(
+        df_subject = df_subject.merge(
             pd.read_csv(path)
             .query('Status == "APPROVED" & `Completion code` != "Manual Completion"')
             .rename({"Participant id": "workerId"}, axis=1)[
@@ -205,17 +257,46 @@ def load_demographics(df_sub, path="demographics.csv"):
             how="left",
             on="workerId",
         )
-        display(pd.DataFrame(df_sub["Sex"].describe()))
-        display(pd.DataFrame(df_sub.Age.astype("float").describe()))
+        display(pd.DataFrame(df_subject["Sex"].describe()))
+        display(pd.DataFrame(df_subject.Age.astype("float").describe()))
     except (FileNotFoundError):
-        warnings.warn("Demographics file not found. You can download it from Prolific.")
+        warnings.warn(
+            "Demographics file not found. Download it from Prolific or Amazon Mechanical Turk with 'ouvrai download <studyname> --demographics'."
+        )
     finally:
-        return df_sub
+        return df_subject
 
 
 def compute_kinematics(
-    df_sub, df_frame, pos_prefix="rhPos",
+    df_subject: pd.DataFrame,
+    df_frame: pd.DataFrame,
+    pos_prefix="rhPos",
+    ori_prefix="rhOri",
 ):
+    """
+    Compute helpful kinematic quantities from raw position data, including including deltas, distance from landmarks, cumulative distance, velocity (m/s), time since trial start, and direction of +Z axis (from quaternion).
+
+    Parameters
+    ----------
+    df_subject : pd.DataFrame
+        Subject-level data frame containing columns 'homePosn.x', 'homePosn.y', and 'homePosn.z'
+    df_frame : pd.DataFrame
+        Frame-level data frame
+    pos_prefix : str, optional
+        Name of the raw position variable (Vector3) you wish to compute kinematics from, by default "rhPos"
+    ori_prefix : str, optional
+        Name of the raw orientation variable (Quaternion or Euler) you wish to compute kinematics from, by default "rhOri"
+
+    Returns
+    -------
+    pd.DataFrame
+        Input df_frame with kinematic quantities added in additional columns
+
+    Raises
+    ------
+    RuntimeError
+        
+    """
     cols_to_diff = ["t", f"{pos_prefix}_x", f"{pos_prefix}_y", f"{pos_prefix}_z"]
     g = df_frame.groupby(["subject", "trialNumber"])
     df_frame[["dt", "dx", "dy", "dz"]] = g[cols_to_diff].diff()
@@ -248,38 +329,64 @@ def compute_kinematics(
     df_frame["t_abs"] = df_frame["t"]
     df_frame["t"] = df_frame["t"] - df_frame["t_start"]
 
-    # Instantaneous distance from the start (along any dim or combination of dims)
-    def distance_from_start(x, dims=[0, 1, 2]):
-        sb = x.name
-        if sb not in df_sub["subject"].unique():
+    def distance_from_start(df_frame_subject: pd.DataFrame, dims=[0, 1, 2]):
+        """
+        Instantaneous distance from the start along any dimension (or combination of dimensions).\n
+        Assumes that df_subject exists with columns 'homePosn.x', 'homePosn.y', and 'homePosn.z'.\n
+        Typical usage: `df_frame.groupby("subject", group_keys=False).apply(distance_from_start,dims=[...])`
+
+        Parameters
+        ----------
+        df_frame_subject : pd.DataFrame
+            Frame-level data for a single subject.
+        dims : list, optional
+            Array of dimensions along which to compute distance, by default [0, 1, 2] (i.e., 3D Euclidean distance)
+
+        Returns
+        -------
+        DataFrame
+            Data frame with a single column containing distance values.
+
+        Raises
+        ------
+        RuntimeError
+            
+        """
+
+        sb = df_frame_subject.name
+        if sb not in df_subject["subject"].unique():
             raise RuntimeError(
                 f"Subject '{sb}' not found. Apply this function to each subject via groupby('subject')."
             )
-        xyz = x[[f"{pos_prefix}_x", f"{pos_prefix}_y", f"{pos_prefix}_z"]]
-        home_xyz = df_sub.loc[
-            df_sub["subject"] == sb, ["homePosn.x", "homePosn.y", "homePosn.z"]
+        xyz = df_frame_subject[
+            [f"{pos_prefix}_x", f"{pos_prefix}_y", f"{pos_prefix}_z"]
+        ]
+        home_xyz = df_subject.loc[
+            df_subject["subject"] == sb, ["homePosn.x", "homePosn.y", "homePosn.z"]
         ].values.astype(float)
         xyz = xyz.iloc[:, dims]
         home_xyz = home_xyz[:, dims]
         # groupby.apply functions must return DataFrame with same index to preserve shape
-        out = pd.DataFrame(np.linalg.norm(xyz - home_xyz, axis=1), index=x.index)
+        out = pd.DataFrame(
+            np.linalg.norm(xyz - home_xyz, axis=1), index=df_frame_subject.index
+        )
         return out
 
     df_frame["distance"] = df_frame.groupby("subject", group_keys=False).apply(
         distance_from_start, dims=[0, 2]
     )
 
-    df_frame = df_frame.join(euler_to_direction(data=df_frame, prefix="rhOri_"))
+    df_frame = df_frame.join(euler_to_direction(data=df_frame, prefix=ori_prefix))
 
     return df_frame
 
 
 def find_first_velocity_peak(
-    df, df_sub, df_frame, dist_range=[0.1, 0.75], pv_thresh=0.05,
+    df_trial, df_subject, df_frame, dist_range=[0.1, 0.75], pv_thresh=0.05,
 ):
-    if "targetDistance" not in df_sub.columns:
+    if "targetDistance" not in df_subject.columns:
         warnings.warn(
-            f"'targetDistance' not found in df_sub... Using maximum distance on each trial instead."
+            f"'targetDistance' not found in df_subject... Using maximum distance on each trial instead."
         )
     # Peak velocity
     def helper(x):
@@ -288,7 +395,7 @@ def find_first_velocity_peak(
 
         # This may not work for all experiments!
         # try:
-        target_distance = df_sub.query("subject == @sb")["targetDistance"].values[0]
+        target_distance = df_subject.query("subject == @sb")["targetDistance"].values[0]
         # except KeyError as e:
         #     print(e)
         #     target_distance = x["distance"].max()
@@ -341,11 +448,11 @@ def find_first_velocity_peak(
         else:
             t_onset_pv = before_pv.loc[mask, "t"].values[-1]
 
-        # Side effects on df
-        sel = (df["subject"] == sb) & (df["trialNumber"] == tn)
-        df.loc[sel, "pv"] = pv
-        df.loc[sel, "t_pv"] = tpv
-        df.loc[sel, "t_onset_pv"] = t_onset_pv
+        # Side effects on df_trial
+        sel = (df_trial["subject"] == sb) & (df_trial["trialNumber"] == tn)
+        df_trial.loc[sel, "pv"] = pv
+        df_trial.loc[sel, "t_pv"] = tpv
+        df_trial.loc[sel, "t_onset_pv"] = t_onset_pv
 
         return
 
@@ -354,7 +461,7 @@ def find_first_velocity_peak(
 
     # Subtract onset time from all trials
     df_frame = df_frame.merge(
-        df[["subject", "trialNumber", "t_onset_pv"]],
+        df_trial[["subject", "trialNumber", "t_onset_pv"]],
         how="left",
         on=["subject", "trialNumber"],
     )
@@ -363,11 +470,26 @@ def find_first_velocity_peak(
     # Identify onset frame
     df_frame["onset_pv"] = df_frame["t_onset_pv"] == df_frame["t"]
 
-    return df, df_frame
+    return df_trial, df_frame
 
 
-def get_nearest_row(df, varname, value):
-    """Return row with least difference from specified value"""
+def get_nearest_row(df: pd.DataFrame, varname: str, value: float):
+    """
+    Find row with least difference from specified value of specified column.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+    varname : str
+        A column of `df`
+    value : float
+        The value of `varname` that you want to retrieve the nearest row
+
+    Returns
+    -------
+    pd.DataFrame
+        One row of `df`
+    """
     return df.iloc[np.nanargmin(np.abs(df[varname] - value))]
 
 
@@ -423,7 +545,24 @@ def euler_to_direction(
     return out
 
 
-def get_trial(df, sb=None, tn=None):
+def get_trial(df: pd.DataFrame, sb: str = None, tn: str = None):
+    """
+    Retrieve data for a single trial from a data frame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data frame containing 'subject' and 'trialNumber' columns.
+    sb : str, optional
+        A subject name, by default None chooses a random subject
+    tn : str, optional
+        A trial number, by default None chooses a random trial
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     if sb is None:
         sb = random.choice(df["subject"].unique())
     df = df.loc[df["subject"] == sb]
@@ -433,13 +572,39 @@ def get_trial(df, sb=None, tn=None):
     return df
 
 
-# scaled median absolute deviation (cf. Leys et al 2013)
-def MAD(x):
+def MAD(x: list[float]):
+    """
+    Scaled median absolute deviation (cf. Leys et al 2013)
+
+    Parameters
+    ----------
+    x : list[float]
+        Numeric values on which to compute MAD
+
+    Returns
+    -------
+    float
+        Scaled median absolute deviation
+    """
     return 1.4826 * np.median(np.abs(x - np.median(x)))
 
 
-# outlier detection via MAD threshold (cf. Leys et al 2013)
-def isoutlier(x, crit=3):
+def isoutlier(x: list[float], crit=3):
+    """
+    Outlier detection via MAD threshold (cf. Leys et al 2013)
+
+    Parameters
+    ----------
+    x : list[float]
+        Numeric values on which to run outlier detection
+    crit : int, optional
+        Criterion threshold, by default 3
+
+    Returns
+    -------
+    list[bool]
+        Boolean array where true indicates outliers.
+    """
     return np.abs(x - np.median(x)) > crit * MAD(x)
 
 

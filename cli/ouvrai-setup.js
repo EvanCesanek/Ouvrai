@@ -1,7 +1,11 @@
 import { Command } from 'commander';
 import { spawn } from 'child_process';
 import inquirer from 'inquirer';
-import { firebaseChooseProject, firebaseClient } from './cli-utils.js';
+import {
+  firebaseChooseProject,
+  firebaseClient,
+  spawnPython,
+} from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
 import { unlink, writeFile } from 'fs/promises';
 import { quote } from 'shell-quote';
@@ -106,10 +110,20 @@ subprocess.on('close', async (code) => {
         process.exit(1);
       }
     });
-
     ora(
-      'Success! Configuration files can be found in the /config folder.'
+      'Firebase configuration successful. Configuration files can be found in the /config folder.'
     ).succeed();
+
+    // Install python package (in editable mode) & dependencies
+    try {
+      await spawnPython('pip3', ['install', '--editable', '.'], 'pip');
+    } catch (err) {
+      ora(
+        'Error in Python package installation. This is okay, but keep in mind you will not be able to use ouvrai wrangle until you figure out what is wrong and re-run ouvrai setup.'
+      ).fail();
+      process.exit(1);
+    }
+    ora('Python package and dependencies installed successfully.').succeed();
   } else {
     ora(
       'Error in Firebase initialization! See console output for more info.'

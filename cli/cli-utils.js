@@ -81,6 +81,40 @@ export function ask(rl, query) {
 }
 
 /*********
+ * Python Utilities */
+export async function spawnPython(command, args, fallbackCommand) {
+  let pythonDir = new URL('../python', import.meta.url);
+  let errorMessage = '';
+  console.log('--- Ouvrai - cli-utils.js - spawnPython() ---');
+  console.log(command, ...args);
+  let subprocess = spawn(command, args, {
+    stdio: ['inherit', 'inherit', 'pipe'],
+    cwd: pythonDir,
+    shell: true,
+  });
+  subprocess.stderr.on('data', (data) => {
+    errorMessage += data;
+  });
+  subprocess
+    .on('close', (code) => {
+      if ((code === 127 || code === 9009) && fallbackCommand) {
+        ora(errorMessage.slice(0, -1)).info();
+        ora(
+          `${command} not found - retrying with ${fallbackCommand}...`
+        ).info();
+        subprocess.emit('retry');
+      } else if (code !== 0) {
+        ora(errorMessage.slice(0, -1)).fail();
+      } else {
+        return;
+      }
+    })
+    .on('retry', () => {
+      spawnPython(fallbackCommand, args);
+    });
+}
+
+/*********
  * Prolific Utilities */
 
 export async function prolificGetStudies(
