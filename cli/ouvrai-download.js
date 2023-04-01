@@ -12,19 +12,19 @@ import {
 import firebaseConfig from '../config/firebase-config.js';
 import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { rm, unlink, writeFile } from 'fs/promises';
+import { readdir, rm, writeFile } from 'fs/promises';
 import { readJSON } from 'fs-extra/esm';
 
 const program = new Command()
   .name('ouvrai download')
   .argument('<experiment>', 'Name of experiment')
-  .option(
-    '-p, --project <projectId>',
-    'Specify a Firebase project; default from study-history.json, then /config/firebase-config.js'
-  )
+  //.option(
+  //  '-p, --project <projectId>',
+  //  'Specify a Firebase project; default from study-history.json, then /config/firebase-config.js'
+  //)
   .option(
     '-p, --partial',
-    'Download data from all sessions, including partial sessions'
+    'Download data from partial sessions (in addition to complete sessions)'
   )
   .option(
     '-d, --dev',
@@ -63,76 +63,52 @@ let saveFile = new URL(
 );
 let saveFileDecoded = fileURLToPath(savePath);
 
-// if (options.full) {
-//   // If you are getting all the data from that node (not recommended...)
-//   let client = firebaseClient();
-//   let spinner = ora(`Downloading data from ${firebasePath}...`).start();
-//   try {
-//     await client.database.get(firebasePath, {
-//       project: projectId,
-//       output: saveFileDecoded,
-//     });
-//     spinner.succeed(`Data from ${firebasePath} saved to ${saveFileDecoded}.`);
-//     process.exit(0);
-//   } catch (err) {
-//     spinner.fail(err.message);
-//     process.exit(1);
-//   }
-// }
-
 // Complete participant data only
-spinner = ora(
-  `Downloading participants with complete data from ${firebasePath}...`
-).start();
+spinner = ora(`Downloading from database node ${firebasePath}...`).start();
 let data;
 
 try {
   if (options.dev) {
     let client = firebaseClient();
-    await client.emulators.export(fileURLToPath(savePath), {
-      project: projectId,
-      force: true,
-    });
+    await client.emulators.export(
+      fileURLToPath(
+        new URL(`../experiments/${expName}/emulators`, import.meta.url)
+      ),
+      {
+        project: projectId,
+        force: true,
+      }
+    );
+    let databaseExportPath = new URL(
+      `../experiments/${expName}/emulators/database_export`,
+      import.meta.url
+    );
+    let jsonFiles = await readdir(databaseExportPath);
+    jsonFiles = jsonFiles.filter((fn) => fn.endsWith('.json'));
     let exportFile = new URL(
-      `../experiments/${expName}/analysis/database_export/${projectId}.json`,
+      `../experiments/${expName}/emulators/database_export/${jsonFiles[0]}`,
       import.meta.url
     );
     data = await readJSON(exportFile, 'utf8');
     data = data.experiments[expName]; // key down to the subject level
-    if (!options.full) {
+    if (options.partial) {
       for (const [uid, subjectData] of Object.entries(data)) {
         if (!subjectData.info.completed) {
           delete data[uid];
         }
       }
     }
-    await unlink(
-      new URL(
-        `../experiments/${expName}/analysis/firebase-export-metadata.json`,
-        import.meta.url
-      )
-    );
-    await rm(
-      new URL(
-        `../experiments/${expName}/analysis/database_export`,
-        import.meta.url
-      ),
-      { recursive: true, force: true }
-    );
-    await rm(
-      new URL(
-        `../experiments/${expName}/analysis/auth_export`,
-        import.meta.url
-      ),
-      { recursive: true, force: true }
-    );
+    await rm(new URL(`../experiments/${expName}/emulators`, import.meta.url), {
+      recursive: true,
+      force: true,
+    });
   } else {
     data = await firebaseGetData(
       firebasePath,
       projectId,
       false,
-      options.full ? undefined : 'info/completed', // TODO: FIX THIS
-      options.full ? undefined : 'true'
+      !options.partial ? undefined : 'info/completed', // TODO: FIX THIS
+      !options.partial ? undefined : 'true'
     );
   }
   spinner.succeed();

@@ -43,8 +43,8 @@ if (!process.argv.includes('completion')) {
       console.log(`\nWarning: MTurk credentials not found!\
       \nThe MTurk API uses access keys to authenticate requests.\
       \nSee instructions at https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html\
-      \nInsert your access keys into a plain text file at ${'lol'} (no file extension).\
-      Contents should look like:\
+      \nInsert your access keys into a plain text file at ${mturkCredPath} (no file extension).\
+      \nContents should look like:\
       \n  [default]\
       \n  aws_access_key_id = AKIAIOSFODNN7EXAMPLE\
       \n  aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n`);
