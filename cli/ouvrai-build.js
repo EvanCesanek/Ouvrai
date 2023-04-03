@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import { build } from 'vite';
-import { relative } from 'path';
+import { join, relative } from 'path';
 import inquirer from 'inquirer';
 import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
 import { exists } from './cli-utils.js';
@@ -10,29 +10,28 @@ inquirer.registerPrompt('file-tree-selection', inquirerFileTreeSelection);
 
 const program = new Command()
   .name('ouvrai build')
-  .argument('<experiment>', 'name of experiment')
-  .option('-g, --github', 'build demo version for GitHub Pages')
+  .argument('<studyname>', 'Name of study')
+  .option('-g, --github', 'Build a demo version for GitHub Pages')
   .showHelpAfterError()
   .parse();
 
 const options = program.opts();
+const studyName = program.args[0];
 
-// We use a Vite environment variable to make the experiment name available to the source files.
+// We use a Vite environment variable to make the name available to the source files.
 // See /lib/components/Experiment.js: this.cfg.experiment = import.meta.env.VITE_EXPERIMENT_NAME;
-process.env.VITE_EXPERIMENT_NAME = program.args[0];
+process.env.VITE_EXPERIMENT_NAME = studyName;
 
-const projectPath = new URL(
-  `../experiments/${program.args[0]}`,
-  import.meta.url
-);
-const projectPathDecoded = fileURLToPath(projectPath);
-let buildDir = `${projectPathDecoded}/dist`;
+const studyURL = new URL(`../experiments/${studyName}`, import.meta.url);
+const studyPath = fileURLToPath(studyURL);
 
-let spinner = ora(`Accessing study at ${projectPathDecoded}.`).start();
-if (await exists(projectPath)) {
+let buildPath = join(studyPath, 'dist');
+
+let spinner = ora(`Accessing study at ${studyPath}`).start();
+if (await exists(studyURL)) {
   spinner.succeed();
 } else {
-  spinner.fail(`No study found at ${projectPathDecoded}.`);
+  spinner.fail(`No study found at ${studyPath}`);
   process.exit(1);
 }
 
@@ -48,7 +47,7 @@ if (options.github) {
       enableGoUpperDirectory: true,
     },
   ]);
-  buildDir = answers.path;
+  buildPath = answers.path;
   answers = await inquirer.prompt([
     {
       type: 'input',
@@ -60,12 +59,12 @@ if (options.github) {
   buildBase = `/${answers.name}/`;
 }
 
+const srcPath = join(studyPath, 'src');
 let res = await build({
-  root: `${projectPathDecoded}/src`, // index.html must be here
+  root: srcPath, // index.html must be here
   base: buildBase ?? '/', // base == repo name to access assets on GitHub Pages
-  publicDir: 'public',
   build: {
-    outDir: relative(`${projectPathDecoded}/src`, buildDir),
+    outDir: relative(srcPath, buildPath),
     emptyOutDir: true,
   },
 });

@@ -8,6 +8,8 @@ import { homedir } from 'os';
 import { exists } from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
+import ora from 'ora';
+import { exec } from 'child_process';
 
 const program = new Command();
 
@@ -24,10 +26,10 @@ if (!process.argv.includes('completion')) {
     if (await exists(prolificCredPath)) {
       process.env.PROLIFIC_AUTH_TOKEN = await readFile(prolificCredPath);
     } else {
-      console.log(`\nWarning: Prolific credentials not found!\
-      \nThe Prolific API uses API tokens to authenticate requests.\
-      \nManage your API tokens on the Prolific web app: Settings > Go to API Token page\
-      \nCopy your API token into a plain text file at ${prolificCredPath}.\n`);
+      ora(`Prolific credentials not found.\
+      \n  The Prolific API uses API tokens to authenticate requests.\
+      \n  Manage your API tokens on the Prolific web app: Settings > Go to API Token page\
+      \n  Copy your API token into a plain text file at ${prolificCredPath}`).warn();
     }
   }
 
@@ -40,14 +42,14 @@ if (!process.argv.includes('completion')) {
     // Check for MTurk credentials
     let mturkCredPath = join(homedir(), '.aws/credentials');
     if (!(await exists(mturkCredPath))) {
-      console.log(`\nWarning: MTurk credentials not found!\
-      \nThe MTurk API uses access keys to authenticate requests.\
-      \nSee instructions at https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html\
-      \nInsert your access keys into a plain text file at ${mturkCredPath} (no file extension).\
-      \nContents should look like:\
-      \n  [default]\
-      \n  aws_access_key_id = AKIAIOSFODNN7EXAMPLE\
-      \n  aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n`);
+      ora(`Warning: MTurk credentials not found!\
+      \n  The MTurk API uses access keys to authenticate requests.\
+      \n  See instructions at https://docs.aws.amazon.com/AWSMechTurk/latest/AWSMechanicalTurkGettingStartedGuide/SetUp.html\
+      \n  Insert your access keys into a plain text file at ${mturkCredPath} (no file extension).\
+      \n  Contents should look like:\
+      \n    [default]\
+      \n    aws_access_key_id = AKIAIOSFODNN7EXAMPLE\
+      \n    aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n`).warn();
     }
   }
   // If you want to use firebase-admin package (we usually rely on global firebase-tools)

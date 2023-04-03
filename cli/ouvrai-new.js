@@ -8,48 +8,60 @@ import { exists } from './cli-utils.js';
 import { readdir } from 'fs/promises';
 import { fileURLToPath } from 'url';
 import firebaseConfig from '../config/firebase-config.js';
+import inquirer from 'inquirer';
 
 const program = new Command()
   .name('ouvrai new')
-  .argument('<experiment>', 'Name of experiment')
-  .argument('<template>', 'Name of template')
-  .option('-o, --overwrite', 'Overwrite existing experiment')
+  .argument('<studyname>', 'Name of study')
+  .argument('<templatename>', 'Name of template')
+  .option('-o, --overwrite', 'Overwrite existing study')
   .showHelpAfterError()
   .parse();
 
 const options = program.opts();
-const expName = program.processedArgs[0];
+const studyName = program.processedArgs[0];
 const templateName = program.processedArgs[1];
 
-const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
-const projectPathDecoded = fileURLToPath(projectPath);
-const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
-const templatePathDecoded = fileURLToPath(templatePath);
-const settingsPath = new URL('../config/template', import.meta.url);
-const settingsPathDecoded = fileURLToPath(settingsPath);
+const studyURL = new URL(`../experiments/${studyName}`, import.meta.url);
+const studyPath = fileURLToPath(studyURL);
+const templateURL = new URL(`../templates/${templateName}`, import.meta.url);
+const templatePath = fileURLToPath(templateURL);
+const configURL = new URL('../config/template', import.meta.url);
+const configPath = fileURLToPath(configURL);
 
-let spinner = ora(
-  `Checking for study template at ${templatePathDecoded}`
-).start();
-if (!(await exists(templatePath))) {
+if (firebaseConfig.projectId === 'cognitivescience') {
+  ora(`You must run ouvrai setup before creating a new study`).fail();
+  //process.exit();
+  let answers = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'skipSetup',
+      default: false,
+      message: 'Continue anyway? (Ouvrai devs may want to press Y)',
+    },
+  ]);
+  if (!answers.skipSetup) {
+    process.exit();
+  }
+}
+
+let spinner = ora(`Accessing template at ${templatePath}`).start();
+if (!(await exists(templateURL))) {
   let templateNames = await readdir(new URL(`../templates`, import.meta.url));
   // Filter out .DS_Store and other hidden files
   templateNames = templateNames.filter((item) => !/(^|\/)\.[^/.]/g.test(item));
   spinner.fail(
-    `Invalid template name. Valid templates names are: ${templateNames.join(
-      ', '
-    )}`
+    `Invalid template name. Valid names are: ${templateNames.join(', ')}`
   );
   process.exit(1);
-} else {
-  spinner.succeed();
 }
+spinner.succeed();
 
-spinner = ora(`Checking for existing study at ${projectPathDecoded}`).start();
-if (await exists(projectPath)) {
+spinner = ora(`Checking for existing study at ${studyPath}`).start();
+if (await exists(studyURL)) {
   if (!options.overwrite) {
     spinner.fail(
-      `${projectPathDecoded} already exists! Use the --overwrite (-o) flag if this is really what you want.`
+      `${studyPath} already exists! Use the --overwrite (-o) flag if this is really what you want.`
     );
     process.exit(1);
   } else {
@@ -60,9 +72,9 @@ if (await exists(projectPath)) {
 }
 
 try {
-  spinner = ora(`Copying template files from ${templatePathDecoded}`).start();
+  spinner = ora(`Copying template files from ${templatePath}`).start();
   try {
-    await copy(templatePathDecoded, projectPathDecoded, {
+    await copy(templatePath, studyPath, {
       overwrite: options.overwrite,
       errorOnExist: true,
     });
@@ -72,9 +84,9 @@ try {
     process.exit(1);
   }
 
-  spinner = ora(`Copying config files from ${settingsPathDecoded}`).start();
+  spinner = ora(`Copying config files from ${configPath}`).start();
   try {
-    await copy(settingsPathDecoded, projectPathDecoded, {
+    await copy(configPath, studyPath, {
       overwrite: options.overwrite,
       errorOnExist: true,
     });
@@ -91,21 +103,13 @@ try {
 spinner = ora('Installing npm dependencies').info();
 let subprocess = spawn('npm', ['i'], {
   stdio: 'inherit',
-  cwd: projectPath,
+  cwd: studyURL,
   shell: true,
 });
 subprocess.on('error', (err) => {
-  spinner.fail(`Failed to install npm dependencies from package.json.`);
-  process.exit(1);
+  spinner.fail();
+  throw err;
 });
-subprocess.on('close', (err) => {
-  spinner.succeed(`New study created at ${projectPathDecoded}`);
+subprocess.on('close', (code) => {
+  spinner.succeed(`[${code}] New study created at ${studyPath}`);
 });
-
-if (firebaseConfig.projectId === 'cognitivescience') {
-  ora(
-    `Error: You have not run ouvrai setup.\
-    \n  Your new experiment '${expName}' will not work properly.\
-    \n  Please delete the directory from your experiments and run ouvrai setup.\n`
-  ).fail();
-}

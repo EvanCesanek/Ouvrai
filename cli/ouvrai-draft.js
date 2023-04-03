@@ -12,86 +12,92 @@ import {
 import firebaseConfig from '../config/firebase-config.js';
 import { MTurkClient } from '@aws-sdk/client-mturk';
 import inquirer from 'inquirer';
+import ora from 'ora';
 
 const program = new Command()
   .name('ouvrai draft')
-  .argument('<experiment>', 'name of experiment directory')
-  .option('-p --prolific', 'use Prolific')
-  .option('-m --mturk', 'use MTurk')
+  .argument('<studyname>', 'Name of study')
+  .option('-p --prolific', 'Use Prolific')
+  .option('-m --mturk', 'Use Amazon Mechanical Turk')
   .showHelpAfterError()
   .parse();
+
 const options = program.opts();
 
 if (
   (options.prolific && options.mturk) ||
   (!options.prolific && !options.mturk)
 ) {
-  console.log(
-    'Error: You must specify where to create the draft study, either --prolific (-p) or --mturk (-m).'
-  );
+  ora('You must specify --prolific (-p) or --mturk (-m).').fail();
   process.exit(1);
 }
 
 // Get study configuration file
-const expName = program.args[0];
-if (expName === 'compensation' && !options.mturk) {
-  console.log('Error: Compensation studies are for MTurk only.');
+const studyName = program.args[0];
+if (studyName === 'compensation' && !options.mturk) {
+  ora(
+    'Compensation studies are intended for Amazon Mechanical Turk only.'
+  ).fail();
   process.exit(1);
 }
-let config = await getStudyConfig(expName);
-//console.log(config);
+let config = await getStudyConfig(studyName);
 
-// Get study history (for latest deploy)
-let studyURL = await getLatestDeploySite(expName);
+// Get latest deploy site
+let deploySite = await getLatestDeploySite(studyName);
+if (!deploySite) {
+  process.exit(1);
+}
 
 if (options.prolific) {
-  // PROLIFIC
   // Create study
   let existingStudy;
   try {
-    let existingDraftStudies = await prolificGetStudies(expName, [
+    let existingDraftStudies = await prolificGetStudies(studyName, [
       'UNPUBLISHED',
     ]);
     if (existingDraftStudies) {
-      let expNames = existingDraftStudies.map((o) => ({
+      let studyNames = existingDraftStudies.map((o) => ({
         name: `${o.internal_name} created ${o.date_created.slice(0, 10)} (${
           o.id
         })`,
         value: o,
       }));
       // Add option to create new draft study with same internal_name
-      expNames.push({ name: '* Create new draft study', value: false });
+      studyNames.push({ name: '* Create new draft study', value: false });
       let answers = await inquirer.prompt([
         {
           name: 'updateOrCreate',
-          message: `Found existing drafts with internal name ${expName}. Choose one to update or create a new draft study.`,
+          message: `Found existing drafts with internal name ${studyName}. Choose one to update, or create a new draft study.`,
           type: 'list',
-          choices: expNames,
+          choices: studyNames,
         },
       ]);
       existingStudy = answers.updateOrCreate;
     }
   } catch (err) {
-    process.exit(1);
+    throw err;
   }
 
   try {
     let studyObject = await prolificCreateStudyObject(
-      expName,
-      studyURL,
+      studyName,
+      deploySite,
       config,
       existingStudy
     );
+    let resdata;
     if (existingStudy) {
-      await prolificUpdateStudy(studyObject, existingStudy.id);
+      resdata = await prolificUpdateStudy(studyObject, existingStudy.id);
     } else {
-      await prolificCreateDraftStudy(studyObject);
+      resdata = await prolificCreateDraftStudy(studyObject);
     }
-  } catch (e) {
-    console.log(e.message);
+    ora(
+      `Preview your draft study at: https://app.prolific.co/researcher/workspaces/studies/${resdata.id}`
+    ).succeed();
+  } catch (err) {
+    throw err;
   }
 } else if (options.mturk) {
-  // MTURK
   // Set up MTurk connection
   const client = new MTurkClient({
     region: 'us-east-1',
@@ -100,8 +106,8 @@ if (options.prolific) {
 
   await mturkPostStudy(
     client,
-    expName,
-    studyURL,
+    studyName,
+    deploySite,
     config,
     firebaseConfig,
     mturkConfig,

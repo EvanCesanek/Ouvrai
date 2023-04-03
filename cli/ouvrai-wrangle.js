@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { readdir } from 'fs/promises';
-import { spawnPython } from './cli-utils.js';
+import { spawnSyncPython } from './cli-utils.js';
 
 const program = new Command()
   .name('ouvrai wrangle')
@@ -20,42 +20,43 @@ const program = new Command()
 
 let options = program.opts();
 
-let dataPath = new URL(
+let dataURL = new URL(
   `../experiments/${program.args[0]}/analysis/`,
   import.meta.url
 );
-let dataPathDecoded = fileURLToPath(dataPath);
-let data_folder = `'${dataPathDecoded}'`;
+let dataPath = fileURLToPath(dataURL);
+dataPath = `'${dataPath}'`;
 
-await spawnPython(
+// UI to select files you want
+let jsonFiles = await readdir(dataURL);
+jsonFiles = jsonFiles.filter((fn) => fn.endsWith('.json'));
+if (jsonFiles.length > 1) {
+  let answers = await inquirer.prompt([
+    {
+      name: 'filesToWrangle',
+      type: 'checkbox',
+      message:
+        'Wrangling all .json files by default. Deselect any files you want to exclude:',
+      choices: jsonFiles,
+      default: jsonFiles,
+    },
+  ]);
+  jsonFiles = answers.filesToWrangle;
+}
+if (jsonFiles.length === 0) {
+  ora(`You must supply at least one .json file in ${dataPath}`).fail();
+  process.exit();
+}
+
+let fileRegex = `'(${jsonFiles.join('|')})'`;
+
+let subp = spawnSyncPython(
   'python3',
-  ['wrangle.py', data_folder, options.format],
+  ['wrangle.py', dataPath, options.format, fileRegex],
   'python'
 );
-
-// WIP: UI to select files you want
-// let jsonFiles = await readdir(dataPath);
-// jsonFiles = jsonFiles.filter((fn) => fn.endsWith('.json'));
-// if (jsonFiles.length > 1) {
-//   let answers = await inquirer.prompt([
-//     {
-//       name: 'filesToWrangle',
-//       type: 'checkbox',
-//       message: 'Select the .json files you would like to wrangle:',
-//       choices: jsonFiles,
-//     },
-//   ]);
-//   jsonFiles = answers.filesToWrangle;
-// }
-// if (jsonFiles.length === 0) {
-//   ora(
-//     `wrangle requires at least one .json file from ${dataPathDecoded}.`
-//   ).fail();
-//   process.exit();
-// }
-
-// spawnPython(
-//   'python3',
-//   ['wrangle.py', data_folder, options.format, ...jsonFiles],
-//   'python'
-// );
+if (subp.status === 1) {
+  ora(
+    `Failed to wrangle JSON files. This is usually because you have not installed the Ouvrai Python package during 'ouvrai setup'.`
+  ).fail();
+}

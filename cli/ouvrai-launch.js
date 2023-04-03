@@ -9,24 +9,28 @@ const program = new Command()
   .showHelpAfterError()
   .parse();
 
-let subprocess = spawn('npm', ['i'], {
+let dashboardURL = new URL('../dashboard', import.meta.url);
+
+// Install package (just in case)
+spawn('npm', ['i'], {
   stdio: 'inherit', // inherit parent process IO streams
-  cwd: new URL('../dashboard', import.meta.url), // change working directory
+  cwd: dashboardURL, // change working directory
   shell: true,
 });
 
+// Start Vite + React and Express
 spawn(
   'npx',
   [
     'concurrently', //'-k',
-    '-n Vite/React,Express',
+    '-n Vite,Express',
     '-c magenta,green',
     '"vite src --open -c ./vite.config.js"',
     '"nodemon server.js"',
   ],
   {
     stdio: 'inherit', // inherit parent process IO streams
-    cwd: new URL('../dashboard', import.meta.url), // change working directory
+    cwd: dashboardURL, // change working directory
     shell: true,
   }
 );

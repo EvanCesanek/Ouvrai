@@ -14,49 +14,57 @@ import ora from 'ora';
 
 const program = new Command()
   .name('ouvrai post')
-  .argument('<experiment>', 'Name of experiment')
+  .argument('<studyname>', 'Name of study')
   .option('-p --prolific', 'Use Prolific')
   .option('-m --mturk', 'Use MTurk')
   .showHelpAfterError()
   .parse();
+
 const options = program.opts();
-const expName = program.args[0];
-if (expName === 'compensation' && !options.mturk) {
-  console.log('Error: Compensation studies are for MTurk only.');
+const studyName = program.args[0];
+
+if (studyName === 'compensation' && !options.mturk) {
+  ora('Compensation studies are for MTurk only.').fail();
   process.exit(1);
 }
 
 if (options.prolific) {
   // Get unpublished studies
-  let spinner = ora('Retrieving list of unpublished studies...').start();
+  let spinner = ora('Retrieving draft studies from Prolific').start();
+  let studies;
   try {
-    let studies = await prolificListStudies({
+    studies = await prolificListStudies({
       filterStates: ['UNPUBLISHED'],
       byProject: false,
     });
+    // Exit if no unpublished studies.
+    if (studies.length === 0) {
+      spinner.fail();
+      spinner.fail(
+        `No draft studies found. Create one with:\
+        \n  ouvrai draft <studyname> -p`
+      );
+      process.exit(1);
+    }
+    spinner.succeed();
   } catch (err) {
-    spinner.fail(err.message);
-    process.exit();
-  }
-  // Exit if no unpublished studies.
-  if (studies.length === 0) {
-    spinner.fail('No unpublished studies found.');
-    process.exit(1);
+    spinner.fail();
+    throw err;
   }
 
   // Initialize undefined
   let studyId;
 
-  // Check if any unpublished studies' internal name match expName
+  // Check if any unpublished studies' internal name match studyName
   let studyNames = studies.map((x) => x.internal_name);
-  if (studyNames.includes(expName)) {
+  if (studyNames.includes(studyName)) {
     // If a match is found, prompt to post the matching study
-    let studyIndex = studyNames.indexOf(expName);
+    let studyIndex = studyNames.indexOf(studyName);
     let answers = await inquirer.prompt([
       {
         type: 'list',
         name: 'confirmDefaultStudy',
-        message: `Do you want to post the draft study '${expName}' created on ${studies[studyIndex].date_created}?`,
+        message: `Do you want to post the draft study '${studyName}' created on ${studies[studyIndex].date_created}?`,
         choices: ['Yes', 'Choose from other unpublished studies', 'Exit'],
       },
     ]);
@@ -71,7 +79,7 @@ if (options.prolific) {
       {
         type: 'confirm',
         name: 'selectOtherStudy',
-        message: `${expName} is not the internal name of any draft study. Would you like to select from the list of all unpublished studies?`,
+        message: `${studyName} is not the internal name of any draft study. Would you like to select from the list of all unpublished studies?`,
         default: false,
       },
     ]);
@@ -100,23 +108,18 @@ if (options.prolific) {
       if (studyId === 'exit') {
         process.exit(0);
       }
-    } catch (e) {
-      console.log(e.message);
-      process.exit(1);
+    } catch (err) {
+      throw err;
     }
   }
 
   // Publish study
-  spinner = ora('Posting study on Prolific...');
   try {
     await prolificPostStudy(studyId);
-    spinner.succeed();
   } catch (err) {
-    spinner.fail(err.message);
-    process.exit(1);
+    throw err;
   }
 } else if (options.mturk) {
-  // MTURK
   // Set up MTurk connection
   const client = new MTurkClient({
     region: 'us-east-1',
@@ -124,18 +127,23 @@ if (options.prolific) {
   });
 
   // Get study configuration file
-  let config = await getStudyConfig(expName);
-  let studyURL = await getLatestDeploySite(expName);
+  let config = await getStudyConfig(studyName);
+
+  // Get latest deploy site
+  let deploySite = await getLatestDeploySite(studyName);
+  if (!deploySite) {
+    process.exit(1);
+  }
 
   await mturkPostStudy(
     client,
-    expName,
-    studyURL,
+    studyName,
+    deploySite,
     config,
     firebaseConfig,
     mturkConfig,
     {
-      compensation: expName === 'compensation',
+      compensation: studyName === 'compensation',
       sandbox: false,
     }
   );

@@ -9,7 +9,7 @@ import inquirer from 'inquirer';
 import jsdom from 'jsdom';
 import replace from 'replace-in-file';
 import { createRequire } from 'module';
-import { execSync, spawn } from 'child_process';
+import { exec, spawn, spawnSync } from 'child_process';
 import { join } from 'path';
 import { readJSON } from 'fs-extra/esm';
 import { access, readFile, writeFile } from 'fs/promises';
@@ -17,6 +17,7 @@ import { minify } from 'html-minifier-terser';
 import ora from 'ora';
 import { quote } from 'shell-quote';
 import { fileURLToPath } from 'url';
+import chalk from 'chalk';
 
 /*********
  * Basic Utilities */
@@ -80,38 +81,58 @@ export function ask(rl, query) {
   });
 }
 
+export function spawnp(cmd, args = [], cwd) {
+  return new Promise(function (resolve, reject) {
+    let cmdp = spawn(cmd, args, {
+      cwd: cwd,
+      encoding: 'utf8',
+      stdio: 'inherit',
+    });
+    cmdp.on('error', (err) => reject(err));
+    cmdp.on('close', (res) => resolve(res));
+  });
+}
+
 /*********
  * Python Utilities */
-export async function spawnPython(command, args, fallbackCommand) {
+export function spawnSyncPython(
+  command,
+  args,
+  fallback = 'python',
+  spawnStdio = 'inherit'
+) {
+  ora(`Spawning: ${command} ${args.join(' ')}`).info();
   let pythonDir = new URL('../python', import.meta.url);
-  let errorMessage = '';
-  console.log('--- Ouvrai - cli-utils.js - spawnPython() ---');
-  console.log(command, ...args);
-  let subprocess = spawn(command, args, {
-    stdio: ['inherit', 'inherit', 'pipe'],
+  let subprocess = spawnSync(command, args, {
     cwd: pythonDir,
     shell: true,
+    encoding: 'utf8',
+    stdio: spawnStdio,
+    windowsVerbatimArguments: true,
   });
-  subprocess.stderr.on('data', (data) => {
-    errorMessage += data;
-  });
-  subprocess
-    .on('close', (code) => {
-      if ((code === 127 || code === 9009) && fallbackCommand) {
-        ora(errorMessage.slice(0, -1)).info();
-        ora(
-          `${command} not found - retrying with ${fallbackCommand}...`
-        ).info();
-        subprocess.emit('retry');
-      } else if (code !== 0) {
-        ora(errorMessage.slice(0, -1)).fail();
-      } else {
-        return;
-      }
-    })
-    .on('retry', () => {
-      spawnPython(fallbackCommand, args);
-    });
+  let code = subprocess.status;
+  let message = subprocess.stderr;
+  let output = subprocess.stdout;
+  if ((code === 127 || code === 9009) && fallback) {
+    ora(
+      `Spawn exited with code ${code}: Command '${command}' not found. This is normal on Windows. Ouvrai will try again with fallback command '${fallback}'.`
+    ).info();
+    return spawnSyncPython(fallback, args, undefined, spawnStdio);
+  } else if (code !== 0) {
+    ora(`Spawn exited with code ${code}.`).fail();
+    if (spawnStdio === 'pipe') {
+      ora(message).info();
+    }
+    return subprocess;
+  } else {
+    ora(
+      `Python command '${command} ${args.join(' ')}' was successful.`
+    ).succeed();
+    if (spawnStdio === 'pipe') {
+      ora(output).info();
+    }
+    return subprocess;
+  }
 }
 
 /*********
@@ -157,25 +178,25 @@ export async function prolificGetStudies(
       return results;
     }
   } catch (err) {
-    spinner.fail(err.message);
-    console.log(err.response?.data?.error);
-    process.exit(1);
+    spinner.fail();
+    ora(`${err.message} : ${err.response?.data?.error}`).fail();
+    throw err;
   }
 }
 
 export async function prolificCreateStudyObject(
-  expName,
-  studyURL,
+  studyName,
+  deploySite,
   config,
   existingStudy
 ) {
   config.description = prolificPrepareDescriptionHTML(config);
   let studyObject = {
     name: config.title,
-    internal_name: expName,
+    internal_name: studyName,
     description: config.description,
     external_study_url:
-      studyURL +
+      deploySite +
       '?PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}',
     prolific_id_option: 'url_parameters',
     completion_option: 'url',
@@ -355,9 +376,9 @@ export async function prolificCreateStudyObject(
   //     );
   //   }
   // } catch (err) {
-  //   spinner.fail(`${err.message}`);
-  //   console.log(err.response?.data?.error);
-  //   process.exit(1);
+  //   spinner.fail();
+  //   ora(`${err.message} : ${err.response?.data?.error}`).fail();
+  //   throw err;
   // }
   // if (
   //   config.studyBlocklist &&
@@ -414,7 +435,7 @@ export async function prolificCreateStudyObject(
 }
 
 export async function prolificUpdateStudy(studyObject, id) {
-  let spinner = ora(`Updating Prolific study ${id}..`).start();
+  let spinner = ora(`Updating Prolific study ${id}`).start();
   try {
     let res = await axios.patch(
       `https://api.prolific.co/api/v1/studies/${id}/`,
@@ -426,20 +447,16 @@ export async function prolificUpdateStudy(studyObject, id) {
       }
     );
     spinner.succeed();
-    console.log(
-      `Successfully created draft study!` +
-        `\n Preview it at https://app.prolific.co/researcher/workspaces/studies/${res.data.id}.`
-    );
     return res.data;
   } catch (err) {
-    spinner.fail(`${err.message}`);
-    console.log(err.response?.data?.error);
-    process.exit(1);
+    spinner.fail();
+    ora(`${err.message} : ${err.response?.data?.error}`).fail();
+    throw err;
   }
 }
 
 export async function prolificCreateDraftStudy(studyObject) {
-  let spinner = ora('Creating Prolific draft study..').start();
+  let spinner = ora('Creating Prolific draft study').start();
   let id;
   try {
     let res = await axios.post(
@@ -454,12 +471,12 @@ export async function prolificCreateDraftStudy(studyObject) {
     spinner.succeed();
     id = res.data.id;
   } catch (err) {
-    spinner.fail(`${err.message}`);
-    console.log(err.response?.data?.error);
-    process.exit(1);
+    spinner.fail();
+    ora(`${err.message} : ${err.response?.data?.error}`).fail();
+    throw err;
   }
 
-  spinner = ora('Patching draft study as API bug workaround...');
+  spinner = ora('Patching draft study (workaround for Prolific API bug)');
   try {
     let res = await axios.patch(
       `https://api.prolific.co/api/v1/studies/${id}/`,
@@ -474,36 +491,37 @@ export async function prolificCreateDraftStudy(studyObject) {
       }
     );
     spinner.succeed();
-    console.log(
-      `Successfully created draft study!` +
-        `\n Preview it at https://app.prolific.co/researcher/workspaces/studies/${res.data.id}.`
-    );
     return res.data;
   } catch (err) {
-    spinner.fail(`${err.message} : ${err.response?.data?.error}`);
-    process.exit(1);
+    spinner.fail();
+    ora(`${err.message} : ${err.response?.data?.error}`).fail();
+    throw err;
   }
 }
 
 export async function prolificListWorkspaces() {
+  let spinner = ora('Retreiving workspaces from Prolific').start();
   try {
     let res = await axios.get('https://api.prolific.co/api/v1/workspaces/', {
       headers: {
         Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
       },
     });
+    spinner.succeed();
     return res.data.results;
   } catch (err) {
-    console.log(err.message);
-    process.exit(1);
+    spinner.fail();
+    throw err;
   }
 }
 
 export async function prolificListProjects(workspaceId) {
   if (!workspaceId) {
-    console.log('workspaceId is required!');
-    process.exit(1);
+    throw new Error('You must supply a workspaceId');
   }
+  let spinner = ora(
+    `Retrieving projects from Prolific workspace ${workspaceId}`
+  ).start();
   try {
     let res = await axios.get(
       `https://api.prolific.co/api/v1/workspaces/${workspaceId}/projects/`,
@@ -513,10 +531,11 @@ export async function prolificListProjects(workspaceId) {
         },
       }
     );
+    spinner.succeed();
     return res.data.results;
   } catch (err) {
-    console.log(err.message);
-    process.exit(1);
+    spinner.fail();
+    throw err;
   }
 }
 
@@ -538,12 +557,9 @@ export async function prolificListStudies({ filterStates, byProject = false }) {
       Array.isArray(filterStates) &&
       !filterStates.every((x) => states.indexOf(x) !== -1)
     ) {
-      console.log(
-        `Error: filterStates must be array of strings in (${states.join(
-          ', '
-        )}).`
+      throw new Error(
+        `filterStates must be array of strings in (${states.join(', ')})`
       );
-      return;
     }
 
     if (!filterStates) {
@@ -561,6 +577,7 @@ export async function prolificListStudies({ filterStates, byProject = false }) {
     let stateStringArray = `(${filterStates.join('|')})`;
 
     // Get all studies, filtered by state
+    let spinner = ora('Retrieving your studies from Prolific').start();
     try {
       let res = await axios.get('https://api.prolific.co/api/v1/studies/', {
         params: {
@@ -570,13 +587,14 @@ export async function prolificListStudies({ filterStates, byProject = false }) {
           Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
         },
       });
+      spinner.succeed();
       return res.data.results;
     } catch (err) {
-      console.log(err.message);
-      process.exit(1);
+      spinner.fail();
+      throw err;
     }
   } else {
-    let projectId = prolificSelectProject();
+    let projectId = await prolificSelectProject();
 
     try {
       let res = await axios.get(
@@ -589,8 +607,7 @@ export async function prolificListStudies({ filterStates, byProject = false }) {
       );
       return res.data.results;
     } catch (err) {
-      console.log(err.message);
-      process.exit(1);
+      throw err;
     }
   }
 }
@@ -649,10 +666,11 @@ export async function prolificPostStudy(studyId) {
     },
   ]);
   if (!answers.confirm) {
-    console.log('\nYour study has NOT been posted to Prolific.\n');
-    process.exit(1);
+    ora('Your study has NOT been posted to Prolific').warn();
+    process.exit(1); // Hard exit
   }
   try {
+    let spinner = ora(`Posting study ${studyId} to Prolific`).start();
     let res = await axios.post(
       `https://api.prolific.co/api/v1/studies/${studyId}/transition`,
       {
@@ -664,9 +682,12 @@ export async function prolificPostStudy(studyId) {
         },
       }
     );
+    spinner.succeed();
     return res;
   } catch (err) {
-    console.log(err.message);
+    spinner.fail();
+    ora('Your study has NOT been posted to Prolific').warn();
+    throw err;
   }
 }
 
@@ -747,8 +768,8 @@ function prolificPrepareDescriptionHTML(config) {
 
 export async function mturkPostStudy(
   client,
-  expName,
-  studyURL,
+  studyName,
+  deploySite,
   config,
   firebaseConfig,
   mturkConfig,
@@ -759,19 +780,19 @@ export async function mturkPostStudy(
       {
         type: 'confirm',
         name: 'confirm',
-        message: `You are about to post a real study on MTurk, which will cost money! Are you sure you want to do this?`,
+        message: `You are about to post a real study on Amazon Mechanical Turk, which will cost money! Are you sure you want to do this?`,
         default: false,
       },
     ]);
     if (!answers.confirm) {
-      console.log('\nYour study has NOT been posted to MTurk.\n');
-      process.exit(1);
+      ora('Your study has NOT been posted to Amazon Mechanical Turk.').warn();
+      process.exit(1); // Hard exit
     }
   }
 
   const htmlQuestion = await mturkPrepareHTML(
-    expName,
-    studyURL,
+    studyName,
+    deploySite,
     config,
     firebaseConfig,
     options
@@ -779,7 +800,7 @@ export async function mturkPostStudy(
 
   const qualificationRequirements = await mturkPrepareQualifications(
     client,
-    expName,
+    studyName,
     config,
     options
   );
@@ -788,7 +809,7 @@ export async function mturkPostStudy(
     config.totalAvailablePlaces = config.workersToCompensate.length;
   }
   const createHITCommandInput = mturkCreateHIT(
-    expName,
+    studyName,
     htmlQuestion,
     qualificationRequirements,
     config
@@ -809,68 +830,101 @@ export async function mturkPostStudy(
       baseToken + `_v${String(i).padStart(3, '0')}`;
     createHITCommandInput.MaxAssignments = n;
     const createHITCommand = new CreateHITCommand(createHITCommandInput);
+    let createHITCommandOutput;
+    let spinner = ora(
+      `Creating HIT on Amazon Mechanical Turk ${
+        options.sandbox ? 'SANDBOX' : ''
+      }`
+    ).start();
     try {
-      let createHITCommandOutput = await client.send(createHITCommand);
-      console.log(
-        `Successfully created draft study! (${createHITCommandOutput.HIT.HITId})` +
-          `\nPreview it at ${
-            previewURL + createHITCommandOutput.HIT.HITGroupId
-          }.`
+      createHITCommandOutput = await client.send(createHITCommand);
+      spinner.succeed(
+        `${chalk.bold(
+          'Successfully created HIT',
+          createHITCommandOutput.HIT.HITId,
+          '. Preview it at:\n    ',
+          previewURL + createHITCommandOutput.HIT.HITGroupId
+        )}`
       );
-
-      await updateStudyHistory(
-        expName,
-        'HITId',
-        createHITCommandOutput.HIT.HITId
-      );
-    } catch (error) {
-      console.log(error.message);
-      process.exit(1);
+    } catch (err) {
+      spinner.fail();
+      ora('Your study has NOT been posted on Amazon Mechanical Turk').warn();
+      throw err;
+    }
+    try {
+      await updateStudyHistory(studyName, {
+        HITId: createHITCommandOutput.HIT.HITId,
+      });
+    } catch (err) {
+      throw err;
     }
   }
 }
 
 async function mturkPrepareHTML(
-  expName,
-  studyURL,
+  studyName,
+  deploySite,
   config,
   firebaseConfig,
   options
 ) {
   let HTMLQuestion;
   if (options.compensation) {
-    const mturkLayoutPath = new URL(
+    const mturkLayoutURL = new URL(
       '../config/layout/mturk-layout-compensation.html',
       import.meta.url
     );
-    HTMLQuestion = await readFile(mturkLayoutPath, 'utf8');
+    let spinner = ora(
+      `Reading compensation HIT layout template ${fileURLToPath(
+        mturkLayoutURL
+      )}`
+    ).start();
+    try {
+      HTMLQuestion = await readFile(mturkLayoutURL, 'utf8');
+      spinner.succeed();
+    } catch (err) {
+      spinner.fail();
+      throw err;
+    }
   } else {
-    const mturkLayoutPath = new URL(
+    const mturkLayoutURL = new URL(
       '../config/layout/mturk-layout.html',
       import.meta.url
     );
-    const mturkLayoutPathDecoded = fileURLToPath(mturkLayoutPath);
+    const mturkLayoutPath = fileURLToPath(mturkLayoutURL);
     // 1. Overwrite JavaScript variables
     let timestampComment = '// ' + new Date();
     let replaceOptions = {
-      files: mturkLayoutPathDecoded,
+      files: mturkLayoutPath,
       from: [/^.*expName = .*$/m, /^.*taskURL = .*$/m, /^.*databaseURL = .*$/m],
       to: [
-        `        const expName = '${expName}'; ${timestampComment}`,
-        `        const taskURL = '${studyURL}'; ${timestampComment}`,
+        `        const expName = '${studyName}'; ${timestampComment}`,
+        `        const taskURL = '${deploySite}'; ${timestampComment}`,
         `        const databaseURL = '${firebaseConfig.databaseURL}'; ${timestampComment}`,
       ],
     };
 
+    let spinner = ora(
+      `Replacing critical variables in HIT layout template ${mturkLayoutPath}`
+    ).start();
     try {
       await replace(replaceOptions);
-    } catch (error) {
-      console.log(error.message);
-      process.exit(1);
+      spinner.succeed();
+    } catch (err) {
+      spinner.fail();
+      throw err;
     }
 
     // 2. Modify the DOM
-    let dom = await jsdom.JSDOM.fromFile(mturkLayoutPathDecoded);
+    let dom;
+    spinner = ora('Reading HIT layout template into JSDOM').start();
+    try {
+      dom = await jsdom.JSDOM.fromFile(mturkLayoutPath);
+      spinner.succeed();
+    } catch (err) {
+      spinner.fail();
+      throw err;
+    }
     let document = dom.window.document;
     // Title
     document.getElementById('title-text').textContent = config.title;
@@ -956,11 +1010,18 @@ async function mturkPrepareHTML(
   }
 
   // Minify
-  HTMLQuestion = await minify(HTMLQuestion, {
-    collapseWhitespace: true,
-    removeComments: true,
-    minifyJS: true,
-  });
+  let spinner = ora('Minifying updated HTML layout file').start();
+  try {
+    HTMLQuestion = await minify(HTMLQuestion, {
+      collapseWhitespace: true,
+      removeComments: true,
+      minifyJS: true,
+    });
+    spinner.succeed();
+  } catch (err) {
+    spinner.fail();
+    throw err;
+  }
 
   // 3. Prepend/append the required XML for an HTMLQuestion object (see MTurk API docs)
   let beginXmlTags =
@@ -972,17 +1033,20 @@ async function mturkPrepareHTML(
   return HTMLQuestion;
 }
 
-async function mturkPrepareQualifications(client, expName, config, options) {
+async function mturkPrepareQualifications(client, studyName, config, options) {
   let QualificationRequirements = [];
 
-  if (options.compensation || expName === 'compensation') {
+  if (options.compensation || studyName === 'compensation') {
+    let studyConfigURL = new URL(
+      '../experiments/compensation/study-config.js',
+      import.meta.url
+    );
+    let studyConfigPath = fileURLToPath(studyConfigURL);
     if (
       !config.workersToCompensate ||
       config.workersToCompensate.length === 0
     ) {
-      console.log(
-        'Error: You must specify workersToCompensate in /experiments/compensation/study-config.js.'
-      );
+      ora(`Specify workersToCompensate in ${studyConfigPath}`).fail();
       process.exit(1);
     }
     const req = new CreateQualificationTypeCommand({
@@ -992,31 +1056,31 @@ async function mturkPrepareQualifications(client, expName, config, options) {
       QualificationTypeStatus: 'Active',
     });
     let qid;
-    let spinner = ora(`Creating qualification for compensation HIT...`).start();
+    let spinner = ora(`Creating qualification for Compensation HIT`).start();
     try {
       let res = await client.send(req);
       qid = res.QualificationType.QualificationTypeId;
       spinner.succeed();
-    } catch (error) {
-      spinner.fail(error.message);
+    } catch (err) {
+      spinner.fail();
+      throw err;
     }
 
     // Assign to the workers
     for (let wkr of config.workersToCompensate) {
-      let spinner = ora(`Assigning qualification ${qid} to ${wkr}`);
       const req = new AssociateQualificationWithWorkerCommand({
         QualificationTypeId: qid,
         WorkerId: wkr,
         SendNotification: true, // let them know
         IntegerValue: 1,
       });
+      let spinner = ora(`Assigning qualification ${qid} to ${wkr}`).start();
       try {
         await client.send(req);
         spinner.succeed();
-      } catch (error) {
-        spinner.fail(
-          `Failed to assign qualification to ${wkr}: ${error.message}`
-        );
+      } catch (err) {
+        spinner.fail();
+        throw err;
       }
     }
 
@@ -1030,24 +1094,25 @@ async function mturkPrepareQualifications(client, expName, config, options) {
     return QualificationRequirements;
   }
 
-  let studyConsentQID = await mturkGetQualificationByName(client, expName);
+  let studyConsentQID = await mturkGetQualificationByName(client, studyName);
   if (!studyConsentQID) {
     ora('No qualification exists for this study.').info();
     const req = new CreateQualificationTypeCommand({
-      Name: expName,
-      Description: `Assigned to workers who consent to participate in study '${expName}'`,
+      Name: studyName,
+      Description: `Assigned to workers who consent to participate in study '${studyName}'`,
       Keywords: ['ouvrai', 'consent', ...(config.mturk?.keywords || '')].join(
         ', '
       ),
       QualificationTypeStatus: 'Active',
     });
-    let spinner = ora(`Creating qualification for '${expName}'...`).start();
+    let spinner = ora(`Creating qualification for '${studyName}'`).start();
     try {
       let res = await client.send(req);
       studyConsentQID = res.QualificationType.QualificationTypeId;
       spinner.succeed();
-    } catch (error) {
-      spinner.fail(error.message);
+    } catch (err) {
+      spinner.fail();
+      throw err;
     }
   }
 
@@ -1156,7 +1221,7 @@ async function mturkPrepareQualifications(client, expName, config, options) {
 }
 
 function mturkCreateHIT(
-  expName,
+  studyName,
   htmlQuestion,
   qualificationRequirements,
   config
@@ -1173,9 +1238,9 @@ function mturkCreateHIT(
     LifetimeInSeconds: dhmToSeconds(config.mturk.expiration),
     AutoApprovalDelayInSeconds: dhmToSeconds(config.mturk.autoApprove),
     Question: htmlQuestion,
-    RequesterAnnotation: expName,
+    RequesterAnnotation: studyName,
     QualificationRequirements: qualificationRequirements,
-    UniqueRequestToken: `${expName}_${batchLabel}`,
+    UniqueRequestToken: `${studyName}_${batchLabel}`,
   };
   return myHIT;
 }
@@ -1214,11 +1279,17 @@ export async function mturkListQualifications(client, query) {
   };
 
   const command = new ListQualificationTypesCommand(req);
-
+  let text = query ? `with query string "${query}"` : '';
+  let spinner = ora(
+    `Retriving qualifications from Amazon Mechanical Turk ${text}`
+  ).start();
   try {
-    return await client.send(command);
-  } catch (error) {
-    throw error;
+    let res = await client.send(command);
+    spinner.succeed();
+    return res;
+  } catch (err) {
+    spinner.fail();
+    throw err;
   }
 }
 
@@ -1226,8 +1297,8 @@ export async function mturkGetQualificationByName(client, name) {
   let res;
   try {
     res = await mturkListQualifications(client, name);
-  } catch (error) {
-    throw error;
+  } catch (err) {
+    throw err;
   }
   let match = res.QualificationTypes.filter((x) => x.Name === name)[0];
   return match;
@@ -1243,12 +1314,25 @@ export let mturkConfig = {
 /*********
  * Firebase Utilities */
 
-export function firebaseClient() {
+export async function firebaseClient() {
   // firebase-tools should be installed globally, temporarily add global root to NODE_PATH and require
   // See https://github.com/firebase/firebase-tools#using-as-a-module
+  let spinner = ora(
+    'Creating Firebase client from global firebase-tools'
+  ).start();
+  let root = await new Promise((resolve, reject) => {
+    exec('npm root -g', (error, stdout, stderr) => {
+      if (error) {
+        spinner.fail(stderr);
+        throw error;
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
   const require = createRequire(import.meta.url);
-  let result = execSync('npm root -g');
-  const client = require(join(result.toString().trim(), 'firebase-tools'));
+  const client = require(join(root.toString().trim(), 'firebase-tools'));
+  spinner.succeed();
   return client;
 }
 
@@ -1256,13 +1340,21 @@ export async function firebaseChooseProject(
   client,
   promptMessage = 'You have multiple Firebase projects. Which would you like to use?'
 ) {
+  let projects;
   let projectId;
-  let projects = await client.projects.list();
+  let spinner = ora('Retrieving list of projects from Firebase').start();
+  try {
+    projects = await client.projects.list();
+    spinner.succeed();
+  } catch (err) {
+    spinner.fail();
+    throw err;
+  }
   projects = projects.map((x) => x.projectId);
   if (projects.length === 0) {
-    console.log(
-      `You must create a Firebase project at https://console.firebase.google.com.`
-    );
+    ora(
+      `You must create a Firebase project at https://console.firebase.google.com`
+    ).fail();
     process.exit(1);
   } else if (projects.length === 1) {
     projectId = projects[0];
@@ -1286,7 +1378,17 @@ export async function firebaseChooseSite(
   promptMessage = 'You have multiple Firebase Hosting sites. Which would you like to use?',
   defaultSite
 ) {
-  let sites = await client.hosting.sites.list({ project: projectId });
+  let sites;
+  let spinner = ora(
+    `Retrieving Hosting sites for project '${projectId}' from Firebase`
+  ).start();
+  try {
+    sites = await client.hosting.sites.list({ project: projectId });
+    spinner.succeed();
+  } catch (err) {
+    spinner.fail();
+    throw err;
+  }
   sites = sites.sites.map((x) => x.name.split('/').slice(-1)[0]);
   let siteName;
   if (sites.length === 1) {
@@ -1331,117 +1433,134 @@ export async function firebaseGetData(
   }
   args = [quote(args)];
 
-  let proc = spawn('firebase database:get', args, { shell: true });
-  proc.stdout.on('data', (data) => {
-    str += data;
-  });
+  // let proc = spawn('firebase database:get', args, { shell: true });
+  // proc.stdout.on('data', (data) => {
+  //   str += data;
+  // });
 
-  return new Promise((resolve) =>
-    proc.on('close', () => resolve(JSON.parse(str)))
-  );
+  // return new Promise((resolve) =>
+  //   proc.on('close', () => resolve(JSON.parse(str)))
+  // );
+
+  return new Promise((resolve, reject) => {
+    exec('firebase database:get ' + args, (error, stdout, stderr) => {
+      if (error) {
+        console.log(stderr);
+        throw error;
+      } else {
+        resolve(JSON.parse(stdout));
+      }
+    });
+  });
 }
 
 /*********
  * Study Management Utilities */
 
-export async function updateStudyHistory(expName, key, value) {
+/**
+ *
+ * @param {string} studyName
+ * @param {object} studyInfo
+ * @returns
+ */
+export async function updateStudyHistory(studyName, studyInfo) {
   // Read
   let studyHistoryJSON;
   try {
-    studyHistoryJSON = await getStudyHistory(expName);
+    studyHistoryJSON = await getStudyHistory(studyName);
   } catch (err) {
     throw err;
   }
   if (studyHistoryJSON === undefined) {
-    console.log('Initializing new study history.');
-    studyHistoryJSON = { HITId: [], projectId: [], siteId: [] };
+    ora('Initializing new study history.').info();
+    studyHistoryJSON = {};
   }
 
-  // Update
-  if (
-    !Object.keys(studyHistoryJSON).includes(key) ||
-    !Array.isArray(studyHistoryJSON[key])
-  ) {
-    console.log(
-      `Warning: Field '${key}' does not exist in study-history.json. Creating new field...`
-    );
-    studyHistoryJSON[key] = [];
+  for (let [key, value] of Object.entries(studyInfo)) {
+    // Update
+    if (
+      !Object.keys(studyHistoryJSON).includes(key) ||
+      !Array.isArray(studyHistoryJSON[key])
+    ) {
+      ora(`Initializing new history array for study parameter '${key}'`).info();
+      studyHistoryJSON[key] = [];
+    }
+    studyHistoryJSON[key].push(value);
   }
-  studyHistoryJSON[key].push(value);
-
   // Write
   let studyHistoryURL = new URL(
-    `../experiments/${expName}/study-history.json`,
+    `../experiments/${studyName}/study-history.json`,
     import.meta.url
   );
+  let spinner = ora(`Writing to ${fileURLToPath(studyHistoryURL)}`).start();
   try {
     await writeFile(studyHistoryURL, JSON.stringify(studyHistoryJSON, null, 2));
+    spinner.succeed();
   } catch (err) {
-    console.log(`Error: Write failed to ${fileURLToPath(studyHistoryURL)}`);
+    spinner.fail();
     throw err;
   }
-  console.log(`Study history updated. Most recent ${key} is '${value}'.`);
-  return 0;
 }
 
-export async function getStudyHistory(expName) {
+export async function getStudyHistory(studyName) {
   let studyHistoryJSON;
   let studyHistoryURL = new URL(
-    `../experiments/${expName}/study-history.json`,
+    `../experiments/${studyName}/study-history.json`,
     import.meta.url
   );
+  let studyHistoryPath = fileURLToPath(studyHistoryURL);
+  let spinner = ora(`Reading study history from ${studyHistoryPath}`).start();
   // Read
   if (await exists(studyHistoryURL)) {
     try {
       studyHistoryJSON = await readJSON(studyHistoryURL);
+      spinner.succeed();
     } catch (err) {
+      spinner.fail();
       throw err;
     }
   } else {
-    console.log(
-      `Warning: Study history not found at ${fileURLToPath(studyHistoryURL)}.`
-    );
+    spinner.warn(`Study history not found at ${studyHistoryPath}`);
   }
   return studyHistoryJSON;
 }
 
-export async function getLatestDeploySite(expName) {
-  let history = await getStudyHistory(expName);
+export async function getLatestDeploySite(studyName) {
+  let history = await getStudyHistory(studyName);
   if (history === undefined) {
-    console.log(
-      'Error: You have never deployed this study to a Firebase Hosting site.'
-    );
-    process.exit(1);
+    ora('Failed to retrieve deploy site from study history').warn();
+    return;
+  } else {
+    let latestURL = `https://${history.siteId.slice(-1)}.web.app`;
+    return latestURL;
   }
-  let latestURL = `https://${history.siteId.slice(-1)}.web.app`;
-  return latestURL;
 }
 
-export async function getLatestDeployProject(expName) {
-  let history = await getStudyHistory(expName);
+export async function getLatestDeployProject(studyName) {
+  let history = await getStudyHistory(studyName);
   if (history === undefined) {
-    console.log(
-      'Error: You have never deployed this study to a Firebase Hosting site.'
-    );
-    process.exit(1);
+    ora('Failed to retrieve project ID from study history').warn();
+    return;
   }
   let latestProject = history.projectId?.slice(-1)[0];
   return latestProject;
 }
 
-export async function getStudyConfig(expName) {
+export async function getStudyConfig(studyName) {
   const configURL = new URL(
-    `../experiments/${expName}/study-config.js`,
+    `../experiments/${studyName}/study-config.js`,
     import.meta.url
   );
-  let config;
+  const configPath = fileURLToPath(configURL);
+  let spinner = ora(`Reading study configuration from ${configURL}`).start();
   try {
-    config = await import(configURL);
+    let config = await import(configURL);
     config = config.default;
-  } catch (error) {
-    throw error;
+    spinner.succeed();
+    return config;
+  } catch (err) {
+    throw err;
   }
-  return config;
 }
 
 export async function exists(path) {

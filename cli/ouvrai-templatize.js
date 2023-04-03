@@ -19,16 +19,16 @@ const options = program.opts();
 const expName = program.processedArgs[0];
 const templateName = program.processedArgs[1];
 
-const projectPath = new URL(`../experiments/${expName}`, import.meta.url);
-const projectPathDecoded = fileURLToPath(projectPath);
-const templatePath = new URL(`../templates/${templateName}`, import.meta.url);
-const templatePathDecoded = fileURLToPath(templatePath);
+const studyURL = new URL(`../experiments/${expName}`, import.meta.url);
+const studyPath = fileURLToPath(studyURL);
+const templateURL = new URL(`../templates/${templateName}`, import.meta.url);
+const templatePath = fileURLToPath(templateURL);
 
-let spinner = ora(`Checking for template at ${templatePathDecoded}`).start();
-if (await exists(templatePath)) {
+let spinner = ora(`Checking for template at ${templatePath}`).start();
+if (await exists(templateURL)) {
   if (!options.overwrite) {
     spinner.fail(
-      `${templatePathDecoded} already exists! Use the --overwrite (-o) flag if this is really what you want.`
+      `${templatePath} already exists! Use the --overwrite (-o) flag if this is really what you want.`
     );
     process.exit(1);
   } else {
@@ -39,9 +39,9 @@ if (await exists(templatePath)) {
 }
 
 try {
-  spinner = ora(`Copying source files from ${projectPathDecoded}`).start();
+  spinner = ora(`Copying source files from ${studyPath}`).start();
   try {
-    await copy(`${projectPathDecoded}/src`, `${templatePathDecoded}/src`, {
+    await copy(`${studyPath}/src`, `${templatePath}/src`, {
       overwrite: options.overwrite,
       errorOnExist: true,
     });
@@ -51,11 +51,11 @@ try {
     process.exit(1);
   }
 
-  spinner = ora(`Copying study-config.js from ${projectPathDecoded}`).start();
+  spinner = ora(`Copying study-config.js from ${studyPath}`).start();
   try {
     await copy(
-      `${projectPathDecoded}/study-config.js`,
-      `${templatePathDecoded}/study-config.js`,
+      `${studyPath}/study-config.js`,
+      `${templatePath}/study-config.js`,
       {
         overwrite: options.overwrite,
         errorOnExist: true,
@@ -67,16 +67,12 @@ try {
     process.exit(1);
   }
 
-  spinner = ora(`Copying package.json from ${projectPathDecoded}`).start();
+  spinner = ora(`Copying package.json from ${studyPath}`).start();
   try {
-    await copy(
-      `${projectPathDecoded}/package.json`,
-      `${templatePathDecoded}/package.json`,
-      {
-        overwrite: options.overwrite,
-        errorOnExist: true,
-      }
-    );
+    await copy(`${studyPath}/package.json`, `${templatePath}/package.json`, {
+      overwrite: options.overwrite,
+      errorOnExist: true,
+    });
     spinner.succeed();
   } catch (err) {
     spinner.fail(err.message);
