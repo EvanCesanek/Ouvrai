@@ -48,7 +48,7 @@ if (jsonFiles.length === 0) {
   process.exit();
 }
 
-let fileRegex = `'(${jsonFiles.join('|')})'`;
+let fileRegex = `"(${jsonFiles.join('|')})"`;
 
 let subp = spawnSyncPython(
   'python3',
@@ -57,6 +57,6 @@ let subp = spawnSyncPython(
 );
 if (subp.status === 1) {
   ora(
-    `Failed to wrangle JSON files. This is usually because you have not installed the Ouvrai Python package during 'ouvrai setup'.`
+    `Failed to wrangle JSON files. Usually this is because you did not install the python package during ouvrai setup.`
   ).fail();
 }

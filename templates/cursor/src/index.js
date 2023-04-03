@@ -39,7 +39,6 @@ async function main() {
     // Three.js settings
     orthographic: true,
     cssScene: true,
-    orbitControls: false,
 
     // Scene quantities
     // Assume meters and seconds for three.js, but note tween.js uses milliseconds
@@ -143,7 +142,7 @@ async function main() {
     // options is required: create a new BlockOptions object to control sequencing
     {
       targetDirection: [-1, 1],
-      options: new BlockOptions({ reps: 10, shuffle: true }),
+      options: new BlockOptions({ reps: 5, shuffle: false }),
     },
   ]);
 
