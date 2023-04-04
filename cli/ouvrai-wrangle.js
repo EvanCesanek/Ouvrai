@@ -26,7 +26,7 @@ let dataURL = new URL(
   import.meta.url
 );
 let dataPath = fileURLToPath(dataURL);
-dataPath = `"${dataPath}"`;
+dataPath = `'${dataPath}'`; // Must use single quotes for Windows (no idea why)
 
 // UI to select files you want
 let jsonFiles = await readdir(dataURL);
@@ -53,7 +53,7 @@ let fileRegex = `"(${jsonFiles.join('|')})"`;
 
 let venvPath = fileURLToPath(new URL('../python/env', import.meta.url));
 let venvPythonPathUnix = join(venvPath, 'bin', 'python');
-let venvPythonPathWindows = join(venvPath, 'Scripts', 'python');
+let venvPythonPathWindows = join(venvPath, 'Scripts', 'python.exe');
 let venvPythonCommand;
 if (await exists(venvPythonPathUnix)) {
   venvPythonCommand = `"${venvPythonPathUnix}"`;

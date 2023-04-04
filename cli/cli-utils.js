@@ -103,7 +103,7 @@ export async function pythonSetup() {
   spawnSyncPython('python3', ['-m', 'venv', `"${venvPath}"`], 'python');
   let spinner = ora(`Locating virtual environment scripts`).start();
   let venvPipPathUnix = join(venvPath, 'bin', 'pip');
-  let venvPipPathWindows = join(venvPath, 'Scripts', 'pip');
+  let venvPipPathWindows = join(venvPath, 'Scripts', 'pip.exe');
   let venvPipCommand;
   if (await exists(venvPipPathUnix)) {
     venvPipCommand = `"${venvPipPathUnix}"`;
