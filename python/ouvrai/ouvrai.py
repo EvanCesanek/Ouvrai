@@ -1,12 +1,6 @@
 import os, json, re, warnings, random
 import numpy as np
 import pandas as pd
-import statsmodels as sm
-import seaborn as sns
-from scipy.signal import find_peaks_cwt
-from scipy.optimize import curve_fit
-from statsmodels.tools import add_constant
-from IPython.display import display
 
 
 def test():
@@ -257,8 +251,6 @@ def load_demographics(df_subject: pd.DataFrame, path="demographics.csv"):
             how="left",
             on="workerId",
         )
-        display(pd.DataFrame(df_subject["Sex"].describe()))
-        display(pd.DataFrame(df_subject.Age.astype("float").describe()))
     except (FileNotFoundError):
         warnings.warn(
             "Demographics file not found. Download it from Prolific or Amazon Mechanical Turk with 'ouvrai download <studyname> --demographics'."
@@ -405,12 +397,12 @@ def find_first_velocity_peak(
         vel_upr = dist_range[1] * target_distance
 
         above_vel_lwr = x["distance"] >= vel_lwr
-        if not any(above_vel_lwr):
-            # warnings.warn(
-            #     f"\n\t{x.name}: distance never exceeded lower threshold {vel_lwr:.3f}...\n\tThat's a problem! Examine this trial."
-            # )
-            g = sns.lineplot(data=x, x="rhPos_x", y="rhPos_z", sort=False)
-            g.set_aspect("equal")
+        # if not any(above_vel_lwr):
+        #     warnings.warn(
+        #         f"\n\t{x.name}: distance never exceeded lower threshold {vel_lwr:.3f}...\n\tThat's a problem! Examine this trial."
+        #     )
+        #     g = sns.lineplot(data=x, x="rhPos_x", y="rhPos_z", sort=False)
+        #     g.set_aspect("equal")
 
         above_vel_upr = x["distance"] >= vel_upr
         if not any(above_vel_upr):
@@ -430,8 +422,8 @@ def find_first_velocity_peak(
             print(
                 f"{x.name}: cropped was empty... {vel_lwr, vel_upr, start_idx, end_idx}"
             )
-            g = sns.lineplot(data=x, x="rhPos_x", y="rhPos_z", sort=False)
-            g.set_aspect("equal")
+            # g = sns.lineplot(data=x, x="rhPos_x", y="rhPos_z", sort=False)
+            # g.set_aspect("equal")
 
         # get the index of the original data frame
         pv_idx = cropped.iloc[first_peak_idx].name  # .name because it's a Series
@@ -606,53 +598,3 @@ def isoutlier(x: list[float], crit=3):
         Boolean array where true indicates outliers.
     """
     return np.abs(x - np.median(x)) > crit * MAD(x)
-
-
-# lm method for apply
-def model(df, xname, yname):
-    y = df[[yname]].values
-    X = df[[xname]].values
-    X = X[~np.isnan(y)]
-    y = y[~np.isnan(y)]
-    X = add_constant(X, True, "add")
-    return sm.OLS(y, X).fit()
-
-
-# predict method for apply
-def predict(lm, x):
-    return lm.params[0] + x * lm.params[1]
-
-
-# cubic function (for MACC onset detection)
-def cubic(x, b, const):
-    return const + b * x ** 3
-
-
-# MACC is some garbage (nothing to stop it from fitting two flat lines anywhere...)
-def compute_macc_init(before_pv, segment_length=10):
-    """[Not recommended!] MACC onset detection (Botzer & Karniel 2009)"""
-    out = {}
-    best = np.Inf
-    for f_0 in range(segment_length, len(before_pv) + 1 - segment_length):
-        t_0 = before_pv.iloc[f_0]["t"]
-        static_data = before_pv.iloc[range(f_0 - segment_length, f_0)]
-        constant_jerk_data = before_pv.iloc[range(f_0, f_0 + segment_length)]
-        static_prediction = static_data["hand_z"].mean()
-        static_SSE = np.sum((static_prediction - static_data["hand_z"]) ** 2)
-        constant_jerk_fit, _, infodict, _, _ = curve_fit(
-            lambda x, b: cubic(x, b, static_prediction),
-            constant_jerk_data["t"] - t_0,
-            constant_jerk_data["hand_z"],
-            full_output=True,
-        )
-        constant_jerk_prediction = infodict["fvec"]
-        constant_jerk_SSE = np.sum(
-            (constant_jerk_prediction - constant_jerk_data["hand_z"]) ** 2
-        )
-        RMSE = np.sqrt(static_SSE + constant_jerk_SSE) / (2 * segment_length - 1)
-        if RMSE < best:
-            best = RMSE
-            out.macc_frame = f_0
-            out.macc_param = constant_jerk_fit
-            out.macc_static = static_prediction
-    out._onset_macc = before_pv.iloc[out.macc_frame]["t"]

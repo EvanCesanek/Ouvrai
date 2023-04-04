@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import {
   firebaseChooseProject,
   firebaseClient,
+  pythonSetup,
   spawnSyncPython,
 } from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
@@ -13,8 +14,11 @@ import { fileURLToPath } from 'url';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import ora from 'ora';
+import chalk from 'chalk';
 
 const program = new Command().name('ouvrai setup').showHelpAfterError().parse();
+
+console.log(chalk.bold('=== Accessing Firebase'));
 
 let client = await firebaseClient();
 
@@ -59,6 +63,7 @@ let subprocess = spawn(`firebase`, args, {
 
 subprocess.on('close', async (code) => {
   if (code === 0) {
+    console.log(chalk.bold('\n=== Configuring Ouvrai and Firebase'));
     // Get the app ID of this project's associated web app
     let apps = await client.apps.list('web', { project: projectId });
     let appNames = apps.map((x) => x.displayName);
@@ -126,26 +131,14 @@ subprocess.on('close', async (code) => {
     });
     spinner.succeed();
     ora(
-      `Ouvrai successfully configured for Firebase project '${projectId}'.`
+      chalk.bold(
+        `Ouvrai successfully configured for Firebase project '${projectId}'.\n`
+      )
     ).succeed();
 
     // Install python package (in editable mode) & dependencies
-    console.log();
-    let answers = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'installPythonPackage',
-        message: `Do you want to install the Ouvrai Python package to your currently active Python environment? This is required to use the 'ouvrai wrangle' command, which converts Firebase JSON files to tidy data tables.`,
-      },
-    ]);
-    if (answers.installPythonPackage) {
-      spawnSyncPython('pip3', ['install', '--editable', '.'], 'pip');
-    } else {
-      console.log();
-      ora(
-        `Ouvrai python package not installed. That's fine, but you will be unable to use 'ouvrai wrangle'. Run 'ouvrai setup' again to install the package.`
-      ).warn();
-    }
+    console.log(chalk.bold('=== Python Setup'));
+    await pythonSetup();
   } else {
     ora(
       'Error in Firebase initialization! See console output for more info.'
@@ -153,7 +146,8 @@ subprocess.on('close', async (code) => {
     process.exit(1);
   }
   console.log();
-  ora(`Ouvrai setup complete! To try out the 'cursor' starter experiment, run the following commands:\
-  \n  ouvrai new my-new-study cursor\
-  \n  ouvrai dev my-new-study`).succeed();
+  ora(`${chalk.bold('Ouvrai setup complete!')}\
+  \n  We recommend starting by creating a new study from the 'cursor' template:\
+  \n    ouvrai new my-new-study cursor\
+  \n    ouvrai dev my-new-study\n`).succeed();
 });

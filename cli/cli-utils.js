@@ -95,6 +95,29 @@ export function spawnp(cmd, args = [], cwd) {
 
 /*********
  * Python Utilities */
+export async function pythonSetup() {
+  let venvPath = fileURLToPath(new URL('../python/env', import.meta.url));
+  ora(
+    `Creating Python virtual environment in Ouvrai to keep separate from system Python`
+  ).info();
+  spawnSyncPython('python3', ['-m', 'venv', `"${venvPath}"`], 'python');
+  let spinner = ora(`Locating virtual environment scripts`).start();
+  let venvPipPathUnix = join(venvPath, 'bin', 'pip');
+  let venvPipPathWindows = join(venvPath, 'Scripts', 'pip');
+  let venvPipCommand;
+  if (await exists(venvPipPathUnix)) {
+    venvPipCommand = `"${venvPipPathUnix}"`;
+  } else if (await exists(venvPipPathWindows)) {
+    venvPipCommand = `"${venvPipPathWindows}"`;
+  } else {
+    spinner.fail();
+    throw new Error('Failed to find Python virtual environment for Ouvrai');
+  }
+  spinner.succeed();
+  ora(`Installing Ouvrai Python package in virtual environment`).info();
+  spawnSyncPython(venvPipCommand, ['install', '.']);
+}
+
 export function spawnSyncPython(
   command,
   args,

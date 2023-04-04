@@ -1,6 +1,5 @@
 import ouvrai as ou
 import argparse
-import sys
 
 parser = argparse.ArgumentParser()
 parser.add_argument("data_folder")

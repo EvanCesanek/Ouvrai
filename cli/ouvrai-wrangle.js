@@ -5,7 +5,8 @@ import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { readdir } from 'fs/promises';
-import { spawnSyncPython } from './cli-utils.js';
+import { exists, spawnSyncPython } from './cli-utils.js';
+import { join } from 'path';
 
 const program = new Command()
   .name('ouvrai wrangle')
@@ -25,7 +26,7 @@ let dataURL = new URL(
   import.meta.url
 );
 let dataPath = fileURLToPath(dataURL);
-dataPath = `'${dataPath}'`;
+dataPath = `"${dataPath}"`;
 
 // UI to select files you want
 let jsonFiles = await readdir(dataURL);
@@ -50,11 +51,24 @@ if (jsonFiles.length === 0) {
 
 let fileRegex = `"(${jsonFiles.join('|')})"`;
 
-let subp = spawnSyncPython(
-  'python3',
-  ['wrangle.py', dataPath, options.format, fileRegex],
-  'python'
-);
+let venvPath = fileURLToPath(new URL('../python/env', import.meta.url));
+let venvPythonPathUnix = join(venvPath, 'bin', 'python');
+let venvPythonPathWindows = join(venvPath, 'Scripts', 'python');
+let venvPythonCommand;
+if (await exists(venvPythonPathUnix)) {
+  venvPythonCommand = `"${venvPythonPathUnix}"`;
+} else if (await exists(venvPythonPathWindows)) {
+  venvPythonCommand = `"${venvPythonPathWindows}"`;
+} else {
+  throw new Error('Failed to find Python virtual environment for Ouvrai');
+}
+
+let subp = spawnSyncPython(venvPythonCommand, [
+  'wrangle.py',
+  dataPath,
+  options.format,
+  fileRegex,
+]);
 if (subp.status === 1) {
   ora(
     `Failed to wrangle JSON files. Usually this is because you did not install the python package during ouvrai setup.`
