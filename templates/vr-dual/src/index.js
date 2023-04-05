@@ -72,14 +72,14 @@ async function main() {
 
     // Procedure (120 trials total)
     maxDemoTrials: 3,
-    numBaselineCycles: 15,
-    numRampCycles: 15,
-    numPlateauCycles: 20,
-    numWashoutCycles: 15,
-    restDuration: 15, // minimum duration of rest state
-    restTrials: [30, 70], // rest before which trials?
+    numBaselineCycles: 3,
+    numRampCycles: 3,
+    numPlateauCycles: 3,
+    numWashoutCycles: 3,
+    restDuration: 3, // minimum duration of rest state
+    restTrials: [], // rest before which trials?
     startNoFeedbackDuration: 10, // minimum duration of notification state
-    startNoFeedbackTrial: 14, // remove feedback before which trial?
+    startNoFeedbackTrial: 4, // remove feedback before which trial?
     //startClampTrial: 100, // no clamp?
     noFeedbackNear: 0.03, // radius beyond which feedback is off
     startDelay: 0.2, // time to remain in start position

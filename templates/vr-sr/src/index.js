@@ -68,16 +68,16 @@ async function main() {
     homePosn: new Vector3(0, 0.9, -0.3),
 
     // Procedure (120 trials total)
-    maxDemoTrials: 3,
-    numBaselineCycles: 20, // 1 cycle = 1 trial (because 1 target)
-    numPositiveCycles: 60,
-    numNegativeCycles: 10,
-    numClampCycles: 30,
+    maxDemoTrials: 2,
+    numBaselineCycles: 6, // 1 cycle = 1 trial (because 1 target)
+    numPositiveCycles: 12,
+    numNegativeCycles: 4,
+    numClampCycles: 8,
     restDuration: 15, // minimum duration of rest state
-    restTrials: [30, 70], // rest before which trials?
+    restTrials: [], // rest before which trials?
     startNoFeedbackDuration: 10, // minimum duration of notification state
-    startNoFeedbackTrial: 12, // remove feedback before which trial?
-    startClampTrial: 90,
+    startNoFeedbackTrial: 4, // remove feedback before which trial?
+    startClampTrial: 22,
     noFeedbackNear: 0.03, // radius beyond which feedback is off
     startDelay: 0.2, // time to remain in start position
   });

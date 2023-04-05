@@ -71,15 +71,15 @@ async function main() {
 
     // Procedure (180 trials total; adapted from Vetter, Goodbody, & Wolpert, 1999)
     maxDemoTrials: 3,
-    numFamiliarizationCycles: 2, // 1 cycle = 13 trials (1 to each target with feedback), end 26
-    numPreExposureCycles: 2, // 1 cycle = 26 trials (1 exposure 1 test, interleaved 13 x), end 78
-    numExposureRampCycles: 20, // 1 cycle = 1 trial (exposure target only), ramp up perturbation
-    numExposurePlateauCycles: 30, // 1 cycle = 1 trial (exposure target only), constant perturbation end 128
-    numPostExposureCycles: 2, // same as preexposure, end 180
-    restDuration: 15, // minimum duration of rest state
-    restTrials: [20, 60, 100, 140], // rest before which trials?
+    numFamiliarizationCycles: 1, // 1 cycle = 13 trials (1 to each target with feedback), end 26
+    numPreExposureCycles: 1, // 1 cycle = 26 trials (1 exposure 1 test, interleaved 13 x), end 78
+    numExposureRampCycles: 5, // 1 cycle = 1 trial (exposure target only), ramp up perturbation
+    numExposurePlateauCycles: 5, // 1 cycle = 1 trial (exposure target only), constant perturbation end 128
+    numPostExposureCycles: 1, // same as preexposure, end 180
+    restDuration: 5, // minimum duration of rest state
+    restTrials: [], // // rest before which trials?
     startNoFeedbackDuration: 10, // minimum duration of notification state
-    startNoFeedbackTrial: 26, // remove feedback before which trial?
+    startNoFeedbackTrial: 13, // remove feedback before which trial?
     startDelay: 0.2, // time to remain in start position
     // Target arrangement
     targetIds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],

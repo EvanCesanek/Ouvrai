@@ -142,7 +142,7 @@ async function main() {
     // options is required: create a new BlockOptions object to control sequencing
     {
       targetDirection: [-1, 1],
-      options: new BlockOptions({ reps: 5, shuffle: false }),
+      options: new BlockOptions({ reps: 4, shuffle: false }),
     },
   ]);
 
