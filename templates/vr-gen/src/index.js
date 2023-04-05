@@ -71,20 +71,20 @@ async function main() {
 
     // Procedure (180 trials total; adapted from Vetter, Goodbody, & Wolpert, 1999)
     maxDemoTrials: 3,
-    numFamiliarizationCycles: 1, // 1 cycle = 13 trials (1 to each target with feedback), end 26
-    numPreExposureCycles: 1, // 1 cycle = 26 trials (1 exposure 1 test, interleaved 13 x), end 78
-    numExposureRampCycles: 5, // 1 cycle = 1 trial (exposure target only), ramp up perturbation
-    numExposurePlateauCycles: 5, // 1 cycle = 1 trial (exposure target only), constant perturbation end 128
+    numFamiliarizationCycles: 1, // 1 cycle = 6 trials (1 to each target with feedback)
+    numPreExposureCycles: 1, // 1 cycle = 12 trials (1 exposure 1 test, interleaved 6 x)
+    numExposureRampCycles: 7, // 1 cycle = 1 trial (exposure target only), ramp up perturbation
+    numExposurePlateauCycles: 3, // 1 cycle = 1 trial (exposure target only), constant perturbation end 128
     numPostExposureCycles: 1, // same as preexposure, end 180
     restDuration: 5, // minimum duration of rest state
     restTrials: [], // // rest before which trials?
     startNoFeedbackDuration: 10, // minimum duration of notification state
-    startNoFeedbackTrial: 13, // remove feedback before which trial?
+    startNoFeedbackTrial: 6, // remove feedback before which trial?
     startDelay: 0.2, // time to remain in start position
     // Target arrangement
-    targetIds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    targetDims: [0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2],
-    targetMags: [0, -2, -1, 1, 2, -2, -1, 1, 2, -2, -1, 1, 2],
+    targetIds: [0, 1, 2, 3, 4, 5, 6],
+    targetDims: [0, 0, 0, 1, 1, 2, 2],
+    targetMags: [0, -2, 2, -2, 2, -2, 2],
     targetSpacing: 0.04,
   });
 
@@ -679,7 +679,7 @@ async function main() {
 
       case 'SURVEY':
         exp.state.once(() => exp.survey?.hidden && exp.survey.show());
-        if (!exp.survey || exp.surveysubmitted) {
+        if (exp.cfg.completed && (!exp.survey || exp.surveysubmitted)) {
           exp.survey?.hide();
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
