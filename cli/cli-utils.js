@@ -1464,14 +1464,18 @@ export async function firebaseGetData(
   // );
 
   return new Promise((resolve, reject) => {
-    exec('firebase database:get ' + args, (error, stdout, stderr) => {
-      if (error) {
-        console.log(stderr);
-        throw error;
-      } else {
-        resolve(JSON.parse(stdout));
+    exec(
+      'firebase database:get ' + args,
+      { maxBuffer: 1000000000 },
+      (error, stdout, stderr) => {
+        if (error) {
+          console.log(stderr);
+          throw error;
+        } else {
+          resolve(JSON.parse(stdout));
+        }
       }
-    });
+    );
   });
 }
 
