@@ -17,7 +17,6 @@ import { shuffle } from 'd3-array';
 // Package imports
 import {
   Experiment,
-  BlockOptions,
   DisplayElement,
   MeshFactory,
   InstructionsPanel,
@@ -25,6 +24,7 @@ import {
   generateDemoReaches,
   linspace,
   clamp,
+  Block,
 } from 'ouvrai';
 
 // Static asset imports (https://vitejs.dev/guide/assets.html)
@@ -34,20 +34,25 @@ import targetColorMapURL from 'ouvrai/lib/textures/Terrazzo018_1K-JPG/Terrazzo01
 import targetNormalMapURL from 'ouvrai/lib/textures/Terrazzo018_1K-JPG/Terrazzo018_1K_NormalGL.jpg';
 import targetRoughnessMapURL from 'ouvrai/lib/textures/Terrazzo018_1K-JPG/Terrazzo018_1K_Roughness.jpg';
 
-/**
+/*
  * Main function contains all experiment logic. At a minimum you should:
  * 1. Create a `new Experiment({...config})`
  * 2. Initialize the state machine with `exp.state.init(states, changeFunc)`
- * 3. Create stimuli and add them to the three.js scene: `exp.sceneManager.scene`
+ * 3. Create stimuli and add them with `exp.sceneManager.scene.add(...objects)`
  * 4. Create trial sequence with `exp.createTrialSequence([...blocks])`
- * 5. Start the main experiment loop with `exp.start(mainLoopFunc)`
- * 6. Create experiment flow by editing `calcFunc`, `stateFunc`, and `displayFunc`.
+ * 5. Start the main loop with `exp.start(calcFunc, stateFunc, displayFunc)`
+ * 6. Design your experiment by editing `calcFunc`, `stateFunc`, and `displayFunc`
  */
+
 async function main() {
   // Configure your experiment
   const exp = new Experiment({
-    // Debug mode?
-    debug: true,
+    // Options to make development easier
+    devOptions: {
+      skipConsent: true,
+      orbitControls: true,
+      replay: false, // set true to replay data from saved JSON
+    },
 
     // Platform settings
     requireVR: true,
@@ -56,7 +61,6 @@ async function main() {
 
     // Three.js settings
     environmentLighting: environmentLightingURL,
-    orbitControls: true,
     gridRoom: true,
     audio: true,
 
@@ -69,11 +73,11 @@ async function main() {
     targetDistance: 0.2,
     homePosn: new Vector3(0, 0.9, -0.3),
 
-    // Procedure (180 trials total; adapted from Vetter, Goodbody, & Wolpert, 1999)
+    // Procedure (reduced-length version)
     maxDemoTrials: 3,
     numFamiliarizationCycles: 1, // 1 cycle = 6 trials (1 to each target with feedback)
-    numPreExposureCycles: 1, // 1 cycle = 14 trials (1 exposure 1 test, interleaved 7 x)
-    numExposureRampCycles: 7, // 1 cycle = 1 trial (exposure target only), ramp up perturbation
+    numPreExposureCycles: 1, // 1 cycle = 14 trials (1 exposure 1 test, 7 x)
+    numExposureRampCycles: 7, // 1 cycle = 1 trial (exposure target only)
     numExposurePlateauCycles: 3, // 1 cycle = 1 trial (exposure target only)
     numPostExposureCycles: 1, // same as preexposure
     restDuration: 5, // minimum duration of rest state
@@ -89,67 +93,48 @@ async function main() {
   });
 
   /**
-   * Finite State Machine manages the flow of your experiment.
-   * Define states here. Define behavior & transitions in stateFunc().
+   * Initialize Finite State Machine (FSM) that manages the flow of your experiment.
+   * You will define the behavior and transitions of the FSM below in stateFunc().
    */
-  exp.cfg.stateNames = [
-    'BROWSER',
-    'CONSENT',
-    'SIGNIN',
-    'WELCOME',
-    'CALIBRATE',
-    'DEMO',
-    // Begin customizable states
-    'SETUP',
-    'START',
-    'DELAY',
-    'REACH',
-    'RETURN',
-    'FINISH',
-    'ADVANCE',
-    // End customizable states
-    'REST',
-    'STARTNOFEEDBACK',
-    'SURVEY',
-    'CODE',
-    'CONTROLLER',
-    'DBCONNECT',
-    'BLOCKED',
-  ];
+  exp.state.init(
+    [
+      'CONSENT',
+      'SIGNIN',
+      'WELCOME',
+      'CALIBRATE',
+      'DEMO',
+      'SETUP',
+      'START',
+      'DELAY',
+      'REACH',
+      'RETURN',
+      'FINISH',
+      'ADVANCE',
+      'REST',
+      'STARTNOFEEDBACK',
+      'SURVEY',
+      'CODE',
+      'CONTROLLER',
+      'DATABASE',
+      'BLOCKED',
+    ],
+    handleStateChange
+  );
 
-  // Initialize the state machine
-  exp.state.init(exp.cfg.stateNames, handleStateChange);
-
-  // An instructions panel (HTML so use <br> for newlines)
+  // Short instruction panel telling them to click ENTER VR
   exp.instructions = new InstructionsPanel({
-    content: `Click the ENTER VR button to start.<br>
-    You will see more instructions in VR.`,
+    content: `Click the ENTER VR button to start.\nYou will see more instructions in VR.`,
     collapsible: false,
   });
 
-  // Declare trial variables that you want to reset on every trial
-  const trialInitialize = {
-    // render frames
-    t: [],
-    state: [],
-    rhPos: [],
-    rhOri: [],
-    // state change events
-    stateChange: [],
-    stateChangeTime: [],
-    stateChangeHeadPos: [],
-    stateChangeHeadOri: [],
-  };
-  let trial = structuredClone(trialInitialize);
-
-  /**
-   * Objects
+  /*
+   * Create visual stimuli with three.js
    */
 
   // Workspace "root" (helpful for individual height calibration)
   const workspace = new Group();
+  workspace.position.copy(exp.cfg.homePosn);
   exp.sceneManager.scene.add(workspace);
-  workspace.position.set(...exp.cfg.homePosn);
 
   // Home position
   const home = MeshFactory.edges({
@@ -164,6 +149,7 @@ async function main() {
   });
   // cube of edge length 1.414*r forms tight cage around sphere of radius r
   home.scale.setScalar(1.5); // we go slightly larger
+  // animation that makes the home cube size pulsate slightly (1.5 - 1.8)
   home.pulseTween = new Tween(home.scale)
     .to({ x: 1.8, y: 1.8, z: 1.8 }, 350)
     .repeat(Infinity)
@@ -173,17 +159,19 @@ async function main() {
   workspace.add(home);
 
   // Create tool
+  // We will switch between opaque and transparent version of this material
+  let handleMat = new MeshStandardMaterial({
+    color: 'slategray',
+    roughness: 0.7,
+    metalness: 1,
+  });
   let handleTransMat = new MeshStandardMaterial({
     color: 'slategray',
     roughness: 0.7,
     metalness: 1,
     transparent: true,
   });
-  let handleMat = new MeshStandardMaterial({
-    color: 'slategray',
-    roughness: 0.7,
-    metalness: 1,
-  });
+  // Handle of the tool
   const toolHandle = new Mesh(
     new CylinderGeometry(
       exp.cfg.controlPointRadius,
@@ -197,10 +185,10 @@ async function main() {
   // so rotate cylinder -90 degrees around X to align +Y with -Z
   toolHandle.rotateX(-Math.PI / 2);
   // Create control point at end of tool
+  let cpMat = new MeshStandardMaterial();
   let cpTransMat = new MeshStandardMaterial({
     transparent: true,
   });
-  let cpMat = new MeshStandardMaterial();
   const cp = new Mesh(new SphereGeometry(exp.cfg.controlPointRadius), cpMat);
   cp.translateY(exp.cfg.handleLength / 2);
   toolHandle.add(cp);
@@ -217,6 +205,7 @@ async function main() {
     })
   );
   target.translateZ(-exp.cfg.targetDistance);
+  // Animation that makes the target shrink down to nothing when touched with trigger
   target.hitTween = new Tween(target)
     .to({ scale: { x: 0, y: 0, z: 0 } }, 220)
     .easing(Easing.Back.InOut)
@@ -225,6 +214,7 @@ async function main() {
       o.scale.setScalar(1);
     })
     .start();
+  // Different animation that makes the target size pulsate on test trials
   target.pulseTween = new Tween(target)
     .to({ scale: { x: 1.2, y: 1.2, z: 1.2 } }, 180)
     .repeat(1)
@@ -234,7 +224,7 @@ async function main() {
       o.scale.setScalar(1);
     });
   target.visible = false;
-  // Give it a material
+  // Give it a nice textured material downloaded from AmbientCG
   exp.sceneManager.pbrMapper.applyNewTexture(
     [target],
     'terrazzo',
@@ -252,105 +242,106 @@ async function main() {
 
   // Create a tool avatar to demonstrate reaching movements
   const demo = new Group();
-  workspace.add(demo);
   demo.visible = false;
+  workspace.add(demo);
   const demoTool = toolHandle.clone(true);
-  demo.add(demoTool);
   demoTool.rotateX(Math.PI / 3); // Tilted forward 30 degrees
   demoTool.material = new MeshStandardMaterial({
     color: '#1c2a29',
     roughness: 1,
     metalness: 1,
   });
+  demo.add(demoTool);
   const democp = demoTool.children[0];
 
-  /**
-   * Create trial sequence (exp.trials) from array of block objects
+  /*
+   * Create trial sequence from array of block objects.
    */
   exp.createTrialSequence([
-    // The keys of a block object are the variables, the values must be equal-length arrays
-    // The combination of elements at index i are the variable values for one trial
-    // options is required: create a new BlockOptions object to control sequencing
-    {
-      targetId: exp.cfg.targetIds,
-      targetDim: exp.cfg.targetDims,
-      targetMag: exp.cfg.targetMags,
-      rotation: 0,
-      options: new BlockOptions({
+    new Block({
+      variables: {
+        targetId: exp.cfg.targetIds,
+        targetDim: exp.cfg.targetDim,
+        targetMag: exp.cfg.targetMag,
+        rotation: 0,
+      },
+      options: {
         name: 'fam',
         reps: exp.cfg.numFamiliarizationCycles,
+        // Always start the experiment with the exposure object
         order: (trials) => [0, ...shuffle(trials.slice(1))],
-      }),
-    },
-    {
-      targetId: exp.cfg.targetIds,
-      targetDim: exp.cfg.targetDims,
-      targetMag: exp.cfg.targetMags,
-      rotation: 0,
-      options: new BlockOptions({
+      },
+    }),
+    new Block({
+      variables: {
+        targetId: exp.cfg.targetIds,
+        targetDim: exp.cfg.targetDim,
+        targetMag: exp.cfg.targetMag,
+        rotation: 0,
+      },
+      options: {
         name: 'pre',
         reps: exp.cfg.numPreExposureCycles,
-        // Custom trial-ordering function (shuffle the test trials, interleave exposure trials)
+        // Shuffle the test trials, interleave exposure trials
         order: (trials) =>
           shuffle(trials).reduce((out, ti) => out.concat(0, ti), []),
-      }),
-    },
-    {
-      targetId: 0,
-      targetDim: 0,
-      targetMag: 0,
-      rotation: [
-        ...linspace(0, exp.cfg.maxRotation, exp.cfg.numExposureRampCycles),
-        ...new Array(exp.cfg.numExposurePlateauCycles).fill(
-          exp.cfg.maxRotation
+      },
+    }),
+    new Block({
+      variables: {
+        targetId: 0,
+        targetDim: 0,
+        targetMag: 0,
+        // Create a ramp to plateau
+        rotation: linspace(
+          0,
+          exp.cfg.maxRotation,
+          exp.cfg.numExposureRampCycles
+        ).concat(
+          new Array(exp.cfg.numExposurePlateauCycles).fill(exp.cfg.maxRotation)
         ),
-      ],
-      options: new BlockOptions({
+      },
+      options: {
         name: 'exp',
-        shuffle: false,
         reps: 1,
-      }),
-    },
-    {
-      targetId: exp.cfg.targetIds,
-      targetDim: exp.cfg.targetDims,
-      targetMag: exp.cfg.targetMags,
-      rotation: exp.cfg.maxRotation,
-      options: new BlockOptions({
+      },
+    }),
+    new Block({
+      variables: {
+        targetId: exp.cfg.targetIds,
+        targetDim: exp.cfg.targetDim,
+        targetMag: exp.cfg.targetMag,
+        rotation: exp.cfg.maxRotation,
+      },
+      options: {
         name: 'post',
         reps: exp.cfg.numPostExposureCycles,
+        // Shuffle the test trials, interleave exposure trials
         order: (trials) =>
-          shuffle(trials).reduce((out, ti) => out.concat(0, ti), []), // see above
-      }),
-    },
+          shuffle(trials).reduce((out, ti) => out.concat(0, ti), []),
+      },
+    }),
   ]);
+
+  /*
+   * You must initialize an empty object called trial
+   */
+  let trial = {};
 
   /**
    * Set up replay machine
    */
   if (exp.replay) {
-    // Move these two lines into handleReplayInfo?
+    exp.replay.positionDataName = 'rhPos';
+    exp.replay.rotationDataName = 'rhOri';
     exp.replay.avatar.add(toolHandle);
     exp.sceneManager.scene.add(exp.replay.avatar);
     document.body.addEventListener('replayinfo', handleReplayInfo);
     document.body.addEventListener('replaytrial', handleReplayTrial);
   }
 
-  /**
-   * Debug options
-   */
-  if (exp.cfg.debug) {
-    exp.consented = true; // skip consent in debug
-  }
-
-  /**
-   * Start the main experiment loop
-   */
+  // Start the main loop! These three functions will take it from here.
   exp.start(calcFunc, stateFunc, displayFunc);
-
-  /////////// End setup /////////////
-
-  /////////// Begin functions ///////
 
   /**
    * Use `calcFunc` for calculations used in _multiple states_
@@ -371,28 +362,45 @@ async function main() {
 
   /**
    * Define your procedure as a switch statement implementing a Finite State Machine.
-   * Ensure that all states are listed in the array given to the constructor.
+   * Ensure that all states are listed in the array given to `exp.state.init()`
    * @method `exp.state.next(state)` Transitions to new state on next loop.
    * @method `exp.state.once(function)` Runs function one time on entering state.
    */
   function stateFunc() {
-    // Process interrupt flags (database, controllers)
-    exp.processInterrupts();
+    /**
+     * If one of these checks fails, divert into an interrupt state.
+     * Interrupt states wait for the condition to be satisfied, then return to the previous state.
+     * Interrupt states are included at the end of the stateFunc() switch statement.
+     */
+    if (exp.databaseInterrupt()) {
+      exp.blocker.show('database');
+      exp.state.push('DATABASE');
+      return;
+    } else if (exp.controllerInterrupt()) {
+      exp.state.push('CONTROLLER');
+      return;
+    }
 
     switch (exp.state.current) {
-      case 'BLOCKED':
-        break;
-
-      case 'BROWSER':
-        exp.processBrowser();
-        break;
-
+      // CONSENT state can be left alone
       case 'CONSENT':
-        exp.processConsent();
+        exp.state.once(function () {
+          if (exp.checkDeviceCompatibility()) {
+            exp.state.next('BLOCKED');
+          } else {
+            exp.consent.show();
+          }
+        });
+        if (exp.waitForConsent()) {
+          exp.state.next('SIGNIN');
+        }
         break;
 
+      // SIGNIN state can be left alone
       case 'SIGNIN':
-        exp.processSignIn();
+        if (exp.waitForAuthentication()) {
+          exp.state.next('WELCOME');
+        }
         break;
 
       case 'WELCOME':
@@ -483,8 +491,15 @@ async function main() {
         trial.startTime = performance.now();
         trial.cameraGroupPosn = exp.sceneManager.cameraGroup.position.clone();
         trial.cameraGroupOri = exp.sceneManager.cameraGroup.rotation.clone();
-        // Reset data arrays and other defaults
-        trial = { ...trial, ...structuredClone(trialInitialize) };
+        // Reset data arrays
+        trial.t = [];
+        trial.state = [];
+        trial.rhPos = [];
+        trial.rhOri = [];
+        trial.stateChange = [];
+        trial.stateChangeTime = [];
+        trial.stateChangeHeadPos = [];
+        trial.stateChangeHeadOri = [];
         // Set trial parameters
         trial.demoTrial =
           exp.trialNumber === 0 ||
@@ -503,7 +518,9 @@ async function main() {
               trial.targetMag * exp.cfg.targetSpacing
             ) // offset
           );
-        trial.targetPosn = target.position.clone();
+        trial.targetPosn = target.position.clone(); // store in trial so it gets saved
+        trial.rotationOrigin = home.getWorldPosition(new Vector3());
+        trial.rotationRadians = (trial.rotation * Math.PI) / 180;
         exp.state.next('START');
         break;
 
@@ -536,16 +553,10 @@ async function main() {
         });
         handleFrameData();
         if (!home.atHome) {
-          // Update origin then radians to reduce/mask blips when rotation changes
-          trial.rotationOrigin = home.getWorldPosition(new Vector3());
-          trial.rotationRadians = (trial.rotation * Math.PI) / 180;
           exp.state.next('START');
         } else if (exp.state.expired(exp.cfg.startDelay)) {
+          target.rotateY((Math.random() - 0.5) * 2 * Math.PI); // random rotation to change target appearance
           target.visible = true;
-          target.rotateY((Math.random() - 0.5) * 2 * Math.PI); // random rotation to change appearance
-          // Update origin then radians to reduce/mask blips when rotation changes
-          trial.rotationOrigin = home.getWorldPosition(new Vector3());
-          trial.rotationRadians = (trial.rotation * Math.PI) / 180;
           exp.state.next('REACH');
         }
         break;
@@ -557,6 +568,7 @@ async function main() {
           });
         });
         handleFrameData();
+        // Check for target touch
         let cpWorld = cp.getWorldPosition(new Vector3());
         cp.onTarget =
           target.getWorldPosition(new Vector3()).distanceTo(cpWorld) <
@@ -646,16 +658,14 @@ async function main() {
         if (!exp.firebase.saveSuccessful) {
           break; // wait until firebase save returns successful
         } else if (exp.firebase.saveFailed) {
-          // go to fatal screen if save failed
+          exp.blocker.fatal(err);
           exp.state.push('BLOCKED');
-          exp.blocker.fatal(exp.firebase.saveFailed);
         }
         exp.nextTrial();
         if (exp.trialNumber < exp.numTrials) {
           // Many possible next states for different trial types
           if (exp.cfg.restTrials?.includes(exp.trialNumber)) {
             exp.state.next('REST');
-            //exp.grip.visible = false; // hide hand during rest breaks
             exp.VRUI.countdown(exp.cfg.restDuration); // start countdown *before new state*
           } else if (exp.trialNumber === exp.cfg.startNoFeedbackTrial) {
             exp.state.next('STARTNOFEEDBACK');
@@ -666,8 +676,8 @@ async function main() {
             exp.state.next('SETUP');
           }
         } else {
-          // NB: Must call exp.complete()
-          exp.complete();
+          exp.complete(); // !!! Critical !!! Must call at end of experiment !!!
+
           // Clean up
           workspace.visible = false;
           trial.rotation = 0;
@@ -678,9 +688,9 @@ async function main() {
         break;
 
       case 'SURVEY':
-        exp.state.once(() => exp.survey?.hidden && exp.survey.show());
-        if (exp.cfg.completed && (!exp.survey || exp.surveysubmitted)) {
-          exp.survey?.hide();
+        // There's no survey so we just save the cfg again
+        if (exp.cfg.completed) {
+          exp.cfg.trialNumber = 'info';
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }
@@ -782,14 +792,14 @@ async function main() {
             });
           }
         });
-        if (exp.ray && exp.grip) {
+        if (!exp.controllerInterrupt()) {
           exp.state.pop();
         }
         break;
 
-      case 'DBCONNECT':
+      case 'DATABASE':
         exp.state.once(function () {
-          exp.blocker.show('connection');
+          exp.blocker.show('database');
           exp.VRUI.edit({
             title: 'Not connected',
             instructions:
@@ -798,10 +808,13 @@ async function main() {
             interactive: true,
           });
         });
-        if (exp.firebase.databaseConnected) {
+        if (!exp.databaseInterrupt()) {
           exp.blocker.hide();
           exp.state.pop();
         }
+        break;
+
+      case 'BLOCKED':
         break;
     }
   }
@@ -868,34 +881,34 @@ async function main() {
    * Event handlers
    */
 
-  // Record data on each main loop iteration
+  // Record frame data
   function handleFrameData() {
     if (exp.grip) {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
-      // getWorld...() bc grip is child of cameraGroup
+      // getWorldX() because grip is child of cameraGroup
       trial.rhPos.push(exp.grip.getWorldPosition(new Vector3()));
       trial.rhOri.push(exp.grip.getWorldQuaternion(new Quaternion()));
     }
   }
 
-  // Record data on each state transition
+  // Record state transition data
   function handleStateChange() {
-    trial.stateChange?.push(exp.state.current);
-    trial.stateChangeTime?.push(performance.now());
+    trial?.stateChange.push(exp.state.current);
+    trial?.stateChangeTime.push(performance.now());
     // Head data at state changes only (see handleFrameData)
-    trial.stateChangeHeadPos?.push(
+    trial?.stateChangeHeadPos.push(
       exp.sceneManager.camera.getWorldPosition(new Vector3())
     );
-    trial.stateChangeHeadOri?.push(
+    trial?.stateChangeHeadOri.push(
       exp.sceneManager.camera.getWorldQuaternion(new Quaternion())
     );
   }
 
   // Subject-specific replay configuration
   function handleReplayInfo(e) {
-    let cfg = e.detail;
-    workspace.position.setY(cfg.homePosn.y);
+    exp.cfg = e.detail;
+    workspace.position.setY(exp.cfg.homePosn.y);
     home.visible = true;
     toolHandle.visible = true;
     exp.grip = exp.replay.avatar;
@@ -906,6 +919,14 @@ async function main() {
     trial = e.detail;
     trial.isReplay = true;
     exp.state.next(e.detail['state'][0]);
+    target.position
+      .set(0, 0, -exp.cfg.targetDistance) // exposure
+      .add(
+        new Vector3().setComponent(
+          trial.targetDim,
+          trial.targetMag * exp.cfg.targetSpacing
+        ) // offset
+      );
   }
 }
 
