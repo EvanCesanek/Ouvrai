@@ -862,12 +862,10 @@ export async function mturkPostStudy(
     try {
       createHITCommandOutput = await client.send(createHITCommand);
       spinner.succeed(
-        `${chalk.bold(
-          'Successfully created HIT',
-          createHITCommandOutput.HIT.HITId,
-          '. Preview it at:\n    ',
-          previewURL + createHITCommandOutput.HIT.HITGroupId
-        )}`
+        chalk.bold(`Successfully created HIT ${
+          createHITCommandOutput.HIT.HITId
+        }. Preview it at:\
+        \n    ${previewURL + createHITCommandOutput.HIT.HITGroupId}`)
       );
     } catch (err) {
       spinner.fail();
