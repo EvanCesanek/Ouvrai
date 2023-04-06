@@ -938,13 +938,13 @@ async function main() {
 
   // Record state transition data
   function handleStateChange() {
-    trial?.stateChange.push(exp.state.current);
-    trial?.stateChangeTime.push(performance.now());
+    trial?.stateChange?.push(exp.state.current);
+    trial?.stateChangeTime?.push(performance.now());
     // Head data at state changes only (see handleFrameData)
-    trial?.stateChangeHeadPos.push(
+    trial?.stateChangeHeadPos?.push(
       exp.sceneManager.camera.getWorldPosition(new Vector3())
     );
-    trial?.stateChangeHeadOri.push(
+    trial?.stateChangeHeadOri?.push(
       exp.sceneManager.camera.getWorldQuaternion(new Quaternion())
     );
   }

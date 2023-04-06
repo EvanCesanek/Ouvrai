@@ -261,8 +261,8 @@ async function main() {
     new Block({
       variables: {
         targetId: exp.cfg.targetIds,
-        targetDim: exp.cfg.targetDim,
-        targetMag: exp.cfg.targetMag,
+        targetDim: exp.cfg.targetDims,
+        targetMag: exp.cfg.targetMags,
         rotation: 0,
       },
       options: {
@@ -275,8 +275,8 @@ async function main() {
     new Block({
       variables: {
         targetId: exp.cfg.targetIds,
-        targetDim: exp.cfg.targetDim,
-        targetMag: exp.cfg.targetMag,
+        targetDim: exp.cfg.targetDims,
+        targetMag: exp.cfg.targetMags,
         rotation: 0,
       },
       options: {
@@ -309,8 +309,8 @@ async function main() {
     new Block({
       variables: {
         targetId: exp.cfg.targetIds,
-        targetDim: exp.cfg.targetDim,
-        targetMag: exp.cfg.targetMag,
+        targetDim: exp.cfg.targetDims,
+        targetMag: exp.cfg.targetMags,
         rotation: exp.cfg.maxRotation,
       },
       options: {
@@ -505,9 +505,9 @@ async function main() {
           exp.trialNumber === 0 ||
           (exp.trialNumber < exp.cfg.maxDemoTrials && exp.repeatDemoTrial);
         trial.noFeedback = !(
-          trial.blockName === 'fam' ||
-          trial.blockName === 'exp' ||
-          trial.blockTrial % 2 === 0
+          trial.block.name === 'fam' ||
+          trial.block.name === 'exp' ||
+          trial.block.trial % 2 === 0
         );
         // Position the target based on trial parameters
         target.position
@@ -894,13 +894,13 @@ async function main() {
 
   // Record state transition data
   function handleStateChange() {
-    trial?.stateChange.push(exp.state.current);
-    trial?.stateChangeTime.push(performance.now());
+    trial?.stateChange?.push(exp.state.current);
+    trial?.stateChangeTime?.push(performance.now());
     // Head data at state changes only (see handleFrameData)
-    trial?.stateChangeHeadPos.push(
+    trial?.stateChangeHeadPos?.push(
       exp.sceneManager.camera.getWorldPosition(new Vector3())
     );
-    trial?.stateChangeHeadOri.push(
+    trial?.stateChangeHeadOri?.push(
       exp.sceneManager.camera.getWorldQuaternion(new Quaternion())
     );
   }

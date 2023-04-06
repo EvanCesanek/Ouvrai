@@ -124,12 +124,12 @@ def load(
         df_frame = expand_object_columns(df_frame)
         df_state = expand_object_columns(df_state)
 
-        # Transform "stateNames" into a dictionary mapping from integer codes to names
-        df_subject["stateNames"] = df_subject["stateNames"].transform(
-            lambda x: {id: name for id, name in enumerate(x)}
-        )
-        df_frame["state"] = rename_states(df_frame, df_subject)
-        df_state["state"] = rename_states(df_state, df_subject, state_col="stateChange")
+        # [DEPRECATED] Transform "stateNames" into a dictionary mapping from integer codes to names
+        # df_subject["stateNames"] = df_subject["stateNames"].transform(
+        #     lambda x: {id: name for id, name in enumerate(x)}
+        # )
+        # df_frame["state"] = rename_states(df_frame, df_subject)
+        # df_state["state"] = rename_states(df_state, df_subject, state_col="stateChange")
 
         # Sometimes t is dtype 'object' due to mix of ints and floats
         df_frame["t"] = df_frame["t"].astype(float)
@@ -488,20 +488,20 @@ def get_nearest_row(df: pd.DataFrame, varname: str, value: float):
 def euler_to_direction(
     euler=None, data=None, prefix=None, dir={"x": 0, "y": 0, "z": -1}
 ):
-    """Sets this quaternion from the rotation specified by Euler angle. Assumes XYZ order."""
-    print
+    """Transforms a direction (default -Z axis) according to an Euler (XYZ order) or a Quaternion representation of orientation."""
     if euler != None and euler["_isEuler"]:
         # default naming from three.js Object3D.rotation
         x = euler["_x"]
         y = euler["_y"]
         z = euler["_z"]
     elif isinstance(data, pd.DataFrame):
-        isEuler = data.get(f"{prefix}isEuler", pd.Series([False]))
-        isQuaternion = data.get(f"{prefix}isQuaternion", pd.Series([False]))
+        isEuler = data.get(f"{prefix}_isEuler", pd.Series([False]))
+        isQuaternion = data.get(f"{prefix}_isQuaternion", pd.Series([False]))
+        # print(isQuaternion)
         if isEuler.all():
-            x = data[f"{prefix}x"]
-            y = data[f"{prefix}y"]
-            z = data[f"{prefix}z"]
+            x = data[f"{prefix}_x"]
+            y = data[f"{prefix}_y"]
+            z = data[f"{prefix}_z"]
             # (Quaternion/setFromEuler)
             c1 = np.cos(x / 2)
             c2 = np.cos(y / 2)
@@ -514,10 +514,10 @@ def euler_to_direction(
             qz = c1 * c2 * s3 + s1 * s2 * c3
             qw = c1 * c2 * c3 - s1 * s2 * s3
         elif isQuaternion.all():
-            qw = data[f"{prefix}w"]
-            qx = data[f"{prefix}x"]
-            qy = data[f"{prefix}y"]
-            qz = data[f"{prefix}z"]
+            qw = data[f"{prefix}_w"]
+            qx = data[f"{prefix}_x"]
+            qy = data[f"{prefix}_y"]
+            qz = data[f"{prefix}_z"]
 
     # (Vector3/applyQuaternion)
     ix = qw * dir["x"] + qy * dir["z"] - qz * dir["y"]
