@@ -2,7 +2,7 @@
 experiments/*
 
 # Real consent forms
-config/consent/consent2023*
+config/consent
 
 # Firebase cache
 **/.firebase/
@@ -17,6 +17,9 @@ data_*.json
 
 # Jupyter notebook files
 **/.ipynb_checkpoints
+
+# Python virtual environment
+python/env/
 
 ##### Node.js template from GitHub #####
 
