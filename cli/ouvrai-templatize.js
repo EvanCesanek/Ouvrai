@@ -1,7 +1,4 @@
-#!/usr/bin/env node
-
 import { Command } from 'commander';
-import { spawn } from 'child_process'; // Node.js built-in to access OS-level functions
 import { copy } from 'fs-extra/esm';
 import ora from 'ora';
 import { exists } from './cli-utils.js';
@@ -9,8 +6,8 @@ import { fileURLToPath } from 'url';
 
 const program = new Command()
   .name('ouvrai templatize')
-  .argument('<experiment>', 'Name of experiment')
-  .argument('<template>', 'Name of template')
+  .argument('<studyname>', 'Name of study')
+  .argument('<templatename>', 'Name of template')
   .option('-o, --overwrite', 'Overwrite existing template')
   .showHelpAfterError()
   .parse();

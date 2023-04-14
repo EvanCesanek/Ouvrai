@@ -5,7 +5,6 @@ import {
   firebaseChooseProject,
   firebaseClient,
   pythonSetup,
-  spawnSyncPython,
 } from './cli-utils.js';
 import { readJSON } from 'fs-extra/esm';
 import { unlink, writeFile } from 'fs/promises';

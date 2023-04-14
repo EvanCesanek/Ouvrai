@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { Command } from 'commander';
 import { spawn } from 'child_process';
 import firebaseConfig from '../config/firebase-config.js';

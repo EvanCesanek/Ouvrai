@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { Command } from 'commander';
 import { spawn } from 'child_process'; // Node.js built-in to access OS-level functions
 import { copy } from 'fs-extra/esm';

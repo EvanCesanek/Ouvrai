@@ -1,3 +1,4 @@
+import datetime
 import os, json, re, warnings, random
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ def load(
     from_pkl: bool = False,
     pickle: bool = False,
     save_format: str = "pkl",
+    save_name: str = "df",
 ):
     """
     Wrangle Firebase JSON data into data frames.
@@ -29,6 +31,8 @@ def load(
         Save data frames to .pkl files, by default False
     save_format : str, optional
         Save data frames to other file types (if `pickle = False`), by default "pkl"
+    save_name : str, optional
+        Specify file name of the output data file (prefix if save_format = "pkl" or "csv")
 
     Returns
     -------
@@ -134,22 +138,23 @@ def load(
         # Sometimes t is dtype 'object' due to mix of ints and floats
         df_frame["t"] = df_frame["t"].astype(float)
 
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         if pickle or save_format in {"pkl", ".pkl", "pickle"}:
-            df_trial.to_pickle(data_folder + "df_trial.pkl")
-            df_subject.to_pickle(data_folder + "df_subject.pkl")
-            df_frame.to_pickle(data_folder + "df_frame.pkl")
-            df_state.to_pickle(data_folder + "df_state.pkl")
+            df_trial.to_pickle(data_folder + save_name + "_trial_" + ts + ".pkl")
+            df_subject.to_pickle(data_folder + save_name + "_subject_" + ts + ".pkl")
+            df_frame.to_pickle(data_folder + save_name + "_frame_" + ts + ".pkl")
+            df_state.to_pickle(data_folder + save_name + "_state_" + ts + ".pkl")
         elif save_format in {"csv", "txt", ".csv", ".txt"}:
-            df_trial.to_csv(data_folder + "df_trial.csv")
-            df_subject.to_csv(data_folder + "df_subject.csv")
-            df_frame.to_csv(data_folder + "df_frame.csv")
-            df_state.to_csv(data_folder + "df_state.csv")
+            df_trial.to_csv(data_folder + save_name + "_trial_" + ts + ".csv")
+            df_subject.to_csv(data_folder + save_name + "_subject_" + ts + ".csv")
+            df_frame.to_csv(data_folder + save_name + "_frame_" + ts + ".csv")
+            df_state.to_csv(data_folder + save_name + "_state_" + ts + ".csv")
         elif save_format in {"xls", "xlsx", ".xls", ".xlsx", "excel"}:
-            with pd.ExcelWriter(data_folder + "df.xlsx") as writer:
-                df_trial.to_excel(writer, "df_trial")
-                df_subject.to_excel(writer, "df_subject")
-                df_frame.to_excel(writer, "df_frame")
-                df_state.to_excel(writer, "df_state")
+            with pd.ExcelWriter(data_folder + save_name + "_" + ts + ".xlsx") as writer:
+                df_trial.to_excel(writer, "trial")
+                df_subject.to_excel(writer, "subject")
+                df_frame.to_excel(writer, "frame")
+                df_state.to_excel(writer, "state")
 
         df_frame.reset_index(drop=True, inplace=True)
 

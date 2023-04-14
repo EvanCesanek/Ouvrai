@@ -30,6 +30,7 @@
     "concurrently": "^7.6.0",
     "d3-array": "^3.2.2",
     "dotenv": "^16.0.3",
+    "filenamify": "^5.1.1",
     "firebase": "^9.17.2",
     "fs-extra": "^11.1.0",
     "html-minifier-terser": "^7.1.0",
@@ -42,8 +43,7 @@
     "tabtab": "^3.0.2",
     "three": "^0.150.1",
     "three-mesh-ui": "^6.5.3",
-    "vite": "^4.1.4",
-    "xml2js": "^0.4.23"
+    "vite": "^4.1.4"
   },
   "devDependencies": {
     "eslint": "^8.35.0",

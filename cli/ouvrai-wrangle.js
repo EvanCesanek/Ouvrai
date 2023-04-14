@@ -1,30 +1,46 @@
-#!/usr/bin/env node
-
-import { Command } from 'commander';
+import { Argument, Command } from 'commander';
 import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import inquirer from 'inquirer';
 import { readdir } from 'fs/promises';
 import { exists, spawnSyncPython } from './cli-utils.js';
-import { join } from 'path';
+import { basename, extname, join } from 'path';
+import filenamify from 'filenamify';
 
 const program = new Command()
   .name('ouvrai wrangle')
-  .argument('<experiment>', 'Name of experiment')
-  .option(
-    '-f, --format [pkl|csv|xlsx]',
-    'Desired file format for data tables',
-    'pkl'
+  .argument('<studyname>', 'Name of study')
+  .addArgument(
+    new Argument('[format]', 'Output file format')
+      .choices(['pkl', 'csv', 'xlsx'])
+      .default('pkl')
   )
+  .option('-f, --filename [filename]', 'Specify output file name')
   .showHelpAfterError()
   .parse();
 
+let studyName = program.processedArgs[0];
+let format = program.processedArgs[1];
+let filename = 'df';
 let options = program.opts();
+if (options.filename) {
+  let extension = extname(options.filename);
+  if (['.pkl', '.csv', '.txt', '.xlsx', '.xls'].includes(extension)) {
+    format = extension.slice(1); // drop the .
+    filename = filenamify(basename(options.filename, format));
+  } else {
+    filename = filenamify(options.filename);
+  }
+  if (filename === '') {
+    ora(`Invalid filename: ${options.filename}`).fail();
+    process.exit();
+  }
+}
+ora(
+  `Attempting to save files to: ${filename}_<table>_<date>_<time>.${format}`
+).info();
 
-let dataURL = new URL(
-  `../experiments/${program.args[0]}/analysis/`,
-  import.meta.url
-);
+let dataURL = new URL(`../experiments/${studyName}/analysis/`, import.meta.url);
 let dataPath = fileURLToPath(dataURL);
 dataPath = `'${dataPath}'`; // Must use single quotes for Windows (no idea why)
 
@@ -66,11 +82,12 @@ if (await exists(venvPythonPathUnix)) {
 let subp = spawnSyncPython(venvPythonCommand, [
   'wrangle.py',
   dataPath,
-  options.format,
+  format,
   fileRegex,
+  filename,
 ]);
 if (subp.status === 1) {
   ora(
-    `Failed to wrangle JSON files. Usually this is because you did not install the python package during ouvrai setup.`
+    `Failed to wrangle JSON files. Did you successfully install the Python utilities during ouvrai setup?`
   ).fail();
 }
