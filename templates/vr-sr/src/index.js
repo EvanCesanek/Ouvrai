@@ -49,7 +49,9 @@ async function main() {
     devOptions: {
       skipConsent: true,
       orbitControls: true,
+      saveTrialList: false,
     },
+    demo: true,
 
     // Platform settings
     requireVR: true,
@@ -78,7 +80,7 @@ async function main() {
     numClampCycles: 8,
     restDuration: 15, // minimum duration of rest state
     restTrials: [], // rest before which trials?
-    startNoFeedbackDuration: 10, // minimum duration of notification state
+    startNoFeedbackDuration: 3, // minimum duration of notification state
     startNoFeedbackTrial: 4, // remove feedback before which trial?
     startClampTrial: 22,
     noFeedbackNear: 0.03, // radius beyond which feedback is off
@@ -189,9 +191,12 @@ async function main() {
   // Attach a Collider so we can test for collisions with other objects.
   cp.add(new Collider(new SphereGeometry(exp.cfg.controlPointRadius, 8, 4)));
 
-  // Put the tool in the right hand
-  exp.rhObject = toolHandle;
-  exp.lhObject; // TODO: left hand not yet supported!
+  // Need to use a listener to add the tool to the hand on connect
+  document.body.addEventListener('gripconnect', (e) => {
+    if (e.detail.hand === 'right') {
+      exp.rightGrip.add(toolHandle);
+    }
+  });
 
   // Create the reach target
   const target = new Mesh(
@@ -257,7 +262,7 @@ async function main() {
   exp.createTrialSequence([
     new Block({
       variables: {
-        rotation: [0],
+        rotation: 0,
       },
       options: {
         name: 'P0',
@@ -266,7 +271,7 @@ async function main() {
     }),
     new Block({
       variables: {
-        rotation: [exp.cfg.rotation],
+        rotation: exp.cfg.rotation,
       },
       options: {
         name: 'P+',
@@ -275,7 +280,7 @@ async function main() {
     }),
     new Block({
       variables: {
-        rotation: [-exp.cfg.rotation],
+        rotation: -exp.cfg.rotation,
       },
       options: {
         name: 'P-',
@@ -284,8 +289,8 @@ async function main() {
     }),
     new Block({
       variables: {
-        rotation: [0],
-        errorClamp: [true],
+        rotation: 0,
+        errorClamp: true,
       },
       options: {
         name: 'EC',
@@ -307,7 +312,7 @@ async function main() {
    */
   function calcFunc() {
     // During DEMO, the demo avatar is in control
-    let toolcp = exp.state.current === 'DEMO' ? democp : cp;
+    let toolcp = exp.state.is('DEMO') ? democp : cp;
 
     // Check if control point is in the home position
     home.atHome = checkAlignment({
@@ -332,10 +337,8 @@ async function main() {
     if (exp.databaseInterrupt()) {
       exp.blocker.show('database');
       exp.state.push('DATABASE');
-      return;
-    } else if (exp.controllerInterrupt()) {
+    } else if (exp.controllerInterrupt(false, true)) {
       exp.state.push('CONTROLLER');
-      return;
     }
 
     switch (exp.state.current) {
@@ -388,9 +391,10 @@ async function main() {
           });
           home.visible = false;
         });
-        if (exp.ray?.userData.isSelecting) {
+        if (exp.rightRay?.userData.isSelecting) {
+          console.log(exp.rightGrip);
           let adjustHeight = cp.getWorldPosition(new Vector3()).y;
-          exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
+          exp.rightGrip.input.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
           workspace.position.setY(adjustHeight);
           exp.cfg.homePosn.y = adjustHeight;
           exp.state.next('DEMO');
@@ -528,7 +532,7 @@ async function main() {
           // Visual, auditory, and haptic feedback of hit
           target.hitTween.start();
           target.userData.sound.play();
-          exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 40);
+          exp.rightGrip.input.gamepad.hapticActuators?.['0'].pulse(0.6, 40);
           exp.state.next('RETURN');
         }
         break;
@@ -735,12 +739,14 @@ async function main() {
           // Ok to put down controller during rest
           if (exp.state.last !== 'REST') {
             exp.VRUI.edit({
-              title: 'Controller',
+              title: 'Controller?',
               instructions: 'Please connect right hand controller.',
+              buttons: false,
+              interactive: false,
             });
           }
         });
-        if (!exp.controllerInterrupt()) {
+        if (!exp.controllerInterrupt(false, true)) {
           exp.state.pop();
         }
         break;
@@ -753,7 +759,7 @@ async function main() {
             instructions:
               'Your device is not connected to the internet. Reconnect to resume.',
             buttons: false,
-            interactive: true,
+            interactive: false,
           });
         });
         if (!exp.databaseInterrupt()) {
@@ -772,7 +778,7 @@ async function main() {
    */
   function displayFunc() {
     // Set home color and pulse animation
-    if (home.atHome || exp.state.current === 'REACH') {
+    if (home.atHome || exp.state.is('REACH')) {
       home.material.color = new Color('black');
       home.pulseTween.stop();
     } else {
@@ -780,8 +786,8 @@ async function main() {
       home.pulseTween.start();
     }
 
-    if (exp.grip && trial.errorClamp) {
-      if (trial.clampOff || ['START', 'DELAY'].includes(exp.state.current)) {
+    if (exp.rightGrip && trial.errorClamp) {
+      if (trial.clampOff || exp.state.between('START', 'DELAY')) {
         toolHandle.position.set(0, 0, 0);
       } else {
         // Error clamp control point to the Z axis
@@ -790,23 +796,23 @@ async function main() {
           toolHandle.getWorldPosition(new Vector3())
         );
         toolHandle.position.copy(
-          exp.grip.worldToLocal(
-            exp.grip.getWorldPosition(new Vector3()).setX(-dxyz.x)
+          exp.rightGrip.worldToLocal(
+            exp.rightGrip.getWorldPosition(new Vector3()).setX(-dxyz.x)
           )
         );
       }
-    } else if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
+    } else if (exp.rightGrip && trial.rotationOrigin && trial.rotation !== 0) {
       // Visuomotor rotation
-      let x = exp.grip.getWorldPosition(new Vector3()); // get grip position (world)
+      let x = exp.rightGrip.getWorldPosition(new Vector3()); // get grip position (world)
       x.sub(trial.rotationOrigin); // subtract origin (world)
       x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
       x.add(trial.rotationOrigin); // add back origin
-      exp.grip.worldToLocal(x); // convert to grip space
+      exp.rightGrip.worldToLocal(x); // convert to grip space
       toolHandle.position.copy(x); // set as tool position
     }
 
     // No visual feedback
-    if (['REST', 'STARTCLAMP'].includes(exp.state.current)) {
+    if (exp.state.is(['REST', 'STARTCLAMP'])) {
       toolHandle.visible = false;
     } else if (trial.noFeedback) {
       let homeWorldXZ = home.getWorldPosition(new Vector3()).setY(0);
@@ -861,12 +867,12 @@ async function main() {
 
   // Record frame data
   function handleFrameData() {
-    if (exp.grip) {
+    if (exp.rightGrip) {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
       // getWorldX() because grip is child of cameraGroup
-      trial.rhPos.push(exp.grip.getWorldPosition(new Vector3()));
-      trial.rhOri.push(exp.grip.getWorldQuaternion(new Quaternion()));
+      trial.rhPos.push(exp.rightGrip.getWorldPosition(new Vector3()));
+      trial.rhOri.push(exp.rightGrip.getWorldQuaternion(new Quaternion()));
     }
   }
 

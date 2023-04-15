@@ -53,6 +53,7 @@ async function main() {
       orbitControls: true,
       replay: false, // set true to replay data from saved JSON
     },
+    demo: true,
 
     // Platform settings
     requireVR: true,
@@ -82,7 +83,7 @@ async function main() {
     numPostExposureCycles: 1, // same as preexposure
     restDuration: 5, // minimum duration of rest state
     restTrials: [], // // rest before which trials?
-    startNoFeedbackDuration: 10, // minimum duration of notification state
+    startNoFeedbackDuration: 3, // minimum duration of notification state
     startNoFeedbackTrial: 6, // remove feedback before which trial?
     startDelay: 0.2, // time to remain in start position
     // Target arrangement
@@ -193,9 +194,12 @@ async function main() {
   cp.translateY(exp.cfg.handleLength / 2);
   toolHandle.add(cp);
 
-  // Put the tool in the right hand
-  exp.rhObject = toolHandle;
-  exp.lhObject; // TODO: left hand not yet supported!
+  // Need to use a listener to add the tool to the hand on connect
+  document.body.addEventListener('gripconnect', (e) => {
+    if (e.detail.hand === 'right') {
+      exp.rightGrip.add(toolHandle);
+    }
+  });
 
   // Create the reach target
   const target = new Mesh(
@@ -269,7 +273,7 @@ async function main() {
         name: 'fam',
         reps: exp.cfg.numFamiliarizationCycles,
         // Always start the experiment with the exposure object
-        order: (trials) => [0, ...shuffle(trials.slice(1))],
+        orderFunc: (trials) => [0, ...shuffle(trials.slice(1))],
       },
     }),
     new Block({
@@ -283,7 +287,7 @@ async function main() {
         name: 'pre',
         reps: exp.cfg.numPreExposureCycles,
         // Shuffle the test trials, interleave exposure trials
-        order: (trials) =>
+        orderFunc: (trials) =>
           shuffle(trials).reduce((out, ti) => out.concat(0, ti), []),
       },
     }),
@@ -317,7 +321,7 @@ async function main() {
         name: 'post',
         reps: exp.cfg.numPostExposureCycles,
         // Shuffle the test trials, interleave exposure trials
-        order: (trials) =>
+        orderFunc: (trials) =>
           shuffle(trials).reduce((out, ti) => out.concat(0, ti), []),
       },
     }),
@@ -350,7 +354,7 @@ async function main() {
     exp.replay?.update(); // Update any replay animations
 
     // During DEMO, the demo avatar is in control
-    let toolcp = exp.state.current === 'DEMO' ? democp : cp;
+    let toolcp = exp.state.is('DEMO') ? democp : cp;
 
     // Check if control point is in the home position
     home.atHome = checkAlignment({
@@ -375,10 +379,8 @@ async function main() {
     if (exp.databaseInterrupt()) {
       exp.blocker.show('database');
       exp.state.push('DATABASE');
-      return;
-    } else if (exp.controllerInterrupt()) {
+    } else if (exp.controllerInterrupt(false, true)) {
       exp.state.push('CONTROLLER');
-      return;
     }
 
     switch (exp.state.current) {
@@ -431,9 +433,9 @@ async function main() {
           });
           home.visible = false;
         });
-        if (exp.ray?.userData.isSelecting) {
+        if (exp.rightRay?.userData.isSelecting) {
           let adjustHeight = cp.getWorldPosition(new Vector3()).y;
-          exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
+          exp.rightGrip.input.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
           workspace.position.setY(adjustHeight);
           exp.cfg.homePosn.y = adjustHeight;
           exp.state.next('DEMO');
@@ -582,20 +584,20 @@ async function main() {
             : false,
         });
         // Stop them from just holding the trigger down
-        if (exp.ray?.userData.isSelecting) {
+        if (exp.rightRay?.userData.isSelecting) {
           if (cpWorld.z > exp.cfg.homePosn.z - 0.05) {
-            exp.ray.userData.isSelecting = false; // not beyond minimum reach distance
+            exp.rightRay.userData.isSelecting = false; // not beyond minimum reach distance
           } else if (!trial.noFeedback && !cp.onTarget) {
-            exp.ray.userData.isSelecting = false; // off-target
+            exp.rightRay.userData.isSelecting = false; // off-target
           } else {
             // Visual, auditory, and haptic feedback of target hit
             if (!trial.noFeedback) {
               target.hitTween.start();
               target.userData.sound.play();
-              exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 40);
+              exp.rightGrip.input.gamepad.hapticActuators?.['0'].pulse(0.6, 40);
             } else {
               target.pulseTween.start();
-              exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
+              exp.rightGrip.input.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
             }
             exp.state.next('RETURN');
           }
@@ -770,13 +772,13 @@ async function main() {
           target.visible = true;
           exp.demoTargetOn = true;
         }
-        if (exp.ray?.userData.isSelecting && exp.demoTargetOn) {
+        if (exp.rightRay?.userData.isSelecting && exp.demoTargetOn) {
           let cpWorld = cp.getWorldPosition(new Vector3());
           if (cpWorld.z > exp.cfg.homePosn.z - 0.05) {
-            //exp.ray.userData.isSelecting = false; // not beyond minimum reach distance
+            //exp.rightRay.userData.isSelecting = false; // not beyond minimum reach distance
           } else {
             target.pulseTween.start();
-            exp.grip.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
+            exp.rightGrip.input.gamepad.hapticActuators?.['0'].pulse(0.6, 80);
             exp.demoTargetOn = false;
           }
         }
@@ -789,10 +791,12 @@ async function main() {
             exp.VRUI.edit({
               title: 'Controller',
               instructions: 'Please connect right hand controller.',
+              buttons: false,
+              interactive: false,
             });
           }
         });
-        if (!exp.controllerInterrupt()) {
+        if (!exp.controllerInterrupt(false, true)) {
           exp.state.pop();
         }
         break;
@@ -824,7 +828,7 @@ async function main() {
    */
   function displayFunc() {
     // Set home color and pulse animation
-    if (home.atHome || exp.state.current === 'REACH') {
+    if (home.atHome || exp.state.is('REACH')) {
       home.material.color = new Color('black');
       home.pulseTween.stop();
     } else {
@@ -841,7 +845,7 @@ async function main() {
     let cpWorld = cp.getWorldPosition(new Vector3());
 
     // Hide feedback
-    if (['REST'].includes(exp.state.current)) {
+    if (exp.state.is('REST')) {
       toolHandle.visible = false;
     } else if (trial.noFeedback) {
       let d = home.getWorldPosition(new Vector3()).distanceTo(cpWorld);
@@ -863,12 +867,12 @@ async function main() {
     }
 
     // Visuomotor rotation
-    if (exp.grip && trial.rotationOrigin && trial.rotation !== 0) {
-      let x = exp.grip.getWorldPosition(new Vector3()); // get grip position (world)
+    if (exp.rightGrip && trial.rotationOrigin && trial.rotation !== 0) {
+      let x = exp.rightGrip.getWorldPosition(new Vector3()); // get grip position (world)
       x.sub(trial.rotationOrigin); // subtract origin (world)
       x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
       x.add(trial.rotationOrigin); // add back origin
-      exp.grip.worldToLocal(x); // convert to grip space
+      exp.rightGrip.worldToLocal(x); // convert to grip space
       toolHandle.position.copy(x); // set as tool position
     }
 
@@ -883,12 +887,12 @@ async function main() {
 
   // Record frame data
   function handleFrameData() {
-    if (exp.grip) {
+    if (exp.rightGrip) {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
       // getWorldX() because grip is child of cameraGroup
-      trial.rhPos.push(exp.grip.getWorldPosition(new Vector3()));
-      trial.rhOri.push(exp.grip.getWorldQuaternion(new Quaternion()));
+      trial.rhPos.push(exp.rightGrip.getWorldPosition(new Vector3()));
+      trial.rhOri.push(exp.rightGrip.getWorldQuaternion(new Quaternion()));
     }
   }
 
@@ -911,7 +915,7 @@ async function main() {
     workspace.position.setY(exp.cfg.homePosn.y);
     home.visible = true;
     toolHandle.visible = true;
-    exp.grip = exp.replay.avatar;
+    exp.rightGrip = exp.replay.avatar;
   }
 
   // Trial-specific replay configuration
