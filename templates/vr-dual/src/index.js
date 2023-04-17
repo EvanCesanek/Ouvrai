@@ -50,9 +50,9 @@ async function main() {
     // Options to make development easier
     devOptions: {
       skipConsent: true,
-      orbitControls: true,
+      orbitControls: false,
     },
-    demo: true,
+    demo: false,
 
     // Platform settings
     requireVR: true,

@@ -15,6 +15,7 @@ import {
   DisplayElement,
   Survey,
   InstructionsPanel,
+  CSS2D,
 } from 'ouvrai';
 
 /*
@@ -39,6 +40,7 @@ async function main() {
     // Options to make development easier
     devOptions: {
       skipConsent: true,
+      saveTrialList: false,
       allowExitFullscreen: false,
       allowExitPointerlock: false,
     },
@@ -81,6 +83,13 @@ async function main() {
   );
   target.visible = false;
   exp.sceneManager.scene.add(home, cursor, target);
+
+  /*
+   * You can display overlay text on the scene by adding CSS2D to cssScene
+   */
+  const overlayText = new CSS2D();
+  overlayText.object.position.set(0, 0.67, 0);
+  exp.sceneManager.cssScene.add(overlayText.object);
 
   /*
    * Create trial sequence from array of block objects.
@@ -258,7 +267,11 @@ async function main() {
         break;
 
       case 'START':
+        exp.state.once(() => {
+          overlayText.element.innerText = 'Go to the home position.';
+        });
         if (cursor.atHome) {
+          overlayText.element.innerText = '';
           exp.state.next('DELAY');
         }
         break;
@@ -272,7 +285,8 @@ async function main() {
         break;
 
       case 'GO':
-        exp.state.once(function () {
+        exp.state.once(() => {
+          overlayText.element.innerText = 'Move to the orange target!';
           target.visible = true;
         });
         handleFrameData();
@@ -290,6 +304,9 @@ async function main() {
         break;
 
       case 'RETURN':
+        exp.state.once(() => {
+          overlayText.element.innerText = 'Return home.';
+        });
         handleFrameData();
         if (cursor.atHome) {
           exp.state.next('FINISH');

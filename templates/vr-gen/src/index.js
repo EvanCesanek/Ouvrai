@@ -50,10 +50,10 @@ async function main() {
     // Options to make development easier
     devOptions: {
       skipConsent: true,
-      orbitControls: true,
+      orbitControls: false,
       replay: false, // set true to replay data from saved JSON
     },
-    demo: true,
+    demo: false,
 
     // Platform settings
     requireVR: true,
