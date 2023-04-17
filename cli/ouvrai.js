@@ -123,7 +123,16 @@ program.command('completion', { hidden: true }).action(async () => {
     return tabtab.log(commands);
   }
   if (
-    ['dev', 'build', 'deploy', 'draft', 'post', 'templatize'].includes(env.prev)
+    [
+      'build',
+      'deploy',
+      'dev',
+      'download',
+      'draft',
+      'post',
+      'templatize',
+      'wrangle',
+    ].includes(env.prev)
   ) {
     const expFolder = new URL('../experiments', import.meta.url);
     let experiments = await readdir(expFolder);

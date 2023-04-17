@@ -1,0 +1,18 @@
+{
+  "s1": {
+    "0": { "lol": true },
+    "1": { "lol": true },
+    "info": { "a": 1, "completed": true }
+  },
+  "s2": {
+    "0": { "lol": true },
+    "info": { "a": 1 }
+  },
+  "s3": {
+    "0": { "lol": true },
+    "info": { "a": 1 }
+  },
+  "s4": {
+    "0": { "lol": true }
+  }
+}

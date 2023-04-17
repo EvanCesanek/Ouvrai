@@ -1,0 +1,8 @@
+{
+  "name": "ouvrai-template-touchscreen",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "ouvrai": "../.."
+  }
+}

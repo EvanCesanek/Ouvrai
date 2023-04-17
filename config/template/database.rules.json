@@ -10,10 +10,10 @@
           "$uid": {
             "completed": {
               ".read": true,
-              ".write": "$uid === auth.uid"
+              ".write": "auth !== null && $uid === auth.uid"
             },
             "consented": {
-              ".write": "$uid === auth.uid"
+              ".write": "auth !== null && $uid === auth.uid"
             }
           }
         }
@@ -24,12 +24,12 @@
       "$experiment": {
         ".indexOn": "info/completed",
         "$uid": {
-          ".read": "$uid === auth.uid",
+          ".read": "auth !== null && $uid === auth.uid",
           "info": {
-            ".write": "$uid === auth.uid"
+            ".write": "auth !== null && $uid === auth.uid"
           },
           "$trial": {
-            ".write": "$uid === auth.uid && !data.exists()"
+            ".write": "auth !== null && $uid === auth.uid && !data.exists()"
           }
         }
       }

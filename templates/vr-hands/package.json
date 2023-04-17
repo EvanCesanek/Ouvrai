@@ -1,0 +1,9 @@
+{
+  "name": "ouvrai-template-vr",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "ml-pca": "^4.1.1",
+    "ouvrai": "../.."
+  }
+}

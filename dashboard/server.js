@@ -45,7 +45,7 @@ recordRoutes.route('/api/studies').get(async function (req, res) {
         import.meta.url
       );
       let studyHistory = await readJSON(path);
-      site = studyHistory.siteId.pop() || 'Not deployed';
+      site = studyHistory.siteId?.pop() || 'Not deployed';
     } catch (err) {
       site = 'No study history';
     }
@@ -186,7 +186,7 @@ app.use(json());
 app.use(recordRoutes);
 
 // listens on the port
-app.listen(port, () => {
+app.listen(port, async () => {
   console.log(`Server is running on port: ${port}`);
   mturk = new MTurkClient({
     region: 'us-east-1',
@@ -196,5 +196,5 @@ app.listen(port, () => {
     region: 'us-east-1',
     endpoint: mturkConfig.sandboxEndpoint,
   });
-  firebase = firebaseClient();
+  firebase = await firebaseClient();
 });

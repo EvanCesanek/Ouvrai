@@ -32,8 +32,6 @@ import { Suspense, useState } from 'react';
 import { ThreeDots } from 'react-loader-spinner';
 import { ArrowBack, AttachMoney, MoreVert } from '@mui/icons-material';
 
-//import { parseStringPromise } from 'xml2js';
-
 const drawerWidth = 240;
 
 function NavMenuItem(props) {
