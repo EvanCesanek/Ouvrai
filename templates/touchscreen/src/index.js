@@ -1,6 +1,8 @@
 // Third-party imports
 import {
   BoxGeometry,
+  Color,
+  CylinderGeometry,
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
@@ -11,8 +13,10 @@ import { DragControls } from 'three/examples/jsm/controls/DragControls';
 import {
   Body,
   Box,
+  Cylinder,
   LockConstraint,
   Plane,
+  Quaternion,
   Sphere,
   Vec3,
   World,
@@ -25,9 +29,13 @@ import {
   DisplayElement,
   InstructionsPanel,
   MeshFactory,
+  CSS2D,
+  linspace,
+  Survey,
 } from 'ouvrai';
 
 import targetColorMapURL from 'ouvrai/lib/textures/Terrazzo018_1K-JPG/Terrazzo018_1K_Color.jpg';
+import { Tween, update as tweenUpdate } from '@tweenjs/tween.js';
 
 async function main() {
   const exp = new Experiment({
@@ -45,11 +53,19 @@ async function main() {
     // Scene quantities
     cursorSize: new Vector3(0.08, 0.14, 0.1),
     targetRadius: 0.05,
+    minLaunchVel: 0.1,
+    goalRadius: 0.08,
   });
 
   /*
    * Initialize visual stimuli with three.js
    */
+
+  let instructions = new CSS2D('Fling the pink cuboid at the spheres', {
+    color: 'white',
+  });
+  instructions.object.position.setY(-0.75);
+  exp.sceneManager.cssScene?.add(instructions.object);
 
   // Create a "physics world"
   exp.sceneManager.physicsWorld = new World({ gravity: new Vec3(0, 0, -1) });
@@ -71,7 +87,8 @@ async function main() {
     mass: 1,
     shape: new Box(exp.cfg.cursorSize.clone().multiplyScalar(0.5)),
     linearFactor: new Vec3(1, 1, 0),
-    angularVelocity: new Vector3().random(),
+    linearDamping: 0.1,
+    angularDamping: 0.1,
   });
   cursorBody.position.copy(cursor.position);
   exp.sceneManager.physicsWorld.addBody(cursorBody);
@@ -107,6 +124,7 @@ async function main() {
   // Store references in arrays
   let targets = [];
   let targetBodies = [];
+  exp.cfg.targetPosns = [];
   // 6-ball billiards rack
   let xpos = [-1, 0, 1, -0.5, 0.5, 0];
   let ypos = [0.867, 0.867, 0.867, 0, 0, -0.867];
@@ -115,7 +133,8 @@ async function main() {
     let t = target.clone();
     let posn = new Vector3(xpos[ti], ypos[ti], 0)
       .multiplyScalar(2 * exp.cfg.targetRadius)
-      .add(new Vector3(0, 0.5, 0));
+      .add(new Vector3(0, 0.0, 0));
+    exp.cfg.targetPosns.push(posn);
     t.position.set(...posn);
     exp.sceneManager.scene.add(t);
     targets.push(t);
@@ -124,12 +143,41 @@ async function main() {
       mass: 0.5, // kg
       shape: new Sphere(exp.cfg.targetRadius),
       linearFactor: new Vec3(1, 1, 0),
-      angularVelocity: new Vector3().random(),
+      linearDamping: 0.1,
+      angularDamping: 0.1,
     });
     targetBody.position.copy(t.position);
     exp.sceneManager.physicsWorld.addBody(targetBody);
     targetBodies.push(targetBody);
   }
+
+  // Goal
+  let goal = new Mesh(
+    new CylinderGeometry(exp.cfg.goalRadius, exp.cfg.goalRadius, 0.04)
+  );
+  goal.material.color = new Color('orange');
+  goal.rotateX(-Math.PI / 2);
+  exp.sceneManager.scene.add(goal);
+  let goalBody = new Body({
+    type: Body.STATIC,
+    shape: new Cylinder(exp.cfg.goalRadius, exp.cfg.goalRadius, 0.04),
+  });
+  goalBody.quaternion.copy(goal.quaternion);
+  exp.sceneManager.physicsWorld.addBody(goalBody);
+  goalBody.addEventListener('collide', (e) => {
+    if (targetBodies.includes(e.body)) {
+      exp.points.add(50);
+      goal.hitTween?.stop();
+      goal.scale.setScalar(1);
+      goal.material.color.r = 1;
+      goal.hitTween = new Tween(goal)
+        .to({ scale: { x: 1.3, z: 1.3 }, material: { color: { r: 0.5 } } }, 100)
+        .repeat(1)
+        .yoyo(true)
+        .start();
+    }
+  });
+  console.log(goalBody);
 
   // Walls
   let leftWall = new Body({
@@ -155,7 +203,7 @@ async function main() {
     shape: new Plane(),
   });
   topWall.quaternion.setFromEuler(Math.PI / 2, 0, 0);
-  topWall.position.set(0, 1, 0);
+  topWall.position.set(0, 0.8, 0);
   [leftWall, rightWall, bottomWall, topWall].forEach((wall) =>
     exp.sceneManager.physicsWorld.addBody(wall)
   );
@@ -170,8 +218,13 @@ async function main() {
    */
   exp.createTrialSequence([
     new Block({
+      variables: {
+        angle: 0,
+        goalAngle: linspace(-Math.PI / 8, Math.PI / 8, 6),
+      },
       options: {
-        reps: 1,
+        reps: 2,
+        shuffle: true,
       },
     }),
   ]);
@@ -189,7 +242,7 @@ async function main() {
     content: `Fling the blue cursor at the orange target`,
   });
   exp.instructions.hide();
-  exp.points.panel.hide();
+  //exp.points.panel.hide();
   exp.progress.hide();
 
   /**
@@ -203,6 +256,7 @@ async function main() {
       'SETUP',
       'START',
       'DRAGGING',
+      'WAIT',
       'FINISH',
       'ADVANCE',
       'SURVEY',
@@ -210,9 +264,19 @@ async function main() {
       'FULLSCREEN',
       'DATABASE',
       'BLOCKED',
-    ]
-    //handleStateChange
+    ],
+    handleStateChange
   );
+
+  // Post-experiment survey
+  exp.survey = new Survey();
+  exp.survey.addQuestion({
+    type: 'list',
+    name: 'hand',
+    message: 'Which hand did you primarily use during the experiment?',
+    choices: ['Right', 'Left'],
+    options: { required: true },
+  });
 
   /*
    * Add DragControls and event listeners to move the "joint" (which will move the cursor)
@@ -222,6 +286,7 @@ async function main() {
     exp.sceneManager.camera,
     exp.sceneManager.renderer.domElement
   );
+  controls.deactivate();
   // Add event listener to highlight dragged object
   controls.addEventListener('dragstart', function (event) {
     exp.dragging = true;
@@ -307,7 +372,35 @@ async function main() {
         trial.stateChange = [];
         trial.stateChangeTime = [];
         // Initialize trial parameters
+        trial.score = 0;
         trial.demoTrial = exp.trialNumber === 0;
+        // Reset cube
+        let cursorStartPosn = new Vector3(
+          0.67 * Math.sin(trial.angle),
+          -0.67 * Math.cos(trial.angle),
+          0
+        );
+        cursorBody.position.copy(cursorStartPosn);
+        cursorBody.velocity.set(0, 0, 0);
+        cursorBody.angularVelocity.set(0, 0, 0);
+        cursorBody.quaternion.copy(
+          new Quaternion().setFromEuler(...new Vector3().random())
+        );
+        // Reset targets
+        for (let ti = 0; ti < 6; ti++) {
+          targetBodies[ti].position.copy(exp.cfg.targetPosns[ti]); //targets[ti].position);
+          targetBodies[ti].angularVelocity.copy(new Vector3().random());
+          targetBodies[ti].velocity.set(0, 0, 0);
+        }
+        // Randomize goal
+        let goalPosn = new Vector3(
+          0.6 * Math.sin(trial.goalAngle),
+          0.6 * Math.cos(trial.goalAngle),
+          0
+        );
+        goal.position.copy(goalPosn);
+        goalBody.position.copy(goalPosn);
+        controls.activate();
         exp.state.next('START');
         break;
 
@@ -318,8 +411,25 @@ async function main() {
         break;
 
       case 'DRAGGING':
+        handleFrameData();
+        if (cursor.position.y > -0.01) {
+          exp.sceneManager.physicsWorld.removeConstraint(jointConstraint);
+          cursor.material.color.set('hotpink');
+          exp.dragging = false;
+        }
         if (!exp.dragging) {
-          exp.state.next('START');
+          controls.deactivate();
+          exp.state.next('WAIT');
+        }
+        break;
+
+      case 'WAIT':
+        // Count up the number of objects that drop
+        if (
+          exp.state.expired(2) &&
+          targetBodies.every((x) => x.velocity.length() < exp.cfg.minLaunchVel)
+        ) {
+          exp.state.next('FINISH');
         }
         break;
 
@@ -343,7 +453,7 @@ async function main() {
 
           // Clean up
           DisplayElement.hide(exp.sceneManager.renderer.domElement);
-          DisplayElement.hide(exp.sceneManager.cssRenderer.domElement);
+          DisplayElement.hide(exp.sceneManager.cssRenderer?.domElement);
           exp.fullscreen.exitFullscreen();
           exp.state.next('SURVEY');
         }
@@ -351,7 +461,7 @@ async function main() {
 
       case 'SURVEY':
         exp.state.once(() => exp.survey.show());
-        if (exp.cfg.completed && exp.surveysubmitted) {
+        if (exp.cfg.completed && exp.survey.submitted) {
           exp.survey.hide();
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
@@ -401,6 +511,7 @@ async function main() {
       joint.quaternion.copy(cursorBody.quaternion);
     }
     // Render
+    tweenUpdate();
     exp.sceneManager.render();
   }
 
@@ -409,17 +520,17 @@ async function main() {
    */
 
   // Record frame data
-  // function handleFrameData() {
-  //   trial.t.push(performance.now());
-  //   trial.state.push(exp.state.current);
-  //   trial.posn.push(cursor.position.clone()); // clone!
-  // }
+  function handleFrameData() {
+    trial.t.push(performance.now());
+    trial.state.push(exp.state.current);
+    trial.posn.push(cursor.position.clone()); // clone!
+  }
 
   // Record state transition data
-  // function handleStateChange() {
-  //   trial?.stateChange?.push(exp.state.current);
-  //   trial?.stateChangeTime?.push(performance.now());
-  // }
+  function handleStateChange() {
+    trial?.stateChange?.push(exp.state.current);
+    trial?.stateChangeTime?.push(performance.now());
+  }
 }
 
 window.addEventListener('DOMContentLoaded', main);

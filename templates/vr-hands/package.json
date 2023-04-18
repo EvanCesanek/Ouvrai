@@ -1,9 +1,8 @@
 {
-  "name": "ouvrai-template-vr",
+  "name": "ouvrai-vr-hands",
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "ml-pca": "^4.1.1",
     "ouvrai": "../.."
   }
 }

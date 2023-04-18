@@ -341,7 +341,7 @@ async function main() {
 
       case 'SURVEY':
         exp.state.once(() => exp.survey.show());
-        if (exp.cfg.completed && exp.surveysubmitted) {
+        if (exp.cfg.completed && exp.survey?.submitted) {
           exp.survey.hide();
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
