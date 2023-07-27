@@ -101,7 +101,7 @@ try {
     } catch (err) {
       spinner.fail();
       spinner.warn(
-        `Non-fatal error: Failed to delete folder ${tempExportPath}
+        `Non-fatal error: Failed to delete folder ${tempExportPath}\
         \n  You may want to delete this folder manually.`
       );
     }
@@ -135,15 +135,15 @@ try {
   spinner.fail();
   throw err;
 }
+if (!options.partial) {
+  ora(
+    `Tip: Use the --partial flag to include data from incomplete sessions`
+  ).info();
+}
 let uids = Object.keys(data ?? {});
 let N = uids.length;
 if (N === 0) {
   ora(`No data found at ${firebasePath}`).fail();
-  if (!options.partial) {
-    ora(
-      `(Use the --partial flag to include data from incomplete sessions)`
-    ).info();
-  }
   process.exit();
 } else {
   ora(`Found data from ${N} sessions:`).info();

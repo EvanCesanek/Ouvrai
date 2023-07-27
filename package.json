@@ -43,7 +43,7 @@
     "shell-quote": "^1.8.0",
     "tabtab": "^3.0.2",
     "three": "^0.150.1",
-    "three-mesh-ui": "^6.5.3",
+    "three-mesh-ui": "^6.5.4",
     "vite": "^4.1.4"
   },
   "devDependencies": {

@@ -5,9 +5,9 @@ import {
   mturkPostStudy,
   prolificCreateDraftStudy,
   prolificCreateStudyObject,
-  prolificGetStudies,
   prolificUpdateStudy,
   mturkConfig,
+  prolificListMyStudies,
 } from './cli-utils.js';
 import firebaseConfig from '../config/firebase-config.js';
 import { MTurkClient } from '@aws-sdk/client-mturk';
@@ -28,7 +28,7 @@ if (
   (options.prolific && options.mturk) ||
   (!options.prolific && !options.mturk)
 ) {
-  ora('You must specify --prolific (-p) or --mturk (-m).').fail();
+  ora('You must specify --prolific (-p) or --mturk (-m)').fail();
   process.exit(1);
 }
 
@@ -36,7 +36,7 @@ if (
 const studyName = program.args[0];
 if (studyName === 'compensation' && !options.mturk) {
   ora(
-    'Compensation studies are intended for Amazon Mechanical Turk only.'
+    'Compensation studies are intended for Amazon Mechanical Turk only'
   ).fail();
   process.exit(1);
 }
@@ -52,10 +52,11 @@ if (options.prolific) {
   // Create study
   let existingStudy;
   try {
-    let existingDraftStudies = await prolificGetStudies(studyName, [
-      'UNPUBLISHED',
-    ]);
-    if (existingDraftStudies) {
+    let results = await prolificListMyStudies(['UNPUBLISHED']);
+    let existingDraftStudies = results.filter(
+      (study) => study.internal_name === studyName
+    );
+    if (existingDraftStudies.length > 0) {
       let studyNames = existingDraftStudies.map((o) => ({
         name: `${o.internal_name} created ${o.date_created.slice(0, 10)} (${
           o.id

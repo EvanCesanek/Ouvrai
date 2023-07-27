@@ -25,11 +25,11 @@ let spinner = ora(`Checking for template at ${templatePath}`).start();
 if (await exists(templateURL)) {
   if (!options.overwrite) {
     spinner.fail(
-      `${templatePath} already exists! Use the --overwrite (-o) flag if this is really what you want.`
+      `${templatePath} already exists. Use the --overwrite (-o) flag if this is really what you want.`
     );
     process.exit(1);
   } else {
-    spinner.warn('Overwriting existing template!');
+    spinner.warn('Overwriting existing template');
   }
 } else {
   spinner.succeed();

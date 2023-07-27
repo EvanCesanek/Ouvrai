@@ -3,13 +3,12 @@
 import { Command } from 'commander';
 import tabtab from 'tabtab';
 import { join } from 'path';
-import { URL, fileURLToPath } from 'url';
+import { URL } from 'url';
 import { homedir } from 'os';
-import { exists, spawnSyncPython } from './cli-utils.js';
+import { exists } from './cli-utils.js';
 import { readdir, readFile } from 'fs/promises';
 import { config } from 'dotenv';
 import ora from 'ora';
-import { exec } from 'child_process';
 
 const program = new Command();
 

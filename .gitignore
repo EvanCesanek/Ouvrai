@@ -21,6 +21,8 @@ data_*.json
 # Python virtual environment
 python/env/
 
+_.github
+
 ##### Node.js template from GitHub #####
 
 # Logs
