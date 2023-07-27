@@ -75,6 +75,7 @@ try {
     await copy(templatePath, studyPath, {
       overwrite: options.overwrite,
       errorOnExist: true,
+      filter: (src, dest) => !src.endsWith('.DS_Store'),
     });
     spinner.succeed();
   } catch (err) {
@@ -87,6 +88,7 @@ try {
     await copy(configPath, studyPath, {
       overwrite: options.overwrite,
       errorOnExist: true,
+      filter: (src, dest) => !src.endsWith('.DS_Store'),
     });
     spinner.succeed();
   } catch (err) {

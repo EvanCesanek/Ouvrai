@@ -5,7 +5,7 @@ import { Matrix4, Vector3 } from 'three';
 import { Experiment, InstructionsPanel, Block } from 'ouvrai';
 
 // Static asset imports (https://vitejs.dev/guide/assets.html)
-import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url'; // absolute path from ouvrai
+import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url';
 
 async function main() {
   // Configure your experiment
@@ -15,13 +15,14 @@ async function main() {
       skipConsent: true,
       orbitControls: false,
     },
-    demo: false,
+    demo: true,
 
     // Platform settings
     requireVR: true,
     handTracking: true,
     handModels: true,
     controllerModels: false,
+    disableAutoRecenter: true, // disable recentering bc it can create offsets with hand-tracking (TODO bugfix)
 
     // Three.js settings
     environmentLighting: environmentLightingURL,
@@ -29,10 +30,6 @@ async function main() {
     audio: true,
 
     // Scene parameters (meters, seconds)
-    homePosn: new Vector3(0, 1.3, -0.5),
-    cursorRadius: 0.02,
-    targetRadius: 0.025,
-    calibrationDuration: 10,
   });
 
   /**
@@ -58,16 +55,11 @@ async function main() {
   });
 
   /*
-   * Create visual stimuli with three.js
-   */
-
-  /*
    * Create trial sequence from array of block objects.
    */
   exp.createTrialSequence([
     new Block({
       options: {
-        name: 'Hands',
         reps: 1,
       },
     }),
@@ -77,23 +69,6 @@ async function main() {
    * You must initialize an empty object called trial
    */
   let trial = {};
-
-  // let cubesR = {};
-  // let cubesL = {};
-  // let cubesL2 = {};
-  // let cubesR2 = {};
-  // let cylindersR = {};
-  // let cylindersL = {};
-  // let cube = new Mesh(
-  //   new BoxGeometry(),
-  //   new MeshStandardMaterial()
-  // );
-  // let cylinder = new Mesh(
-  //   new CylinderGeometry(),
-  //   new MeshStandardMaterial({ color: 'black' })
-  // );
-
-  exp.sceneManager.recentered = true;
 
   // Start the main loop! These three functions will take it from here.
   exp.start(calcFunc, stateFunc, displayFunc);
@@ -161,14 +136,7 @@ async function main() {
             interactive: false,
             buttons: false,
           });
-          exp.hand1Models[exp.hand1.userData.currentHandModel].visible = false;
-          exp.hand1.userData.currentHandModel =
-            (exp.hand1.userData.currentHandModel + 1) % 2;
-          exp.hand1Models[exp.hand1.userData.currentHandModel].visible = true;
-          exp.hand2Models[exp.hand2.userData.currentHandModel].visible = false;
-          exp.hand2.userData.currentHandModel =
-            (exp.hand2.userData.currentHandModel + 1) % 2;
-          exp.hand2Models[exp.hand2.userData.currentHandModel].visible = true;
+          switchHandModel();
         });
         if (
           !exp.allowHandChange &&
@@ -196,14 +164,7 @@ async function main() {
             interactive: false,
             buttons: false,
           });
-          exp.hand1Models[exp.hand1.userData.currentHandModel].visible = false;
-          exp.hand1.userData.currentHandModel =
-            (exp.hand1.userData.currentHandModel + 1) % 2;
-          exp.hand1Models[exp.hand1.userData.currentHandModel].visible = true;
-          exp.hand2Models[exp.hand2.userData.currentHandModel].visible = false;
-          exp.hand2.userData.currentHandModel =
-            (exp.hand2.userData.currentHandModel + 1) % 2;
-          exp.hand2Models[exp.hand2.userData.currentHandModel].visible = true;
+          switchHandModel();
         });
         if (
           !exp.allowHandChange &&
@@ -264,47 +225,23 @@ async function main() {
    * Compute and update stimulus and UI presentation.
    */
   function displayFunc(time, frame) {
+    // Both hands must be tracked to swap fingers
     if (exp.rightHandConnected && exp.leftHandConnected) {
-      // for (let [k, v] of Object.entries(exp.rightHand.joints)) {
-      //   if (!cubesR[k]) {
-      //     cubesR[k] ??= cube.clone();
-      //     cubesR[k].scale.setScalar(v.jointRadius);
-      //   }
-      //   // if (exp.rightHand.children.indexOf(cubesR[k] === -1))
-      //   //   exp.rightHand.add(cubesR[k]);
-
-      //   v.matrix.decompose(
-      //     cubesR[k].position,
-      //     cubesR[k].rotation,
-      //     new Vector3()
-      //   );
-      // }
-
-      // for (let [k, v] of Object.entries(exp.leftHand.joints)) {
-      //   if (!cubesL[k]) {
-      //     cubesL[k] ??= cube.clone();
-      //     cubesL[k].scale.setScalar(v.jointRadius);
-      //   }
-      //   // if (exp.leftHand.children.indexOf(cubesL[k] === -1))
-      //   //   exp.leftHand.add(cubesL[k]);
-
-      //   v.matrix.decompose(
-      //     cubesL[k].position,
-      //     cubesL[k].rotation,
-      //     new Vector3()
-      //   );
-      // }
-
-      let f1 = 'index-finger-metacarpal';
-      let f2 = 'index-finger-metacarpal';
-      let f1Mat = exp.rightHand.joints[f1].matrix.clone();
-      let f2Mat = exp.leftHand.joints[f2].matrix.clone();
-      let f1MatInv = f1Mat.clone().invert();
-      let f2MatInv = f2Mat.clone().invert();
+      // We swap other joints based on position relative to base joint j0
+      let j0_R = 'index-finger-metacarpal'; // Right hand
+      let j0_L = 'index-finger-metacarpal'; // Left hand
+      // Create copies of H_L0 and H_R0 matrices (and inverses) to avoid messing with actual joints
+      let H0_R = exp.rightHand.joints[j0_R].matrix.clone();
+      let H0_L = exp.leftHand.joints[j0_L].matrix.clone();
+      let H0_R_inv = H0_R.clone().invert();
+      let H0_L_inv = H0_L.clone().invert();
+      // Reflection matrix across YZ plane (because hands are mirror symmetrical)
       let yref = new Matrix4();
       yref.elements[0] = -1;
 
-      for (let [j1, j2] of [
+      // Loop over two-name arrays to swap joint pairs
+      // Here we are swapping the same joints between left and right
+      for (let [ji_L, ji_R] of [
         ['index-finger-phalanx-proximal', 'index-finger-phalanx-proximal'],
         [
           'index-finger-phalanx-intermediate',
@@ -313,45 +250,32 @@ async function main() {
         ['index-finger-phalanx-distal', 'index-finger-phalanx-distal'],
         ['index-finger-tip', 'index-finger-tip'],
       ]) {
-        let f2Mat2 = f2Mat
-          .clone()
+        // Put right-hand finger on left hand:
+        // Transform matrix G_Ri positions the right-hand joint (ji_R) relative to left-hand base joint (j0_L)
+        // G_Ri = H0_L * R * (inv(H0_R) * Hi_R)
+        let G_Ri = H0_L.clone()
           .multiply(yref)
-          .multiply(f1MatInv.clone().multiply(exp.rightHand.joints[j1].matrix));
-        // f2Mat2.decompose(
-        //   cubesR[j2].position,
-        //   cubesR[j2].rotation,
-        //   new Vector3()
-        // );
-        f2Mat2.decompose(
-          exp.leftHand.joints[j2].position,
-          exp.leftHand.joints[j2].rotation,
+          .multiply(
+            H0_R_inv.clone().multiply(exp.rightHand.joints[ji_R].matrix)
+          );
+        // Decompose the matrix G_Ri into the spatial params of the left-hand joint (ji_L)
+        G_Ri.decompose(
+          exp.leftHand.joints[ji_L].position,
+          exp.leftHand.joints[ji_L].rotation,
           new Vector3()
         );
-        let f1Mat2 = f1Mat
-          .clone()
+        // Same thing: left-hand finger on right hand
+        let G_Li = H0_R.clone()
           .multiply(yref)
-          .multiply(f2MatInv.clone().multiply(exp.leftHand.joints[j2].matrix));
-        // f1Mat2.decompose(
-        //   cubesL[j1].position,
-        //   cubesL[j1].rotation,
-        //   new Vector3()
-        // );
-        f1Mat2.decompose(
-          exp.rightHand.joints[j1].position,
-          exp.rightHand.joints[j1].rotation,
+          .multiply(
+            H0_L_inv.clone().multiply(exp.leftHand.joints[ji_L].matrix)
+          );
+        G_Li.decompose(
+          exp.rightHand.joints[ji_R].position,
+          exp.rightHand.joints[ji_R].rotation,
           new Vector3()
         );
       }
-    }
-
-    if (exp.saveSuccessful) {
-      console.warn('SAVE SUCCESSFUL');
-      exp.VRUI.edit({ title: 'Saved' });
-    }
-
-    if (exp.saveFailed) {
-      console.error(exp.saveFailed);
-      exp.VRUI.edit({ title: 'Error' });
     }
 
     exp.VRUI.updateUI();
@@ -359,47 +283,17 @@ async function main() {
   }
 
   /**
-   * Unsuccessful earlier attempts at finger swapping:
+   * Toggle between cube-hands and mesh-hands
    */
-
-  function xrHandKinematicChain() {
-    return {
-      wrist: {
-        'thumb-metacarpal': {
-          'thumb-phalanx-proximal': {
-            'thumb-phalanx-distal': { 'thumb-tip': {} },
-          },
-        },
-        'index-finger-metacarpal': {
-          'index-finger-phalanx-proximal': {
-            'index-finger-phalanx-intermediate': {
-              'index-finger-phalanx-distal': { 'index-finger-tip': {} },
-            },
-          },
-        },
-        'middle-finger-metacarpal': {
-          'middle-finger-phalanx-proximal': {
-            'middle-finger-phalanx-intermediate': {
-              'middle-finger-phalanx-distal': { 'middle-finger-tip': {} },
-            },
-          },
-        },
-        'ring-finger-metacarpal': {
-          'ring-finger-phalanx-proximal': {
-            'ring-finger-phalanx-intermediate': {
-              'ring-finger-phalanx-distal': { 'ring-finger-tip': {} },
-            },
-          },
-        },
-        'pinky-finger-metacarpal': {
-          'pinky-finger-phalanx-proximal': {
-            'pinky-finger-phalanx-intermediate': {
-              'pinky-finger-phalanx-distal': { 'pinky-finger-tip': {} },
-            },
-          },
-        },
-      },
-    };
+  function switchHandModel() {
+    exp.hand1Models[exp.hand1.userData.currentHandModel].visible = false;
+    exp.hand1.userData.currentHandModel =
+      (exp.hand1.userData.currentHandModel + 1) % 2;
+    exp.hand1Models[exp.hand1.userData.currentHandModel].visible = true;
+    exp.hand2Models[exp.hand2.userData.currentHandModel].visible = false;
+    exp.hand2.userData.currentHandModel =
+      (exp.hand2.userData.currentHandModel + 1) % 2;
+    exp.hand2Models[exp.hand2.userData.currentHandModel].visible = true;
   }
 }
 
