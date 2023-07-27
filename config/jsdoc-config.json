@@ -1,0 +1,11 @@
+{
+  "plugins": ["plugins/markdown"],
+  "opts": {
+    "encoding": "utf8",
+    "lenient": false,
+    "sort": false
+  },
+  "templates": {
+    "cleverLinks": true
+  }
+}

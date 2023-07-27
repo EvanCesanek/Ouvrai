@@ -216,6 +216,27 @@ function Assignment(props) {
   const handleClose = () => {
     setAnchorEl(null);
   };
+  const handleQual = async () => {
+    let res = await fetch(
+      `/api/mturk/workers/${props.assignment.WorkerId}/assignQual?${
+        props.sandbox ? 'sandbox=1' : ''
+      }`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ qid: 1 }), // TODO: How to get the QID??
+      }
+    );
+    res = await res.json();
+    console.log('assign qual response', res);
+    if (res.TurkErrorCode) {
+      window.alert('Error: ' + res.message);
+      return;
+    }
+  };
   const handleReject = async () => {
     let res = await fetch(
       `/api/mturk/assignments/${props.assignment.AssignmentId}/reject?${

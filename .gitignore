@@ -4,6 +4,8 @@ experiments/*
 # Real consent forms
 config/consent
 
+cli/all_screeners.json
+
 # Firebase cache
 **/.firebase/
 

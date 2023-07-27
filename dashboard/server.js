@@ -11,6 +11,7 @@ import {
   MTurkClient,
   RejectAssignmentCommand,
   ApproveAssignmentCommand,
+  AssociateQualificationWithWorkerCommand,
 } from '@aws-sdk/client-mturk';
 import { firebaseClient, mturkConfig } from '../cli/cli-utils.js';
 
@@ -98,6 +99,26 @@ recordRoutes
         })
       );
       res.json(result);
+    } catch (err) {
+      console.log(err.name, err.TurkErrorCode, err.message);
+      res.send(err);
+    }
+  });
+
+recordRoutes
+  .route('/api/mturk/workers/:workerId/assignQual')
+  .post(async function (req, res) {
+    console.log('QID', req.body.qid);
+    let client = req.query.sandbox ? mturkSandbox : mturk;
+    try {
+      let result = await client.send(
+        new AssociateQualificationWithWorkerCommand({
+          QualificationTypeId: req.body.qid, // QID HERE
+          WorkerId: req.params.workerId,
+          SendNotification: false, // Don't need to email the worker
+          IntegerValue: 1, // Ignore (this is for "scored" qualifications)
+        })
+      );
     } catch (err) {
       console.log(err.name, err.TurkErrorCode, err.message);
       res.send(err);
