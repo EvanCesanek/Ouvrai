@@ -66,7 +66,7 @@ process.env.VITE_EMULATORS_DATABASE_PORT =
 // Problems with above lead us to alternative solution using subprocess shell commands
 // This works - and is better than requiring this command to be a script in all package.json
 spinner = ora(
-  'Spawning child processes for Vite and Firebase Emulators...'
+  'Spawning child processes for Vite and Firebase Emulators'
 ).start();
 let subprocess = spawn(
   'npx',
@@ -88,8 +88,6 @@ let subprocess = spawn(
 );
 subprocess.on('spawn', () => spinner.succeed());
 subprocess.on('error', (err) => {
-  ora(
-    `Error in spawn('npx concurrently "vite src" "firebase emulators:start"'`
-  ).fail();
+  ora(`Error in spawned child process, see console output`).fail();
   throw err;
 });

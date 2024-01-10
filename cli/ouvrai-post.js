@@ -5,7 +5,7 @@ import {
   getLatestDeploySite,
   getStudyConfig,
   mturkPostStudy,
-  prolificListStudies,
+  prolificListMyStudies,
   prolificPostStudy,
   mturkConfig,
 } from './cli-utils.js';
@@ -24,7 +24,7 @@ const options = program.opts();
 const studyName = program.args[0];
 
 if (studyName === 'compensation' && !options.mturk) {
-  ora('Compensation studies are for MTurk only.').fail();
+  ora('Compensation studies are for MTurk only').fail();
   process.exit(1);
 }
 
@@ -33,10 +33,7 @@ if (options.prolific) {
   let spinner = ora('Retrieving draft studies from Prolific').start();
   let studies;
   try {
-    studies = await prolificListStudies({
-      filterStates: ['UNPUBLISHED'],
-      byProject: false,
-    });
+    studies = await prolificListMyStudies(['UNPUBLISHED']);
     // Exit if no unpublished studies.
     if (studies.length === 0) {
       spinner.fail();

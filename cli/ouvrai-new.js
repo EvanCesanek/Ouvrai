@@ -63,7 +63,7 @@ if (await exists(studyURL)) {
     );
     process.exit(1);
   } else {
-    spinner.warn('Overwriting existing study.');
+    spinner.warn('Overwriting existing study');
   }
 } else {
   spinner.succeed();

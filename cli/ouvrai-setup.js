@@ -26,7 +26,7 @@ let projectId = await firebaseChooseProject(client);
 
 // Always use <projectName>.web.app as the default site.
 let spinner = ora(
-  `Getting default Hosting site for project '${projectId}'`
+  `Getting default Hosting site for project "${projectId}"`
 ).start();
 let sites = await client.hosting.sites.list({ project: projectId });
 let siteId = sites.sites.map((x) => x.name.split('/').slice(-1)[0])[0];
@@ -87,14 +87,14 @@ subprocess.on('close', async (code) => {
     } else {
       appId = apps[0];
     }
-    ora(`Using WEB app '${appNames[0]}' (appId = ${appId}).`).succeed();
+    ora(`Using WEB app "${appNames[0]}" (appId = ${appId})`).succeed();
 
     // Get the config object and write it to /config/firebase-config.js
     let configObject = await client.apps.sdkconfig('web', appId);
 
     let configURL = new URL('../config/firebase-config.js', import.meta.url);
     spinner = ora(
-      `Writing '${appNames[0]}' configuration data to ${fileURLToPath(
+      `Writing "${appNames[0]}" configuration data to ${fileURLToPath(
         configURL
       )}`
     ).start();
@@ -131,7 +131,7 @@ subprocess.on('close', async (code) => {
     spinner.succeed();
     ora(
       chalk.bold(
-        `Ouvrai successfully configured for Firebase project '${projectId}'.\n`
+        `Ouvrai successfully configured for Firebase project "${projectId}"\n`
       )
     ).succeed();
 
@@ -146,7 +146,7 @@ subprocess.on('close', async (code) => {
   }
   console.log();
   ora(`${chalk.bold('Ouvrai setup complete!')}\
-  \n  We recommend starting by creating a new study from the 'cursor' template:\
+  \n  We recommend starting by creating a new study from the "cursor" template:\
   \n    ouvrai new my-new-study cursor\
   \n    ouvrai dev my-new-study\n`).succeed();
 });

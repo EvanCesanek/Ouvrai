@@ -142,14 +142,14 @@ export function spawnSyncPython(
     ).info();
     return spawnSyncPython(fallback, args, undefined, spawnStdio);
   } else if (code !== 0) {
-    ora(`Spawn exited with code ${code}.`).fail();
+    ora(`Spawn exited with code ${code}`).fail();
     if (spawnStdio === 'pipe') {
       ora(message).info();
     }
     return subprocess;
   } else {
     ora(
-      `Python command '${command} ${args.join(' ')}' was successful.`
+      `Python command '${command} ${args.join(' ')}' was successful`
     ).succeed();
     if (spawnStdio === 'pipe') {
       ora(output).info();
@@ -160,52 +160,6 @@ export function spawnSyncPython(
 
 /*********
  * Prolific Utilities */
-
-export async function prolificGetStudies(
-  internal_name,
-  states = [
-    'ACTIVE',
-    'PAUSED',
-    'UNPUBLISHED',
-    'PUBLISHING',
-    'COMPLETED',
-    'AWAITING REVIEW',
-    'UNKNOWN',
-    'SCHEDULED',
-  ]
-) {
-  let stateQuery = states[0] ? `(${states.join('|')})` : '';
-  let text = internal_name ? ` with internal name "${internal_name}"` : '';
-  let spinner = ora(`Fetching Prolific studies${text}...`).start();
-  let results;
-  try {
-    let res = await axios.get(
-      `https://api.prolific.co/api/v1/studies/?state=${stateQuery}`,
-      {
-        headers: {
-          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
-        },
-      }
-    );
-    results = res.data.results;
-    if (internal_name) {
-      results = results.filter(
-        (study) => study.internal_name === internal_name
-      );
-    }
-    if (results.length === 0) {
-      spinner.info(`No previous studies found${text}.`);
-      return false;
-    } else {
-      spinner.succeed(`Found ${results.length} previous studies${text}.`);
-      return results;
-    }
-  } catch (err) {
-    spinner.fail();
-    ora(`${err.message} : ${err.response?.data?.error}`).fail();
-    throw err;
-  }
-}
 
 export async function prolificCreateStudyObject(
   studyName,
@@ -241,7 +195,9 @@ export async function prolificCreateStudyObject(
     project: config.prolific.project,
   };
   if (!existingStudy && !studyObject.project) {
-    studyObject.project = await prolificSelectProject();
+    let workspace = await prolificSelectWorkspace();
+    let project = await prolificSelectProject(workspace);
+    studyObject.project = project.id;
   }
   if (Array.isArray(config.prolific.screeners?.ageRange)) {
     studyObject.eligibility_requirements.push({
@@ -376,85 +332,91 @@ export async function prolificCreateStudyObject(
       ],
     });
   }
-  // TODO: blocklist and allowlist (no support for studies from diff projects or unpublished/active studies)
-  // let spinner = ora(
-  //   'Fetching previous studies for blocklist and allowlist...'
-  // ).start();
-  // let results;
-  // try {
-  //   let res = await axios.get(
-  //     `https://api.prolific.co/api/v1/projects/${studyObject.project}/studies/`,
-  //     {
-  //       headers: {
-  //         Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
-  //       },
-  //     }
-  //   );
-  //   results = res.data.results;
-  //   if (results.length === 0) {
-  //     spinner.warn('No previous studies found in selected project.');
-  //   } else {
-  //     spinner.succeed(
-  //       `Found ${results.length} previous studies in this project.`
-  //     );
-  //   }
-  // } catch (err) {
-  //   spinner.fail();
-  //   ora(`${err.message} : ${err.response?.data?.error}`).fail();
-  //   throw err;
-  // }
-  // if (
-  //   config.studyBlocklist &&
-  //   Array.isArray(config.studyBlocklist) &&
-  //   config.studyBlocklist.length > 0
-  // ) {
-  //   let blocklist = results.filter((study) =>
-  //     config.studyBlocklist.includes(study.internal_name)
-  //   );
-  //   let blockstudies = blocklist.map((study) => ({
-  //     id: study.id,
-  //     value: true,
-  //     completion_codes: [],
-  //   }));
-  //   console.log(blockstudies);
-  //   studyObject.eligibility_requirements.push({
-  //     _cls: 'web.eligibility.models.PreviousStudiesEligibilityRequirement',
-  //     attributes: blockstudies,
-  //   });
-  //   ora(
-  //     `Added previous studies [${blocklist
-  //       .map((s) => s.internal_name)
-  //       .join(', ')}] to blocklist.`
-  //   ).info();
-  // } else {
-  //   ora(`No previous study blocklist initialized.`).info();
-  // }
-  // if (
-  //   config.studyAllowlist &&
-  //   Array.isArray(config.studyAllowlist) &&
-  //   config.studyAllowlist.length > 0
-  // ) {
-  //   let allowlist = results.filter((study) =>
-  //     config.studyAllowlist.includes(study.internal_name)
-  //   );
-  //   let allowstudies = allowlist.map((study) => ({
-  //     id: study.id,
-  //     value: true,
-  //     completion_codes: [],
-  //   }));
-  //   studyObject.eligibility_requirements.push({
-  //     _cls: 'web.eligibility.models.PreviousStudiesAllowlistEligibilityRequirement',
-  //     attributes: allowstudies,
-  //   });
-  //   ora(
-  //     `Added previous studies [${allowlist
-  //       .map((s) => s.internal_name)
-  //       .join(', ')}] to allowlist.`
-  //   ).info();
-  // } else {
-  //   ora(`No previous study allowlist initialized.`).info();
-  // }
+
+  // In Prolific, we use only per-participant allow/blocklist feature because per-study allow/block lists:
+  //   (1) cannot refer to studies in another project
+  //   (2) cannot refer to unpublished or active studies in same project
+
+  // Study block list
+  if (
+    config.studyBlocklist &&
+    Array.isArray(config.studyBlocklist) &&
+    config.studyBlocklist.length > 0
+  ) {
+    let blockIds = await prolificListParticipants(
+      config.studyBlocklist,
+      config.studyBlocklistStatuses || ['APPROVED']
+    );
+    if (!config.blocklist) {
+      config.blocklist = [];
+    }
+    config.blocklist.push(blockIds);
+  }
+
+  // Study allow list
+  if (
+    config.studyAllowlist &&
+    Array.isArray(config.studyAllowlist) &&
+    config.studyAllowlist.length > 0
+  ) {
+    let allowIds = await prolificListParticipants(
+      config.studyAllowlist,
+      config.studyAllowlistStatuses || ['APPROVED']
+    );
+    if (!config.allowlist) {
+      config.allowlist = [];
+    }
+    config.allowlist.push(allowIds);
+  }
+
+  // Now we actually create the block/allow lists
+  if (config.blocklist && Array.isArray(config.blocklist)) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.CustomBlacklistEligibilityRequirement',
+      attributes: [
+        {
+          black_list: config.blocklist,
+        },
+      ],
+    });
+  } else {
+    ora(`No participant blocklist initialized`).info();
+  }
+  if (config.allowlist && Array.isArray(config.allowlist)) {
+    studyObject.eligibility_requirements.push({
+      _cls: 'web.eligibility.models.CustomWhitelistEligibilityRequirement',
+      attributes: [
+        {
+          white_list: config.allowlist,
+        },
+      ],
+    });
+  } else {
+    ora(`No participant allowlist initialized`).info();
+  }
   return studyObject;
+}
+
+export async function prolificListParticipants(
+  filterStudies,
+  filterStatuses = ['APPROVED']
+) {
+  let prolificIds = [];
+  let workspaces = await prolificListWorkspaces();
+  for (let w of workspaces) {
+    let projects = await prolificListProjects(w);
+    for (let p of projects) {
+      let studies = await prolificListStudiesInProject(p);
+      for (let s of studies) {
+        if (!filterStudies || filterStudies.includes(s.internal_name)) {
+          let subs = await prolificListSubmissions(s);
+          subs = subs.filter((x) => filterStatuses.includes(x.status));
+          prolificIds.push(...subs.map((x) => x.participant_id));
+        }
+      }
+    }
+  }
+  return prolificIds;
 }
 
 export async function prolificUpdateStudy(studyObject, id) {
@@ -523,14 +485,16 @@ export async function prolificCreateDraftStudy(studyObject) {
 }
 
 export async function prolificListWorkspaces() {
-  let spinner = ora('Retreiving workspaces from Prolific').start();
+  let spinner = ora('Retrieving workspaces from Prolific').start();
   try {
     let res = await axios.get('https://api.prolific.co/api/v1/workspaces/', {
       headers: {
         Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
       },
     });
-    spinner.succeed();
+    spinner.succeed(
+      `Retrieved ${res.data.results.length} Prolific workspace(s)`
+    );
     return res.data.results;
   } catch (err) {
     spinner.fail();
@@ -538,23 +502,46 @@ export async function prolificListWorkspaces() {
   }
 }
 
-export async function prolificListProjects(workspaceId) {
-  if (!workspaceId) {
-    throw new Error('You must supply a workspaceId');
+export async function prolificSelectWorkspace() {
+  let workspaces = await prolificListWorkspaces();
+  let workspace = workspaces[0];
+  if (workspaces.length > 1) {
+    let workspaceNames = workspaces.map((x) => ({
+      name: x.title,
+      value: x,
+    }));
+    let answers = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'workspace',
+        message: 'Please choose a workspace:',
+        choices: workspaceNames,
+      },
+    ]);
+    workspace = answers.workspace;
+  }
+  return workspace;
+}
+
+export async function prolificListProjects(workspace) {
+  if (!workspace) {
+    throw new Error('You must supply a workspace');
   }
   let spinner = ora(
-    `Retrieving projects from Prolific workspace ${workspaceId}`
+    `Retrieving projects from workspace "${workspace.title}" (${workspace.id})`
   ).start();
   try {
     let res = await axios.get(
-      `https://api.prolific.co/api/v1/workspaces/${workspaceId}/projects/`,
+      `https://api.prolific.co/api/v1/workspaces/${workspace.id}/projects/`,
       {
         headers: {
           Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
         },
       }
     );
-    spinner.succeed();
+    spinner.succeed(
+      `Retrieved ${res.data.results.length} project(s) from workspace "${workspace.title}" (${workspace.id})`
+    );
     return res.data.results;
   } catch (err) {
     spinner.fail();
@@ -562,107 +549,13 @@ export async function prolificListProjects(workspaceId) {
   }
 }
 
-export async function prolificListStudies({ filterStates, byProject = false }) {
-  if (!byProject) {
-    let states = [
-      'ACTIVE',
-      'PAUSED',
-      'UNPUBLISHED',
-      'PUBLISHING',
-      'COMPLETED',
-      'AWAITING REVIEW',
-      'UNKNOWN',
-      'SCHEDULED',
-    ];
-
-    // Check filterStates argument
-    if (
-      Array.isArray(filterStates) &&
-      !filterStates.every((x) => states.indexOf(x) !== -1)
-    ) {
-      throw new Error(
-        `filterStates must be array of strings in (${states.join(', ')})`
-      );
-    }
-
-    if (!filterStates) {
-      let answers = await inquirer.prompt([
-        {
-          type: 'checkbox',
-          name: 'filterStates',
-          message: 'Do you only want to see studies in certain states?',
-          choices: states,
-          default: states,
-        },
-      ]);
-      filterStates = answers.filterStates;
-    }
-    let stateStringArray = `(${filterStates.join('|')})`;
-
-    // Get all studies, filtered by state
-    let spinner = ora('Retrieving your studies from Prolific').start();
-    try {
-      let res = await axios.get('https://api.prolific.co/api/v1/studies/', {
-        params: {
-          state: stateStringArray,
-        },
-        headers: {
-          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
-        },
-      });
-      spinner.succeed();
-      return res.data.results;
-    } catch (err) {
-      spinner.fail();
-      throw err;
-    }
-  } else {
-    let projectId = await prolificSelectProject();
-
-    try {
-      let res = await axios.get(
-        `https://api.prolific.co/api/v1/projects/${projectId}/studies/`,
-        {
-          headers: {
-            Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
-          },
-        }
-      );
-      return res.data.results;
-    } catch (err) {
-      throw err;
-    }
-  }
-}
-
-export async function prolificSelectProject() {
-  // List all studies in project
-  let workspaces = await prolificListWorkspaces();
-  let workspaceId;
-  if (workspaces.length > 1) {
-    let workspaceNames = workspaces.map((x) => ({
-      name: x.title,
-      value: x.id,
-    }));
-    let answers = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'workspaceId',
-        message: 'Please choose a workspace:',
-        choices: workspaceNames,
-      },
-    ]);
-    workspaceId = answers.workspaceId;
-  } else {
-    workspaceId = workspaces[0].id;
-  }
-
-  let projects = await prolificListProjects(workspaceId);
-  let projectId;
+export async function prolificSelectProject(workspace) {
+  let projects = await prolificListProjects(workspace);
+  let project = projects[0];
   if (projects.length > 1) {
     let projectNames = projects.map((x) => ({
       name: x.title,
-      value: x.id,
+      value: x,
     }));
     let answers = await inquirer.prompt([
       {
@@ -672,11 +565,121 @@ export async function prolificSelectProject() {
         choices: projectNames,
       },
     ]);
-    projectId = answers.projectId;
-  } else {
-    projectId = projects[0].id;
+    project = answers.projectId;
   }
-  return projectId;
+  return project;
+}
+
+export async function prolificListMyStudies(filterStates) {
+  // Valid state strings
+  let states = [
+    'ACTIVE',
+    'PAUSED',
+    'UNPUBLISHED',
+    'PUBLISHING',
+    'COMPLETED',
+    'AWAITING REVIEW',
+    'UNKNOWN',
+    'SCHEDULED',
+  ];
+
+  // Validate filterStates
+  if (
+    Array.isArray(filterStates) &&
+    !filterStates.every((x) => states.indexOf(x) !== -1)
+  ) {
+    throw new Error(
+      `filterStates must be array of strings in (${states.join(', ')})`
+    );
+  }
+
+  // Prompt if filter states not specified
+  if (!filterStates) {
+    let answers = await inquirer.prompt([
+      {
+        type: 'checkbox',
+        name: 'filterStates',
+        message: 'Do you only want to see studies in certain states?',
+        choices: states,
+        default: states,
+      },
+    ]);
+    filterStates = answers.filterStates;
+  }
+  let stateStringArray = `(${filterStates.join('|')})`;
+
+  // Get all of this user's studies (filtered by state)
+  let spinner = ora(
+    `Retrieving Prolific studies created by you currently in state ${stateStringArray}`
+  ).start();
+  try {
+    let res = await axios.get('https://api.prolific.co/api/v1/studies/', {
+      params: {
+        state: stateStringArray,
+      },
+      headers: {
+        Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+      },
+    });
+    spinner.succeed(`Retrieved ${res.data.results.length} studies`);
+    return res.data.results;
+  } catch (err) {
+    spinner.fail();
+    throw err;
+  }
+}
+export async function prolificListStudiesInProject(project) {
+  // TODO: Does Prolific API "list all studies in a project" accept states?
+  // It doesn't say that it does, but "list all studies" does, so...
+
+  if (!project.id) {
+    // Prompt to select a workspace/project
+    let workspace = await prolificSelectWorkspace();
+    project = await prolificSelectProject(workspace);
+  }
+
+  let spinner = ora(
+    `Retrieving all studies in project "${project.id}"`
+  ).start();
+  try {
+    let res = await axios.get(
+      `https://api.prolific.co/api/v1/projects/${project.id}/studies/`,
+      {
+        headers: {
+          Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+        },
+      }
+    );
+    spinner.succeed(
+      `Retrieved ${res.data.results.length} study(s) from project "${project.title}`
+    );
+    return res.data.results;
+  } catch (err) {
+    spinner.fail();
+    throw err;
+  }
+}
+
+export async function prolificListSubmissions(study) {
+  let text = ` for study "${study?.internal_name}"`;
+  let spinner = ora(`Retrieving all submissions${study ? text : ''}`).start();
+  try {
+    let res = await axios.get(`https://api.prolific.co/api/v1/submissions/`, {
+      params: {
+        study: study?.id,
+      },
+      headers: {
+        Authorization: `Token ${process.env.PROLIFIC_AUTH_TOKEN}`,
+      },
+    });
+    spinner.succeed(
+      `Retrieved ${res.data.results.length} submission(s)${study ? text : ''}`
+    );
+    return res.data.results;
+  } catch (err) {
+    spinner.fail();
+    throw err;
+  }
 }
 
 export async function prolificPostStudy(studyId) {
@@ -808,7 +811,7 @@ export async function mturkPostStudy(
       },
     ]);
     if (!answers.confirm) {
-      ora('Your study has NOT been posted to Amazon Mechanical Turk.').warn();
+      ora('Your study has NOT been posted to Amazon Mechanical Turk').warn();
       process.exit(1); // Hard exit
     }
   }
@@ -1057,6 +1060,7 @@ async function mturkPrepareHTML(
 async function mturkPrepareQualifications(client, studyName, config, options) {
   let QualificationRequirements = [];
 
+  // Special routine for compensation HITs uses 'workersToCompensate' field of study-config.js
   if (options.compensation || studyName === 'compensation') {
     let studyConfigURL = new URL(
       '../experiments/compensation/study-config.js',
@@ -1117,16 +1121,16 @@ async function mturkPrepareQualifications(client, studyName, config, options) {
 
   let studyConsentQID = await mturkGetQualificationByName(client, studyName);
   if (!studyConsentQID) {
-    ora('No qualification exists for this study.').info();
+    ora('No qualification exists for this study').info();
     const req = new CreateQualificationTypeCommand({
       Name: studyName,
-      Description: `Assigned to workers who consent to participate in study '${studyName}'`,
+      Description: `Assigned to workers who consent to participate in study "${studyName}"`,
       Keywords: ['ouvrai', 'consent', ...(config.mturk?.keywords || '')].join(
         ', '
       ),
       QualificationTypeStatus: 'Active',
     });
-    let spinner = ora(`Creating qualification for '${studyName}'`).start();
+    let spinner = ora(`Creating qualification for "${studyName}"`).start();
     try {
       let res = await client.send(req);
       studyConsentQID = res.QualificationType.QualificationTypeId;
@@ -1300,9 +1304,9 @@ export async function mturkListQualifications(client, query) {
   };
 
   const command = new ListQualificationTypesCommand(req);
-  let text = query ? `with query string "${query}"` : '';
+  let text = query ? ` with query string "${query}"` : '';
   let spinner = ora(
-    `Retriving qualifications from Amazon Mechanical Turk ${text}`
+    `Retrieving qualifications from Amazon Mechanical Turk${text}`
   ).start();
   try {
     let res = await client.send(command);
@@ -1401,7 +1405,7 @@ export async function firebaseChooseSite(
 ) {
   let sites;
   let spinner = ora(
-    `Retrieving Hosting sites for project '${projectId}' from Firebase`
+    `Retrieving Hosting sites for Firebase project "${projectId}"`
   ).start();
   try {
     sites = await client.hosting.sites.list({ project: projectId });
@@ -1497,7 +1501,7 @@ export async function updateStudyHistory(studyName, studyInfo) {
     throw err;
   }
   if (studyHistoryJSON === undefined) {
-    ora('Initializing new study history.').info();
+    ora('Initializing new study history').info();
     studyHistoryJSON = {};
   }
 

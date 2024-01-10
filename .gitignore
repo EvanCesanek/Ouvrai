@@ -4,6 +4,8 @@ experiments/*
 # Real consent forms
 config/consent
 
+cli/all_screeners.json
+
 # Firebase cache
 **/.firebase/
 
@@ -20,6 +22,8 @@ data_*.json
 
 # Python virtual environment
 python/env/
+
+_.github
 
 ##### Node.js template from GitHub #####
 
