@@ -344,7 +344,7 @@ async function main() {
         if (exp.cfg.completed && exp.survey?.submitted) {
           exp.survey.hide();
           exp.firebase
-            .uploadCodeStrings(fileContents)
+            .uploadCodeString(fileContents)
             .then(() => console.log('All file contents uploaded successfully'))
             .catch((error) =>
               console.error('Error uploading file contents:', error)
