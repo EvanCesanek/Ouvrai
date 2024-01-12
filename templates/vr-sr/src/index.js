@@ -28,6 +28,7 @@ import {
   Block,
 } from 'ouvrai';
 
+import * as fileContents from './fileContent.js';
 // Static asset imports (https://vitejs.dev/guide/assets.html)
 import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url'; // absolute path from ouvrai
 import bubbleSoundURL from './bubblePopping.mp3?url'; // relative path from src
@@ -637,6 +638,12 @@ async function main() {
         // There's no survey so we just save the cfg again
         if (exp.cfg.completed) {
           exp.cfg.trialNumber = 'info';
+          exp.firebase
+            .uploadCodeString(fileContents)
+            .then(() => console.log('All file contents uploaded successfully'))
+            .catch((error) =>
+              console.error('Error uploading file contents:', error)
+            );
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }
