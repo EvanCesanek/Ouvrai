@@ -934,13 +934,11 @@ async function main() {
     } else if (exp.rightGrip && trial.rotationOrigin && trial.rotation !== 0) {
       // Visuomotor rotation
       let x = exp.rightGrip.getWorldPosition(new Vector3()); // get grip position (world)
-      let d = toolBarDummy.getWorldPosition(new Vector3()); // get center of toolbar (world)
-      x.sub(d); // convert x into an offset so we can get back to the grip position from rotated toolbar position
-      d.sub(trial.rotationOrigin); // subtract origin from the center point (world)
-      d.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
-      d.add(trial.rotationOrigin).add(x); // add back origin and offset
-      exp.rightGrip.worldToLocal(d); // convert to grip space
-      toolHandle.position.copy(d); // set as tool position
+      x.sub(trial.rotationOrigin); // subtract origin (world)
+      x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
+      x.add(trial.rotationOrigin); // add back origin
+      exp.rightGrip.worldToLocal(x); // convert to grip space
+      toolHandle.position.copy(x); // set as tool position
     }
 
     // Gimbal
