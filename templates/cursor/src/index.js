@@ -17,7 +17,7 @@ import {
   InstructionsPanel,
   CSS2D,
 } from 'ouvrai';
-import * as fileContents from './fileContent.js';
+import { fileContents } from './fileContents.js';
 /*
  * Main function contains all experiment logic. At a minimum you should:
  * 1. Create a `new Experiment({...config})`
@@ -63,6 +63,8 @@ async function main() {
 
     // Procedure
     delayDuration: 0.5,
+
+    experimentSourceCode: fileContents,
   });
 
   /*
@@ -343,12 +345,6 @@ async function main() {
         exp.state.once(() => exp.survey.show());
         if (exp.cfg.completed && exp.survey?.submitted) {
           exp.survey.hide();
-          exp.firebase
-            .uploadCodeString(fileContents)
-            .then(() => console.log('All file contents uploaded successfully'))
-            .catch((error) =>
-              console.error('Error uploading file contents:', error)
-            );
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }

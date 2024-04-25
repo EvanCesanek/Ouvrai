@@ -34,6 +34,8 @@ import {
   Survey,
 } from 'ouvrai';
 
+import { fileContents } from './fileContents.js';
+
 import targetColorMapURL from 'ouvrai/lib/textures/Terrazzo018_1K-JPG/Terrazzo018_1K_Color.jpg';
 import { Tween, update as tweenUpdate } from '@tweenjs/tween.js';
 
@@ -55,6 +57,8 @@ async function main() {
     targetRadius: 0.05,
     minLaunchVel: 0.1,
     goalRadius: 0.08,
+
+    experimentSourceCode: fileContents,
   });
 
   /*
