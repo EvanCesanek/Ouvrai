@@ -2,11 +2,11 @@ import { Command } from 'commander';
 import { fileURLToPath, URL } from 'url';
 import ora from 'ora';
 import { build } from 'vite';
-import { join, relative} from 'path';
+import { join, relative } from 'path';
 import inquirer from 'inquirer';
 import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
 import { exists } from './cli-utils.js';
-import { readFileSync, writeFileSync} from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 inquirer.registerPrompt('file-tree-selection', inquirerFileTreeSelection);
 
 const program = new Command()
@@ -68,14 +68,14 @@ async function includeFileAsString(studyPath, fileName, outputFileName) {
   let fileContents = readFileSync(filePath, 'utf8');
   fileContents = escapeTemplateLiterals(fileContents);
   const outputFilePath = join(studyPath, 'src', outputFileName);
-  const exportString = `export const fileContent = \`${fileContents}\`;`;
+  const exportString = `export const fileContents = \`${fileContents}\`;`;
   console.log('hello');
   console.log(outputFilePath);
 
   writeFileSync(outputFilePath, exportString);
 }
 
-await includeFileAsString(studyPath, 'index.js', 'fileContent.js');
+await includeFileAsString(studyPath, 'index.js', 'fileContents.js');
 const srcPath = join(studyPath, 'src');
 let res = await build({
   root: srcPath, // index.html must be here

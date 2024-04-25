@@ -4,6 +4,8 @@ import { Matrix4, Vector3 } from 'three';
 // Package imports
 import { Experiment, InstructionsPanel, Block } from 'ouvrai';
 
+import { fileContents } from './fileContents.js';
+
 // Static asset imports (https://vitejs.dev/guide/assets.html)
 import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url';
 
@@ -28,6 +30,7 @@ async function main() {
     environmentLighting: environmentLightingURL,
     gridRoom: true,
     audio: true,
+    experimentSourceCode: fileContents,
 
     // Scene parameters (meters, seconds)
   });

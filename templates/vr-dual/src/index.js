@@ -30,7 +30,7 @@ import {
   Block,
 } from 'ouvrai';
 
-import * as fileContents from './fileContent.js';
+import { fileContents } from './fileContents.js';
 
 // Static asset imports (https://vitejs.dev/guide/assets.html)
 import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url'; // absolute path from ouvrai
@@ -89,6 +89,8 @@ async function main() {
     //startClampTrial: 100, // no clamp?
     noFeedbackNear: 0.03, // radius beyond which feedback is off
     startDelay: 0.2, // time to remain in start position
+
+    experimentSourceCode: fileContents,
   });
 
   /**
@@ -738,12 +740,6 @@ async function main() {
         // There's no survey so we just save the cfg again
         if (exp.cfg.completed) {
           exp.cfg.trialNumber = 'info';
-          exp.firebase
-            .uploadCodeString(fileContents)
-            .then(() => console.log('All file contents uploaded successfully'))
-            .catch((error) =>
-              console.error('Error uploading file contents:', error)
-            );
           exp.firebase.saveTrial(exp.cfg);
           exp.state.next('CODE');
         }
@@ -959,8 +955,9 @@ async function main() {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
       // getWorldX() because grip is child of cameraGroup
-      trial.rhPos.push(exp.rightGrip.getWorldPosition(new Vector3()));
-      trial.rhOri.push(exp.rightGrip.getWorldQuaternion(new Quaternion()));
+      const rightGripCopy = exp.rightGrip.clone();
+      trial.rhPos.push(rightGripCopy.getWorldPosition(new Vector3()));
+      trial.rhOri.push(rightGripCopy.getWorldQuaternion(new Quaternion()));
     }
   }
 

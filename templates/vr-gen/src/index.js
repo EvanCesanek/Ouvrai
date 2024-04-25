@@ -26,7 +26,7 @@ import {
   clamp,
   Block,
 } from 'ouvrai';
-import * as fileContents from './fileContent.js';
+import { fileContents } from './fileContents.js';
 
 // Static asset imports (https://vitejs.dev/guide/assets.html)
 import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url'; // absolute path from ouvrai
@@ -92,6 +92,8 @@ async function main() {
     targetDims: [0, 0, 0, 1, 1, 2, 2],
     targetMags: [0, -2, 2, -2, 2, -2, 2],
     targetSpacing: 0.04,
+
+    experimentSourceCode: fileContents,
   });
 
   /**
@@ -898,8 +900,9 @@ async function main() {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
       // getWorldX() because grip is child of cameraGroup
-      trial.rhPos.push(exp.rightGrip.getWorldPosition(new Vector3()));
-      trial.rhOri.push(exp.rightGrip.getWorldQuaternion(new Quaternion()));
+      const rightGripCopy = exp.rightGrip.clone();
+      trial.rhPos.push(rightGripCopy.getWorldPosition(new Vector3()));
+      trial.rhOri.push(rightGripCopy.getWorldQuaternion(new Quaternion()));
     }
   }
 
