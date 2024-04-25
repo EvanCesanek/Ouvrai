@@ -6,6 +6,7 @@ import { join, relative } from 'path';
 import inquirer from 'inquirer';
 import inquirerFileTreeSelection from 'inquirer-file-tree-selection-prompt';
 import { exists } from './cli-utils.js';
+import { readFileSync, writeFileSync } from 'fs';
 inquirer.registerPrompt('file-tree-selection', inquirerFileTreeSelection);
 
 const program = new Command()
@@ -58,7 +59,23 @@ if (options.github) {
   ]);
   buildBase = `/${answers.name}/`;
 }
+function escapeTemplateLiterals(str) {
+  // Escaping backticks and `${}` sequences
+  return str.replace(/`/g, '\\`').replace(/\${/g, '\\${');
+}
+async function includeFileAsString(studyPath, fileName, outputFileName) {
+  const filePath = join(studyPath, 'src', fileName);
+  let fileContents = readFileSync(filePath, 'utf8');
+  fileContents = escapeTemplateLiterals(fileContents);
+  const outputFilePath = join(studyPath, 'src', outputFileName);
+  const exportString = `export const fileContents = \`${fileContents}\`;`;
+  console.log('hello');
+  console.log(outputFilePath);
 
+  writeFileSync(outputFilePath, exportString);
+}
+
+await includeFileAsString(studyPath, 'index.js', 'fileContents.js');
 const srcPath = join(studyPath, 'src');
 let res = await build({
   root: srcPath, // index.html must be here

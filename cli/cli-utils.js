@@ -11,13 +11,13 @@ import replace from 'replace-in-file';
 import { createRequire } from 'module';
 import { exec, spawn, spawnSync } from 'child_process';
 import { join } from 'path';
-import { readJSON } from 'fs-extra/esm';
+import { readJSON, remove } from 'fs-extra/esm';
 import { access, readFile, writeFile } from 'fs/promises';
 import { minify } from 'html-minifier-terser';
 import ora from 'ora';
-import { quote } from 'shell-quote';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
+import { promisify } from 'util';
 
 /*********
  * Basic Utilities */
@@ -1435,52 +1435,45 @@ export async function firebaseChooseSite(
   return siteName;
 }
 
+const execAsync = promisify(exec);
+
 export async function firebaseGetData(
   refString,
   projectId,
   shallow = false,
   orderBy,
-  startAt
+  startAt,
+  outputPath
 ) {
-  if (refString.slice(0, 1) !== '/') {
+  if (refString[0] !== '/') {
     throw new Error('refString path must begin with /');
   }
-  let str = '';
+
   let args = [refString, '--project', projectId];
-  if (shallow) {
-    args.push('--shallow');
+  if (shallow) args.push('--shallow');
+  if (orderBy) args.push('--order-by', orderBy);
+  if (startAt) args.push('--start-at', startAt);
+  let filepath;
+  if (outputPath) {
+    filepath = join(outputPath, `tmp_${dateStringYMDHMS()}.txt`);
+    args.push('--output', filepath);
   }
-  if (orderBy) {
-    args.push('--order-by', orderBy);
+  const cmd =
+    'firebase database:get ' + args.map((arg) => `"${arg}"`).join(' ');
+
+  try {
+    const { stdout } = await execAsync(cmd, { maxBuffer: 1e14 });
+    if (!outputPath) {
+      return JSON.parse(stdout);
+    } else {
+      const parsed_file = JSON.parse(await readFile(filepath));
+      await remove(filepath);
+      return parsed_file;
+    }
+  } catch (error) {
+    console.error(error);
+    throw error;
   }
-  if (startAt) {
-    args.push('--start-at', startAt);
-  }
-  args = [quote(args)];
-
-  // let proc = spawn('firebase database:get', args, { shell: true });
-  // proc.stdout.on('data', (data) => {
-  //   str += data;
-  // });
-
-  // return new Promise((resolve) =>
-  //   proc.on('close', () => resolve(JSON.parse(str)))
-  // );
-
-  return new Promise((resolve, reject) => {
-    exec(
-      'firebase database:get ' + args,
-      { maxBuffer: 1000000000 },
-      (error, stdout, stderr) => {
-        if (error) {
-          console.log(stderr);
-          throw error;
-        } else {
-          resolve(JSON.parse(stdout));
-        }
-      }
-    );
-  });
 }
 
 /*********

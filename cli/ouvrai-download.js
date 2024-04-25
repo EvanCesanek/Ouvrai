@@ -51,7 +51,8 @@ if (!(await exists(savePath))) {
 }
 let saveFile = join(savePath, `data_${dateStringYMDHMS()}.json`);
 // Complete participant data only
-let data;
+let data = {};
+let numPartialSessions = 0;
 try {
   if (options.dev) {
     spinner = ora(
@@ -122,13 +123,34 @@ try {
         projectId = firebaseConfig.projectId;
       }
     }
-    data = await firebaseGetData(
-      firebasePath,
-      projectId,
-      false,
-      options.partial ? undefined : 'info/completed',
-      options.partial ? undefined : 'true'
-    );
+
+    // Get shallow data to know the top-level keys
+    spinner = ora(`Retrieving subject UIDs from ${firebasePath}`).start();
+    let topLevelKeys = await firebaseGetData(firebasePath, projectId, true);
+    spinner.succeed();
+    // Retrieve and append individuals one by one
+    spinner = ora(
+      `Downloading data from ${Object.keys(topLevelKeys).length} sessions`
+    ).start();
+    for (const key of Object.keys(topLevelKeys)) {
+      let childPath = `${firebasePath}/${key}`;
+      console.log(key);
+      let childData = await firebaseGetData(
+        childPath,
+        projectId,
+        false,
+        false,
+        false,
+        savePath
+      );
+      // if no childData.info, add empty object
+      if (!childData.info) {
+        childData.info = {};
+      }
+      if (options.partial || childData.info.completed) {
+        data[key] = childData;
+      }
+    }
   }
   spinner.succeed();
 } catch (err) {
@@ -136,9 +158,14 @@ try {
   throw err;
 }
 if (!options.partial) {
-  ora(
-    `Tip: Use the --partial flag to include data from incomplete sessions`
-  ).info();
+  if (numPartialSessions > 0) {
+    ora(
+      `Your study contains incomplete session data from ${numPartialSessions} subjects that has been excluded`
+    ).info();
+    ora(
+      `Tip: Use the --partial flag to include data from incomplete sessions`
+    ).info();
+  }
 }
 let uids = Object.keys(data ?? {});
 let N = uids.length;

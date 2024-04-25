@@ -30,6 +30,8 @@ import {
   Block,
 } from 'ouvrai';
 
+import { fileContents } from './fileContents.js';
+
 // Static asset imports (https://vitejs.dev/guide/assets.html)
 import environmentLightingURL from 'ouvrai/lib/environments/IndoorHDRI003_1K-HDR.exr?url'; // absolute path from ouvrai
 import bubbleSoundURL from './bubblePopping.mp3?url'; // relative path from src
@@ -87,6 +89,8 @@ async function main() {
     //startClampTrial: 100, // no clamp?
     noFeedbackNear: 0.03, // radius beyond which feedback is off
     startDelay: 0.2, // time to remain in start position
+
+    experimentSourceCode: fileContents,
   });
 
   /**
@@ -926,13 +930,11 @@ async function main() {
     } else if (exp.rightGrip && trial.rotationOrigin && trial.rotation !== 0) {
       // Visuomotor rotation
       let x = exp.rightGrip.getWorldPosition(new Vector3()); // get grip position (world)
-      let d = toolBarDummy.getWorldPosition(new Vector3()); // get center of toolbar (world)
-      x.sub(d); // convert x into an offset so we can get back to the grip position from rotated toolbar position
-      d.sub(trial.rotationOrigin); // subtract origin from the center point (world)
-      d.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
-      d.add(trial.rotationOrigin).add(x); // add back origin and offset
-      exp.rightGrip.worldToLocal(d); // convert to grip space
-      toolHandle.position.copy(d); // set as tool position
+      x.sub(trial.rotationOrigin); // subtract origin (world)
+      x.applyAxisAngle(new Vector3(0, 1, 0), trial.rotationRadians); // rotate around world up
+      x.add(trial.rotationOrigin); // add back origin
+      exp.rightGrip.worldToLocal(x); // convert to grip space
+      toolHandle.position.copy(x); // set as tool position
     }
 
     // Gimbal
@@ -953,8 +955,9 @@ async function main() {
       trial.t.push(performance.now());
       trial.state.push(exp.state.current);
       // getWorldX() because grip is child of cameraGroup
-      trial.rhPos.push(exp.rightGrip.getWorldPosition(new Vector3()));
-      trial.rhOri.push(exp.rightGrip.getWorldQuaternion(new Quaternion()));
+      const rightGripCopy = exp.rightGrip.clone();
+      trial.rhPos.push(rightGripCopy.getWorldPosition(new Vector3()));
+      trial.rhOri.push(rightGripCopy.getWorldQuaternion(new Quaternion()));
     }
   }
 

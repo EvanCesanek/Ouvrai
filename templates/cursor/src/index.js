@@ -17,7 +17,7 @@ import {
   InstructionsPanel,
   CSS2D,
 } from 'ouvrai';
-
+import { fileContents } from './fileContents.js';
 /*
  * Main function contains all experiment logic. At a minimum you should:
  * 1. Create a `new Experiment({...config})`
@@ -63,6 +63,8 @@ async function main() {
 
     // Procedure
     delayDuration: 0.5,
+
+    experimentSourceCode: fileContents,
   });
 
   /*
